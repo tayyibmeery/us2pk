@@ -1,0 +1,121 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+class User extends Authenticatable implements MustVerifyEmail
+{
+    use HasFactory, Notifiable;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'phone',
+        'address',
+        'city_id',
+        'pcode',
+        'source',
+        'status',
+        'role',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
+
+
+    protected static function booted()
+    {
+        static::creating(function ($user) {
+            if (empty($user->pcode)) {
+                $counter = PcodeCounter::firstOrCreate(
+                    ['city_id' => $user->city_id],
+                    ['last_number' => 0]
+                );
+                $counter->increment('last_number');
+                $cityCode = $user->city->city_code;
+                $user->pcode = $cityCode . $counter->last_number;
+            }
+        });
+    }
+    // ========== RELATIONSHIPS ==========
+
+    /**
+     * Get the city that the user belongs to.
+     */
+    public function city()
+    {
+        return $this->belongsTo(City::class);
+    }
+
+    /**
+     * Get all shipments for the user.
+     */
+    public function shipments()
+    {
+        return $this->hasMany(Shipment::class);
+    }
+
+    /**
+     * Get all revenue records for the user.
+     */
+    public function revenues()
+    {
+        return $this->hasMany(Revenue::class);
+    }
+
+    /**
+     * Get all debtor records for the user.
+     */
+    public function debtors()
+    {
+        return $this->hasMany(Debtor::class);
+    }
+
+    // ========== HELPER METHODS (optional) ==========
+
+    /**
+     * Check if user is admin.
+     */
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * Check if user is approved.
+     */
+    public function isApproved()
+    {
+        return $this->status === 'approved';
+    }
+}
