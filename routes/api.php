@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserDashboardController;
+use App\Http\Controllers\Api\CityController as SitiesController;
 use App\Http\Controllers\Api\Admin\{
     DashboardController,
     UserController,
@@ -28,6 +29,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware(['auth:sanctum', 'signed'])->name('verification.verify');
 
+
+Route::get('/cities', [SitiesController::class, 'index']);
 // Authenticated (user & admin)
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
