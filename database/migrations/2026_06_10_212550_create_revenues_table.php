@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('invoice_no');
             $table->date('date');
+            $table->string('type')->nullable();
             $table->foreignId('user_id')->constrained('users');
             $table->string('pcode');
             $table->decimal('revenue', 12, 2);

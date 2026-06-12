@@ -11,8 +11,7 @@ class UserDashboardController extends Controller
 {
     public function profile(Request $request)
     {
-        $user = $request->user()->load('city');
-        return response()->json($user);
+        return response()->json($request->user()->load('city'));
     }
 
     public function shipments(Request $request)
@@ -26,8 +25,7 @@ class UserDashboardController extends Controller
 
     public function prohibitedItems()
     {
-        $items = ProhibitedItem::all();
-        return response()->json($items);
+        return response()->json(ProhibitedItem::all());
     }
 
     public function changePassword(Request $request)

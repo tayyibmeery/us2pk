@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\User;
-use App\Models\City;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -40,7 +39,7 @@ class AuthController extends Controller
             'role'     => 'user',
         ]);
 
-        event(new Registered($user)); // sends verification email
+        event(new Registered($user));
 
         return response()->json(['message' => 'User registered. Please verify your email.'], 201);
     }
