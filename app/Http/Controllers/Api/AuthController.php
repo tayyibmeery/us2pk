@@ -46,7 +46,7 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-    //   \dd("dsdslgs");
+
         $request->validate([
             'email'    => 'required|email',
             'password' => 'required',
@@ -75,9 +75,18 @@ class AuthController extends Controller
         ]);
     }
 
+    // public function logout(Request $request)
+    // {
+    //     $request->user()->currentAccessToken()->delete();
+    //     return response()->json(['message' => 'Logged out']);
+    // }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logged out']);
+
+        return response()->json([
+            'message' => 'Logged out successfully'
+        ]);
     }
 }
