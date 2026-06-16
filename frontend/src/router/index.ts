@@ -7,6 +7,27 @@ const router = createRouter({
     return savedPosition || { left: 0, top: 0 };
   },
   routes: [
+
+
+    {
+      path: '/admin/shipments',
+      name: 'AdminShipments',
+      component: () => import('@/views/admin/Shipments.vue'),
+      meta: { requiresAuth: true, role: 'admin' }
+    },
+    {
+      path: '/my-shipments',
+      name: 'MyShipments',
+      component: () => import('@/views/dashboard/MyShipments.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('../views/Others/UserProfile.vue'),
+      meta: { title: 'Profile', requiresAuth: true },
+    },
+
     {
       path: '/',
       name: 'Ecommerce',
@@ -19,12 +40,7 @@ const router = createRouter({
       component: () => import('../views/Others/Calendar.vue'),
       meta: { title: 'Calendar', requiresAuth: true },
     },
-    {
-      path: '/profile',
-      name: 'Profile',
-      component: () => import('../views/Others/UserProfile.vue'),
-      meta: { title: 'Profile', requiresAuth: true },
-    },
+
     {
       path: '/form-elements',
       name: 'Form Elements',
@@ -128,7 +144,7 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach(async (to, from, next) => {
-  document.title = `Vue.js ${to.meta.title || ''} | TailAdmin - Vue.js Tailwind CSS Dashboard Template`;
+  document.title = `Vue.js ${to.meta.title || ''} | US2PK -   Dashboard `;
   const auth = useAuthStore();
 
   if (auth.token && !auth.user) {

@@ -43,7 +43,7 @@
           width="32"
           height="32"
         />
-      
+
       </router-link>
     </div>
     <div
@@ -243,6 +243,26 @@ const menuGroups = [
   {
     title: "Menu",
     items: [
+
+      {
+        icon: UserCircleIcon,
+        name: "User Profile",
+        path: "/profile",
+      },
+      {
+        icon: BoxCubeIcon, // you can choose an icon
+        name: "Shipments",
+        path: "/admin/shipments",
+        // only visible to admin
+        adminOnly: true,
+      },
+      {
+        icon: BoxCubeIcon,
+        name: "My Shipments",
+        path: "/my-shipments",
+        // visible to all authenticated
+        userOnly: true,
+      },
       {
         icon: GridIcon,
         name: "Dashboard",
@@ -253,11 +273,7 @@ const menuGroups = [
         name: "Calendar",
         path: "/calendar",
       },
-      {
-        icon: UserCircleIcon,
-        name: "User Profile",
-        path: "/profile",
-      },
+
 
       {
         name: "Forms",
