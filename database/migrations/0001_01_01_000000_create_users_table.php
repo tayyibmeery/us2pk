@@ -15,9 +15,13 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('avatar')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-
+            $table->string('bio')->nullable();
+            $table->string('country')->nullable();
+            $table->string('postal_code')->nullable();
+            $table->string('tax_id')->nullable();
             $table->string('phone');
             $table->text('address');
             $table->foreignId('city_id')->constrained();
@@ -25,7 +29,7 @@ return new class extends Migration
             $table->enum('status', ['pending', 'verified', 'approved'])->default('pending');
             $table->string('source')->nullable();            // Facebook, Google Search
             $table->enum('role', ['user', 'admin'])->default('user');
-          
+
             $table->rememberToken();
             $table->timestamps();
         });

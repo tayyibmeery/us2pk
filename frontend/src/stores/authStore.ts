@@ -7,6 +7,7 @@ interface User {
   name: string;
   email: string;
   phone: string;
+  avatar: string;
   address: string;
   city_id: number;
   city?: { id: number; city_name: string; city_code: string };
@@ -23,43 +24,30 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthenticated: (state) => !!state.token,
     isAdmin: (state) => state.user?.role === 'admin',
-    isVerified: (state) => state.user?.status === 'verified' || state.user?.status === 'approved',
   },
   actions: {
+    async login(email: string, password: string) {
+      const response = await api.post('/login', { email, password });
+      this.token = response.data.access_token;
+      localStorage.setItem('token', this.token);
+      await this.fetchUser();
+      return response.data;
+    },
     async register(userData: any) {
       const response = await api.post('/register', userData);
       return response.data;
     },
-    async login(email: string, password: string) {
-      const response = await api.post('/login', { email, password });
-      this.token = response.data.access_token;
-      this.user = response.data.user;   // ✅ store user immediately
-      localStorage.setItem('token', this.token);
-      return response.data;
-    },
     async fetchUser() {
       if (!this.token) return;
-      try {
-        const response = await api.get('/user/profile');
-        this.user = response.data;
-      } catch (error) {
-        // Token invalid – clear everything and redirect
-        this.logout(true);
-        throw error;
-      }
+      const response = await api.get('/user/profile');
+      this.user = response.data;
     },
-    async logout(silent: boolean = false) {
-      if (!silent && this.token) {
-        try {
-          await api.post('/logout');
-        } catch (error) {
-          console.error('Logout error', error);
-        }
-      }
+    async logout() {
+      await api.post('/logout').catch(() => { });
       this.token = null;
       this.user = null;
       localStorage.removeItem('token');
-      router.push('/login');
+      router.push('/signin');
     },
   },
 });

@@ -38,6 +38,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // User dashboard (must be verified and approved)
     Route::middleware(['verified'])->group(function () {
         Route::get('/user/profile', [UserDashboardController::class, 'profile']);
+        Route::put('/user/profile', [UserDashboardController::class, 'updateProfile']);
+        Route::put('/user/avatar', [UserDashboardController::class, 'updateAvatar']);
         Route::get('/user/shipments', [UserDashboardController::class, 'shipments']);
         Route::get('/user/prohibited-items', [UserDashboardController::class, 'prohibitedItems']);
         Route::post('/user/change-password', [UserDashboardController::class, 'changePassword']);
