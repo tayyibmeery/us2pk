@@ -179,13 +179,24 @@ const form = ref({
 });
 
 // Load cities when component mounts
+// onMounted(async () => {
+//   if (!cityStore.items.length) {
+//     try {
+//       // ✅ Use public endpoint – no authentication required
+//       await cityStore.fetchPublicCities();
+//     } catch (err) {
+//       console.error('Failed to load cities:', err);
+//     }
+//   }
+// });
+
 onMounted(async () => {
   if (!cityStore.items.length) {
     try {
-      // ✅ Use public endpoint – no authentication required
-      await cityStore.fetchPublicCities();
+      await cityStore.fetchPublicCities()
     } catch (err) {
-      console.error('Failed to load cities:', err);
+      console.error('Failed to load cities:', err)
+      // Optionally show a user-friendly error
     }
   }
 });
