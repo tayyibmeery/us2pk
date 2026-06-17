@@ -49,5 +49,29 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem('token');
       router.push('/signin');
     },
+    async updateProfile(data: Partial<User>) {
+      const response = await api.put('/user/profile', data);
+      // Update local user state with fresh data
+      this.user = response.data;
+      return response.data;
+    },
+
+    // ✅ NEW: Update avatar
+    async updateAvatar(file: File) {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      formData.append('_method', 'PUT'); // Laravel method spoofing
+
+      const response = await api.post('/user/avatar', formData, {
+        headers: { 'Content-Type': undefined },
+      });
+      // Fetch fresh user data to update avatar URL
+      await this.fetchUser();
+      return response.data;
+    },
   },
 });
+
+
+
+

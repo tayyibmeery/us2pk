@@ -1,5 +1,6 @@
 <template>
-  <Modal v-if="isOpen" @close="close">
+  <!-- ✅ Pass isOpen prop, remove v-if (Modal handles visibility) -->
+  <Modal :isOpen="isOpen" @close="close">
     <template #body>
       <div
         class="no-scrollbar relative w-full max-w-[800px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-8">
@@ -53,11 +54,10 @@
                     class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
                 </div>
                 <div>
-                  <!-- Placeholder for alignment, but we can put a dummy or just let it be -->
+                  <!-- Placeholder -->
                   <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400 opacity-0">
                     .
                   </label>
-                  <!-- Nothing here, but we keep the grid balanced -->
                 </div>
                 <div class="col-span-2">
                   <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -88,12 +88,14 @@
                     City
                   </label>
                   <select v-model="form.city_id"
-                    class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
+                    class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                    :disabled="cityStore.loading">
                     <option value="" disabled>Select a city</option>
                     <option v-for="city in cities" :key="city.id" :value="city.id">
                       {{ city.city_name }}
                     </option>
                   </select>
+                  <p v-if="cityStore.loading" class="text-xs text-gray-400 mt-1">Loading cities...</p>
                 </div>
                 <div class="col-span-2">
                   <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -126,7 +128,7 @@
               class="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] sm:w-auto">
               Close
             </button>
-            <button type="submit" :disabled="saving"
+            <button type="submit" :disabled="saving || cityStore.loading"
               class="flex w-full justify-center rounded-lg bg-brand-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 sm:w-auto">
               {{ saving ? 'Saving...' : 'Save Changes' }}
             </button>
@@ -139,9 +141,10 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import Modal from '@/components/Modal.vue'
-import api from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
+import { useCityStore } from '@/stores/cityStore'
 
 const props = defineProps<{
   isOpen: boolean
@@ -151,7 +154,9 @@ const props = defineProps<{
 const emit = defineEmits(['close', 'saved'])
 
 const authStore = useAuthStore()
-const cities = ref<any[]>([])
+const cityStore = useCityStore()
+const { items: cities } = storeToRefs(cityStore)
+
 const saving = ref(false)
 
 const form = ref({
@@ -166,6 +171,7 @@ const form = ref({
   tax_id: '',
 })
 
+// Populate form when userData changes
 watch(
   () => props.userData,
   (newVal) => {
@@ -186,12 +192,15 @@ watch(
   { immediate: true }
 )
 
+// Load cities when modal opens – use fetchAll() to get all cities for dropdown
 onMounted(async () => {
-  try {
-    const res = await api.get('/cities')
-    cities.value = res.data
-  } catch (err) {
-    console.error('Failed to load cities', err)
+  if (!cityStore.items.length) {
+    try {
+      await cityStore.fetchAll() // ✅ fetch all cities (uses per_page=1000)
+    } catch (err) {
+      console.error('Failed to load cities:', err)
+      // Optionally show a user-friendly error
+    }
   }
 })
 
@@ -200,8 +209,7 @@ const close = () => emit('close')
 const save = async () => {
   saving.value = true
   try {
-    await api.put('/user/profile', form.value)
-    await authStore.fetchUser()
+    await authStore.updateProfile(form.value)
     emit('saved')
     close()
   } catch (err: any) {

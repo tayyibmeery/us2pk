@@ -20,17 +20,18 @@ use App\Http\Controllers\Api\Admin\{
     PageController,
     FinancialController
 };
+use App\Http\Controllers\CityPublicController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+
+Route::get('/public/cities', [CityPublicController::class, 'index']);
 // Email verification (Laravel built-in)
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware(['auth:sanctum', 'signed'])->name('verification.verify');
 
-
-Route::get('/citiess', [SitiesController::class, 'index']);
 // Authenticated (user & admin)
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

@@ -107,7 +107,8 @@
                     </div>
                     <p class="inline-block font-normal text-gray-500 dark:text-gray-400">By creating an account you
                       agree to the <span class="text-gray-800 dark:text-white/90">Terms and Conditions</span> and our
-                      <span class="text-gray-800 dark:text-white">Privacy Policy</span></p>
+                      <span class="text-gray-800 dark:text-white">Privacy Policy</span>
+                    </p>
                   </label>
                 </div>
                 <div v-if="error" class="text-sm text-red-500">{{ error }}</div>
@@ -148,32 +149,44 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
-import api from '@/services/api';
+import { useCityStore } from '@/stores/cityStore';
 import FullScreenLayout from '@/components/layout/FullScreenLayout.vue';
 import CommonGridShape from '@/components/common/CommonGridShape.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
+const cityStore = useCityStore();
+const { items: cities } = storeToRefs(cityStore);
+
 const loading = ref(false);
 const error = ref('');
 const success = ref('');
 const agreeToTerms = ref(false);
-const cities = ref<any[]>([]);
 const sources = ['Facebook', 'Google Search', 'WhatsApp', 'Friend Referral', 'Newspapers', 'Twitter/X', 'Other'];
 
 const form = ref({
-  name: '', email: '', password: '', password_confirmation: '',
-  phone: '', city_id: '', address: '', source: '',
+  name: '',
+  email: '',
+  password: '',
+  password_confirmation: '',
+  phone: '',
+  city_id: '',
+  address: '',
+  source: '',
 });
 
+// Load cities when component mounts
 onMounted(async () => {
-  try {
-    const res = await api.get('/citiess');
-    cities.value = res.data;
-  } catch (err) {
-    console.error('Failed to load cities', err);
+  if (!cityStore.items.length) {
+    try {
+      // ✅ Use public endpoint – no authentication required
+      await cityStore.fetchPublicCities();
+    } catch (err) {
+      console.error('Failed to load cities:', err);
+    }
   }
 });
 
@@ -188,7 +201,6 @@ async function handleSubmit() {
   try {
     await authStore.register(form.value);
     success.value = 'Registration successful! Please check your email to verify your account.';
-    // Optional: redirect after a few seconds
     setTimeout(() => router.push('/signin'), 3000);
   } catch (err: any) {
     const errs = err.response?.data?.errors;
