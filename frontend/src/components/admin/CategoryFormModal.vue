@@ -1,58 +1,82 @@
-<!-- src/components/admin/CategoryFormModal.vue -->
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-50 overflow-y-auto">
-    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-      <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-        <div class="absolute inset-0 bg-gray-500 opacity-75" @click="close"></div>
-      </div>
+  <Modal :isOpen="isOpen" @close="close">
+    <template #body>
       <div
-        class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-        <div class="px-4 pt-5 pb-4 bg-white sm:p-6 sm:pb-4">
-          <div class="sm:flex sm:items-start">
-            <div class="w-full mt-3 text-center sm:mt-0 sm:text-left">
-              <h3 class="text-lg font-medium leading-6 text-gray-900">
-                {{ formData.id ? 'Edit Category' : 'Add Category' }}
-              </h3>
-              <div class="mt-4 space-y-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Category Name</label>
-                  <input v-model="formData.name" type="text"
-                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-brand-500 focus:border-brand-500 sm:text-sm" />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Description</label>
-                  <textarea v-model="formData.description" rows="2"
-                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-brand-500 focus:border-brand-500 sm:text-sm"></textarea>
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700">Status</label>
-                  <select v-model="formData.status"
-                    class="block w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-brand-500 focus:border-brand-500 sm:text-sm">
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+        class="no-scrollbar relative w-full max-w-[600px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-8">
+        <!-- Close button -->
+        <button @click="close"
+          class="transition-color absolute right-4 top-4 z-999 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:bg-gray-700 dark:bg-white/[0.05] dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-gray-300">
+          <svg class="fill-current" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path fill-rule="evenodd" clip-rule="evenodd"
+              d="M6.04289 16.5418C5.65237 16.9323 5.65237 17.5655 6.04289 17.956C6.43342 18.3465 7.06658 18.3465 7.45711 17.956L11.9987 13.4144L16.5408 17.9565C16.9313 18.347 17.5645 18.347 17.955 17.9565C18.3455 17.566 18.3455 16.9328 17.955 16.5423L13.4129 12.0002L17.955 7.45808C18.3455 7.06756 18.3455 6.43439 17.955 6.04387C17.5645 5.65335 16.9313 5.65335 16.5408 6.04387L11.9987 10.586L7.45711 6.04439C7.06658 5.65386 6.43342 5.65386 6.04289 6.04439C5.65237 6.43491 5.65237 7.06808 6.04289 7.4586L10.5845 12.0002L6.04289 16.5418Z"
+              fill="" />
+          </svg>
+        </button>
+
+        <div class="px-2 pr-12">
+          <h4 class="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
+            {{ formData.id ? 'Edit Category' : 'Add Category' }}
+          </h4>
+          <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+            {{ formData.id ? 'Update the category details below.' : 'Fill in the details to add a new category.' }}
+          </p>
+        </div>
+
+        <form @submit.prevent="save" class="flex flex-col">
+          <div class="custom-scrollbar max-h-[65vh] overflow-y-auto px-2">
+            <div class="grid grid-cols-1 gap-5">
+              <!-- Category Name -->
+              <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+                  Category Name
+                </label>
+                <input v-model="formData.name" type="text" placeholder="e.g. Electronics"
+                  class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
+              </div>
+
+              <!-- Description -->
+              <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+                  Description
+                </label>
+                <textarea v-model="formData.description" rows="3" placeholder="Brief description of the category"
+                  class="dark:bg-dark-900 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"></textarea>
+              </div>
+
+              <!-- Status -->
+              <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+                  Status
+                </label>
+                <select v-model="formData.status"
+                  class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
               </div>
             </div>
           </div>
-        </div>
-        <div class="px-4 py-3 bg-gray-50 sm:px-6 sm:flex sm:flex-row-reverse">
-          <button @click="save"
-            class="inline-flex justify-center w-full px-4 py-2 text-base font-medium text-white bg-brand-600 border border-transparent rounded-md shadow-sm hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 sm:ml-3 sm:w-auto sm:text-sm">
-            {{ formData.id ? 'Update' : 'Create' }}
-          </button>
-          <button @click="close"
-            class="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-            Cancel
-          </button>
-        </div>
+
+          <!-- Actions -->
+          <div class="flex flex-col sm:flex-row items-center gap-3 px-2 mt-6 sm:justify-end">
+            <button type="button" @click="close"
+              class="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] sm:w-auto">
+              Cancel
+            </button>
+            <button type="submit"
+              class="flex w-full justify-center rounded-lg bg-brand-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-600 sm:w-auto">
+              {{ formData.id ? 'Update' : 'Create' }}
+            </button>
+          </div>
+        </form>
       </div>
-    </div>
-  </div>
+    </template>
+  </Modal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import Modal from '@/components/Modal.vue'
 import type { Category } from '@/types'
 
 const props = defineProps<{
@@ -68,22 +92,29 @@ const emit = defineEmits<{
 const formData = ref<Partial<Category>>({
   name: '',
   description: '',
-  status: 'Active'
+  status: 'Active',
 })
 
-watch(() => props.initialData, (newVal) => {
-  if (newVal) {
-    formData.value = { ...newVal }
-  } else {
-    formData.value = { name: '', description: '', status: 'Active' }
-  }
-}, { immediate: true })
+watch(
+  () => props.initialData,
+  (newVal) => {
+    if (newVal) {
+      formData.value = { ...newVal }
+    } else {
+      formData.value = { name: '', description: '', status: 'Active' }
+    }
+  },
+  { immediate: true }
+)
 
-watch(() => props.isOpen, (open) => {
-  if (!open) {
-    formData.value = { name: '', description: '', status: 'Active' }
+watch(
+  () => props.isOpen,
+  (open) => {
+    if (!open) {
+      formData.value = { name: '', description: '', status: 'Active' }
+    }
   }
-})
+)
 
 const close = () => emit('close')
 const save = () => emit('save', formData.value)

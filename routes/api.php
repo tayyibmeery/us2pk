@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Admin\{
     ShipmentController,
     ConsolidationController,
     AddressController,
+    CategoryController,
     WeightDiscountController,
     SettingController,
     StatisticsController,
@@ -18,13 +19,17 @@ use App\Http\Controllers\Api\Admin\{
     CityController,
     StoreController,
     PageController,
-    FinancialController
+    FinancialController,
+    SubCategoryController,
+    SubSubCategoryController
 };
 use App\Http\Controllers\CityPublicController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+
 
 
 Route::get('/public/cities', [CityPublicController::class, 'index']);

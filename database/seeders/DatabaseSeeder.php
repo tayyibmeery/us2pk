@@ -23,6 +23,10 @@ class DatabaseSeeder extends Seeder
             SettingSeeder::class,
             WarehouseSeeder::class,
             WeightDiscountSeeder::class,
+
+            CategorySeeder::class,
+            SubCategorySeeder::class,
+            SubSubCategorySeeder::class,
         ]);
     }
 }

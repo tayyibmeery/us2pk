@@ -11,6 +11,7 @@ class SubCategoryController extends Controller
 {
     public function index()
     {
+        // return response()->json(SubCategory::with('category')->paginate(20));
         return response()->json(SubCategory::with('category')->paginate(20));
     }
 

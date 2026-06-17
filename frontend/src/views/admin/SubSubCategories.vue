@@ -42,7 +42,7 @@
           </tbody>
         </table>
       </div>
-      <Pagination :pagination="pagination" @page-change="fetchItems" />
+      <Pagination v-if="pagination" :pagination="pagination" @page-change="fetchItems" />
     </ComponentCard>
     <SubSubCategoryFormModal :isOpen="modalOpen" :initialData="editingItem" @close="modalOpen = false"
       @save="handleSave" />
@@ -51,42 +51,55 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
 import ComponentCard from '@/components/common/ComponentCard.vue'
 import SubSubCategoryFormModal from '@/components/admin/SubSubCategoryFormModal.vue'
 import Pagination from '@/components/common/Pagination.vue'
-import api from '@/services/api'
-import type { SubSubCategory, PaginatedResponse } from '@/types'
+import { useSubSubCategoryStore } from '@/stores/subSubCategoryStore'
+import type { SubSubCategory } from '@/types'
 
-const items = ref<SubSubCategory[]>([])
-const pagination = ref<PaginatedResponse<SubSubCategory> | null>(null)
+const store = useSubSubCategoryStore()
+const { items, pagination } = storeToRefs(store)
+
 const modalOpen = ref(false)
 const editingItem = ref<SubSubCategory | null>(null)
-const currentPage = ref(1)
 
-const fetchItems = async (page = 1) => {
-  const res = await api.get<PaginatedResponse<SubSubCategory>>(`/admin/sub-sub-categories?page=${page}`)
-  items.value = res.data.data
-  pagination.value = res.data
+const fetchItems = (page = 1) => store.fetchItems(page)
+
+const openCreateModal = () => {
+  editingItem.value = null
+  modalOpen.value = true
+}
+const openEditModal = (item: SubSubCategory) => {
+  editingItem.value = item
+  modalOpen.value = true
 }
 
-const openCreateModal = () => { editingItem.value = null; modalOpen.value = true }
-const openEditModal = (item: SubSubCategory) => { editingItem.value = item; modalOpen.value = true }
-
 const handleSave = async (data: Partial<SubSubCategory>) => {
-  if (editingItem.value?.id) {
-    await api.put(`/admin/sub-sub-categories/${editingItem.value.id}`, data)
-  } else {
-    await api.post('/admin/sub-sub-categories', data)
+  try {
+    if (editingItem.value?.id) {
+      await store.update(editingItem.value.id, data)
+    } else {
+      await store.create(data)
+    }
+    modalOpen.value = false
+    store.fetchItems(pagination.value?.current_page || 1)
+  } catch (error) {
+    console.error('Save failed:', error)
+    alert(store.error || 'Save failed')
   }
-  modalOpen.value = false
-  fetchItems(currentPage.value)
 }
 
 const deleteItem = async (id: number) => {
   if (!confirm('Are you sure?')) return
-  await api.delete(`/admin/sub-sub-categories/${id}`)
-  fetchItems(currentPage.value)
+  try {
+    await store.delete(id)
+    store.fetchItems(pagination.value?.current_page || 1)
+  } catch (error) {
+    console.error('Delete failed:', error)
+    alert(store.error || 'Delete failed')
+  }
 }
 
 onMounted(() => fetchItems())
