@@ -268,6 +268,34 @@ const menuGroups = [
         name: "Dashboard",
         subItems: [{ name: "Ecommerce", path: "/", pro: false }],
       },
+
+      // inside menuGroups array
+
+      {
+        icon: GridIcon,
+        name: "Cities",
+        path: "/admin/cities",
+        adminOnly: true,
+      },
+      {
+        icon: GridIcon,
+        name: "Categories",
+        path: "/admin/categories",
+        adminOnly: true,
+      },
+      {
+        icon: GridIcon,
+        name: "Sub Categories",
+        path: "/admin/sub-categories",
+        adminOnly: true,
+      },
+      {
+        icon: GridIcon,
+        name: "Sub Sub Categories",
+        path: "/admin/sub-sub-categories",
+        adminOnly: true,
+      },
+
       {
         icon: CalenderIcon,
         name: "Calendar",

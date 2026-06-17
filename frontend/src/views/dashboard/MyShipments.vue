@@ -1,12 +1,12 @@
 <template>
-  <AdminLayout>
+
     <PageBreadcrumb :pageTitle="pageTitle" />
     <div class="space-y-6">
       <h2 class="text-xl font-semibold">My Shipments</h2>
       <ShipmentTable :shipments="shipments" :currentPage="currentPage" :totalPages="totalPages" :canManage="false"
         @page-change="loadShipments" />
     </div>
-  </AdminLayout>
+  
 </template>
 
 <script setup lang="ts">

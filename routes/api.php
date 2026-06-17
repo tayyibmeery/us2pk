@@ -30,7 +30,7 @@ Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware(['auth:sanctum', 'signed'])->name('verification.verify');
 
 
-Route::get('/cities', [SitiesController::class, 'index']);
+Route::get('/citiess', [SitiesController::class, 'index']);
 // Authenticated (user & admin)
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -69,6 +69,9 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::apiResource('cities', CityController::class);
     Route::apiResource('stores', StoreController::class);
     Route::apiResource('pages', PageController::class);
+    Route::apiResource('categories', CategoryController::class);
+    Route::apiResource('sub-categories', SubCategoryController::class);
+    Route::apiResource('sub-sub-categories', SubSubCategoryController::class);
 
     // Statistics
     Route::get('statistics/top-cities', [StatisticsController::class, 'topCities']);

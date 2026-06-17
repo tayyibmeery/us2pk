@@ -1,5 +1,7 @@
+// router/index.ts
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
+import AdminLayout from '@/components/layout/AdminLayout.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -7,156 +9,54 @@ const router = createRouter({
     return savedPosition || { left: 0, top: 0 };
   },
   routes: [
+    // ---- Public routes ----
+    { path: '/signin', name: 'Signin', component: () => import('../views/Auth/Signin.vue'), meta: { title: 'Signin', guestOnly: true } },
+    { path: '/signup', name: 'Signup', component: () => import('../views/Auth/Signup.vue'), meta: { title: 'Signup', guestOnly: true } },
+    { path: '/error-404', name: '404 Error', component: () => import('../views/Errors/FourZeroFour.vue'), meta: { title: '404 Error' } },
 
-
-    {
-      path: '/admin/shipments',
-      name: 'AdminShipments',
-      component: () => import('@/views/admin/Shipments.vue'),
-      meta: { requiresAuth: true, role: 'admin' }
-    },
-    {
-      path: '/my-shipments',
-      name: 'MyShipments',
-      component: () => import('@/views/dashboard/MyShipments.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/profile',
-      name: 'Profile',
-      component: () => import('../views/Others/UserProfile.vue'),
-      meta: { title: 'Profile', requiresAuth: true },
-    },
-
+    // ---- All authenticated routes under AdminLayout ----
     {
       path: '/',
-      name: 'Ecommerce',
-      component: () => import('../views/Ecommerce.vue'),
-      meta: { title: 'eCommerce Dashboard', requiresAuth: true },
-    },
-    {
-      path: '/calendar',
-      name: 'Calendar',
-      component: () => import('../views/Others/Calendar.vue'),
-      meta: { title: 'Calendar', requiresAuth: true },
+      component: AdminLayout,
+      meta: { requiresAuth: true },
+      children: [
+        // Shared (both user & admin)
+        { path: 'profile', name: 'Profile', component: () => import('../views/Others/UserProfile.vue'), meta: { title: 'Profile' } },
+        { path: 'my-shipments', name: 'MyShipments', component: () => import('@/views/dashboard/MyShipments.vue'), meta: { title: 'My Shipments' } },
+        { path: 'dashboard', name: 'UserDashboard', component: () => import('../views/dashboard/UserDashboard.vue'), meta: { title: 'Dashboard', role: 'user' } },
+
+        // Admin only
+        { path: 'admin/dashboard', name: 'AdminDashboard', component: () => import('@/views/admin/AdminDashboard.vue'), meta: { title: 'Admin Dashboard', role: 'admin' } },
+        { path: 'admin/shipments', name: 'AdminShipments', component: () => import('@/views/admin/Shipments.vue'), meta: { title: 'Shipments', role: 'admin' } },
+        { path: 'admin/cities', name: 'AdminCities', component: () => import('@/views/admin/Cities.vue'), meta: { title: 'Cities', role: 'admin' } },
+        { path: 'admin/categories', name: 'AdminCategories', component: () => import('@/views/admin/Categories.vue'), meta: { title: 'Categories', role: 'admin' } },
+        { path: 'admin/sub-categories', name: 'AdminSubCategories', component: () => import('@/views/admin/SubCategories.vue'), meta: { title: 'Sub Categories', role: 'admin' } },
+        { path: 'admin/sub-sub-categories', name: 'AdminSubSubCategories', component: () => import('@/views/admin/SubSubCategories.vue'), meta: { title: 'Sub Sub Categories', role: 'admin' } },
+      ],
     },
 
-    {
-      path: '/form-elements',
-      name: 'Form Elements',
-      component: () => import('../views/Forms/FormElements.vue'),
-      meta: { title: 'Form Elements', requiresAuth: true },
-    },
-    {
-      path: '/basic-tables',
-      name: 'Basic Tables',
-      component: () => import('../views/Tables/BasicTables.vue'),
-      meta: { title: 'Basic Tables', requiresAuth: true },
-    },
-    {
-      path: '/line-chart',
-      name: 'Line Chart',
-      component: () => import('../views/Chart/LineChart/LineChart.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/bar-chart',
-      name: 'Bar Chart',
-      component: () => import('../views/Chart/BarChart/BarChart.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/alerts',
-      name: 'Alerts',
-      component: () => import('../views/UiElements/Alerts.vue'),
-      meta: { title: 'Alerts', requiresAuth: true },
-    },
-    {
-      path: '/avatars',
-      name: 'Avatars',
-      component: () => import('../views/UiElements/Avatars.vue'),
-      meta: { title: 'Avatars', requiresAuth: true },
-    },
-    {
-      path: '/badge',
-      name: 'Badge',
-      component: () => import('../views/UiElements/Badges.vue'),
-      meta: { title: 'Badge', requiresAuth: true },
-    },
-    {
-      path: '/buttons',
-      name: 'Buttons',
-      component: () => import('../views/UiElements/Buttons.vue'),
-      meta: { title: 'Buttons', requiresAuth: true },
-    },
-    {
-      path: '/images',
-      name: 'Images',
-      component: () => import('../views/UiElements/Images.vue'),
-      meta: { title: 'Images', requiresAuth: true },
-    },
-    {
-      path: '/videos',
-      name: 'Videos',
-      component: () => import('../views/UiElements/Videos.vue'),
-      meta: { title: 'Videos', requiresAuth: true },
-    },
-    {
-      path: '/blank',
-      name: 'Blank',
-      component: () => import('../views/Pages/BlankPage.vue'),
-      meta: { title: 'Blank', requiresAuth: true },
-    },
-    {
-      path: '/error-404',
-      name: '404 Error',
-      component: () => import('../views/Errors/FourZeroFour.vue'),
-      meta: { title: '404 Error' }, // public
-    },
-    {
-      path: '/signin',
-      name: 'Signin',
-      component: () => import('../views/Auth/Signin.vue'),
-      meta: { title: 'Signin', guestOnly: true },
-    },
-    {
-      path: '/signup',
-      name: 'Signup',
-      component: () => import('../views/Auth/Signup.vue'),
-      meta: { title: 'Signup', guestOnly: true },
-    },
-    // NEW: User dashboard
-    {
-      path: '/dashboard',
-      name: 'UserDashboard',
-      component: () => import('../views/dashboard/UserDashboard.vue'),
-      meta: { title: 'Dashboard', requiresAuth: true, role: 'user' },
-    },
-    // NEW: Admin dashboard
-    {
-      path: '/admin',
-      name: 'AdminDashboard',
-      component: () => import('../views/admin/AdminDashboard.vue'),
-      meta: { title: 'Admin Panel', requiresAuth: true, role: 'admin' },
-    },
+    // ---- Catch-all ----
+    { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/Errors/FourZeroFour.vue'), meta: { title: '404' } },
   ],
 });
 
-// Navigation guard
 router.beforeEach(async (to, from, next) => {
-  document.title = `Vue.js ${to.meta.title || ''} | US2PK -   Dashboard `;
+  document.title = `Vue.js ${to.meta.title || ''} | US2PK Dashboard`;
   const auth = useAuthStore();
 
   if (auth.token && !auth.user) {
     await auth.fetchUser().catch(() => auth.logout());
   }
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  const role = to.matched.find(record => record.meta.role)?.meta.role;
+
+  if (requiresAuth && !auth.isAuthenticated) {
     next('/signin');
   } else if (to.meta.guestOnly && auth.isAuthenticated) {
-    next(auth.isAdmin ? '/admin' : '/dashboard');
-  } else if (to.meta.role && auth.user?.role !== to.meta.role) {
-    next(auth.isAdmin ? '/admin' : '/dashboard');
+    next(auth.isAdmin ? '/admin/dashboard' : '/dashboard');
+  } else if (role && auth.user?.role !== role) {
+    next(auth.isAdmin ? '/admin/dashboard' : '/dashboard');
   } else {
     next();
   }

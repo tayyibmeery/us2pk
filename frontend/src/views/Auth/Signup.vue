@@ -170,7 +170,7 @@ const form = ref({
 
 onMounted(async () => {
   try {
-    const res = await api.get('/cities');
+    const res = await api.get('/citiess');
     cities.value = res.data;
   } catch (err) {
     console.error('Failed to load cities', err);
