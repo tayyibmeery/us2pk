@@ -11,7 +11,19 @@
   import router from './router'
   import VueApexCharts from 'vue3-apexcharts'
 
-  const app = createApp(App)
+
+
+
+const app = createApp(App)
+app.config.errorHandler = (err, instance, info) => {
+  console.error('🔥 GLOBAL ERROR:', err)
+  console.error('Component:', instance)
+  console.error('Info:', info)
+  // If you want to see the full stack:
+  console.error(err.stack)
+}
+
+
   app.use(createPinia())
   app.use(router)
   app.use(VueApexCharts)

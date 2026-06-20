@@ -21,13 +21,17 @@ class StatisticsController extends Controller
             ->orderBy('total', 'desc')
             ->limit(10)
             ->get()
-            ->map(fn($item) => [
-                'city'       => $item->city->city_name,
-                'count'      => $item->total,
-                'percentage' => $totalUsers ? round(($item->total / $totalUsers) * 100, 2) : 0,
-            ]);
+            ->map(function ($item) use ($totalUsers) {  // <--- add use ($totalUsers)
+                return [
+                    'city'       => $item->city->city_name ?? 'Unknown',
+                    'count'      => $item->total,
+                    'percentage' => $totalUsers ? round(($item->total / $totalUsers) * 100, 2) : 0,
+                ];
+            });
         return response()->json($cities);
     }
+
+
 
     public function activeUsers()
     {
@@ -47,10 +51,12 @@ class StatisticsController extends Controller
             ->groupBy('users.city_id')
             ->with('user.city')
             ->get()
-            ->map(fn($item) => [
-                'city'  => $item->user->city->city_name,
-                'total' => $item->total,
-            ]);
+            ->map(function ($item) {
+                return [
+                    'city'  => $item->user->city->city_name ?? 'Unknown',
+                    'total' => $item->total,
+                ];
+            });
         return response()->json($business);
     }
 

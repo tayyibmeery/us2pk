@@ -1,4 +1,4 @@
-<template>
+<!-- <template>
   <div class="hidden lg:block">
     <form>
       <div class="relative">
@@ -34,4 +34,4 @@
       </div>
     </form>
   </div>
-</template>
+</template> -->

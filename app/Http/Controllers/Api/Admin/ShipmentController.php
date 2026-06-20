@@ -6,14 +6,15 @@ use App\Models\Shipment;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Validation\Rule;
 
 class ShipmentController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Shipment::with('user', 'consolidation');
+        $query = Shipment::with('user', 'consolidation', 'images');
         if ($request->search) {
-            $query->where('psi', 'like', "%{$request->search}%")
+            $query->where('pcode', 'like', "%{$request->search}%")
                 ->orWhereHas('user', fn($q) => $q->where('name', 'like', "%{$request->search}%"));
         }
         if ($request->status) {
@@ -24,13 +25,14 @@ class ShipmentController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $validated = $request->validate([
             'user_id'               => 'required|exists:users,id',
             'consolidation_id'      => 'nullable|exists:consolidations,id',
             'description'           => 'nullable|string',
             'weight'                => 'required|numeric',
             'weight_unit'           => 'required|in:ounce,gram,kg,pound',
             'seller_tracker_id'     => 'nullable|string',
+            'site_name'             => 'nullable|string|max:50',
             'purchase_date'         => 'nullable|date',
             'comments'              => 'nullable|string',
             'status'                => 'required|string',
@@ -39,31 +41,43 @@ class ShipmentController extends Controller
             'date_delivered'        => 'nullable|date',
             'item_value_pkr'        => 'required|numeric',
             'company_charges'       => 'required|numeric',
+            'received_amount'       => 'nullable|numeric|min:0',
             'paid_by'               => 'required|in:By Company,By Customer',
-            'payment_method'        => 'nullable|string',
+            'payment_method'        => 'nullable|string|max:50',
             'receivable_cod'        => 'nullable|numeric',
-            'local_delivery_by'     => 'nullable|string',
-            'blueex_charges'        => 'nullable|numeric',
+            'local_delivery_by'     => 'nullable|string|max:50',
+            'delivery_charges'      => 'nullable|numeric',
+            'images'                => 'nullable|array',
+            'images.*'              => 'image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
-        $data['weight_kgs'] = $this->convertToKg($data['weight'], $data['weight_unit']);
-        $data['total'] = $data['item_value_pkr'] + $data['company_charges'];
-        $data['amount_due'] = $data['paid_by'] === 'By Customer' ? $data['total'] : 0;
+        // Auto-calculate weight_kgs
+        $validated['weight_kgs'] = $this->convertToKg($validated['weight'], $validated['weight_unit']);
+        // total and receivable_cod will be set in model booted
 
-        $shipment = Shipment::create($data);
-        return response()->json($shipment, 201);
+        $shipment = Shipment::create($validated);
+
+        // Handle image uploads
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('shipments', 'public');
+                $shipment->images()->create(['image_path' => $path]);
+            }
+        }
+
+        return response()->json($shipment->load('user', 'images'), 201);
     }
 
     public function update(Request $request, Shipment $shipment)
     {
-        $data = $request->validate([
+        $validated = $request->validate([
             'user_id'               => 'sometimes|exists:users,id',
             'consolidation_id'      => 'nullable|exists:consolidations,id',
             'description'           => 'nullable|string',
             'weight'                => 'sometimes|numeric',
             'weight_unit'           => 'sometimes|in:ounce,gram,kg,pound',
-            'weight_kgs'            => 'nullable|numeric',
             'seller_tracker_id'     => 'nullable|string',
+            'site_name'             => 'nullable|string|max:50',
             'purchase_date'         => 'nullable|date',
             'comments'              => 'nullable|string',
             'status'                => 'sometimes|string',
@@ -72,26 +86,31 @@ class ShipmentController extends Controller
             'date_delivered'        => 'nullable|date',
             'item_value_pkr'        => 'sometimes|numeric',
             'company_charges'       => 'sometimes|numeric',
+            'received_amount'       => 'nullable|numeric|min:0',
             'paid_by'               => 'sometimes|in:By Company,By Customer',
-            'payment_method'        => 'nullable|string',
+            'payment_method'        => 'nullable|string|max:50',
             'receivable_cod'        => 'nullable|numeric',
-            'local_delivery_by'     => 'nullable|string',
-            'blueex_charges'        => 'nullable|numeric',
+            'local_delivery_by'     => 'nullable|string|max:50',
+            'delivery_charges'      => 'nullable|numeric',
+            'images'                => 'nullable|array',
+            'images.*'              => 'image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
-        if (isset($data['weight']) && isset($data['weight_unit'])) {
-            $data['weight_kgs'] = $this->convertToKg($data['weight'], $data['weight_unit']);
-        }
-        if (isset($data['item_value_pkr']) || isset($data['company_charges'])) {
-            $item = $data['item_value_pkr'] ?? $shipment->item_value_pkr;
-            $charges = $data['company_charges'] ?? $shipment->company_charges;
-            $data['total'] = $item + $charges;
-            $paidBy = $data['paid_by'] ?? $shipment->paid_by;
-            $data['amount_due'] = $paidBy === 'By Customer' ? $data['total'] : 0;
+        if (isset($validated['weight']) && isset($validated['weight_unit'])) {
+            $validated['weight_kgs'] = $this->convertToKg($validated['weight'], $validated['weight_unit']);
         }
 
-        $shipment->update($data);
-        return response()->json($shipment);
+        $shipment->update($validated);
+
+        // Handle new images
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $image) {
+                $path = $image->store('shipments', 'public');
+                $shipment->images()->create(['image_path' => $path]);
+            }
+        }
+
+        return response()->json($shipment->load('user', 'images'));
     }
 
     public function destroy(Shipment $shipment)
@@ -109,6 +128,15 @@ class ShipmentController extends Controller
         return response()->json($customer);
     }
 
+    // Status update (for inline change)
+    public function updateStatus(Request $request, Shipment $shipment)
+    {
+        $request->validate(['status' => 'required|string']);
+        $shipment->status = $request->status;
+        $shipment->save();
+        return response()->json(['message' => 'Status updated']);
+    }
+
     private function convertToKg($weight, $unit)
     {
         return match ($unit) {
@@ -117,5 +145,18 @@ class ShipmentController extends Controller
             'pound' => $weight * 0.453592,
             default => $weight,
         };
+    }
+
+
+    // In ShipmentController.php
+    public function generatePcode(Request $request)
+    {
+        $request->validate(['city_code' => 'required|string']);
+        $cityCode = strtoupper($request->city_code);
+        $last = Shipment::where('pcode', 'LIKE', $cityCode . '-%')
+            ->orderBy('id', 'desc')
+            ->first();
+        $next = $last ? intval(substr($last->pcode, strpos($last->pcode, '-') + 1)) + 1 : 1;
+        return response()->json(['pcode' => $cityCode . '-' . $next]);
     }
 }

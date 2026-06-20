@@ -21,7 +21,8 @@ use App\Http\Controllers\Api\Admin\{
     PageController,
     FinancialController,
     SubCategoryController,
-    SubSubCategoryController
+    SubSubCategoryController,
+    WarehouseController
 };
 use App\Http\Controllers\CityPublicController;
 
@@ -60,6 +61,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{user}', [UserController::class, 'show']);
     Route::post('/users/{user}/status', [UserController::class, 'updateStatus']);
+    Route::post('/users', [UserController::class, 'store']);        // ➕ create
+    Route::put('/users/{user}', [UserController::class, 'update']); // ➕ update
 
     // Shipments
     Route::apiResource('shipments', ShipmentController::class);
@@ -67,7 +70,10 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     // Consolidations
     Route::apiResource('consolidations', ConsolidationController::class);
-
+    Route::get('consolidations/shipmentsJson', [ConsolidationController::class, 'shipmentsJson']);
+    Route::get('consolidations/shipment', [ConsolidationController::class, 'shipmentDetails']);
+    Route::apiResource('consolidations', ConsolidationController::class);
+    Route::get('warehouses', [WarehouseController::class, 'index']);
     // Addresses, Weight Discounts, Settings, Cities, Stores, Pages
     Route::apiResource('addresses', AddressController::class);
     Route::apiResource('weight-discounts', WeightDiscountController::class);
@@ -84,6 +90,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('statistics/active-users', [StatisticsController::class, 'activeUsers']);
     Route::get('statistics/city-wise-business', [StatisticsController::class, 'cityWiseBusiness']);
     Route::get('statistics/shipments', [StatisticsController::class, 'shipmentsStats']);
+    Route::post('/admin/shipments/{shipment}/status', [ShipmentController::class, 'updateStatus']);
+    Route::get('/shipments/generate-pcode', [ShipmentController::class, 'generatePcode']);
     Route::get('statistics/delivery-time', [StatisticsController::class, 'deliveryTime']);
     Route::get('statistics/debtors-balance', [StatisticsController::class, 'debtorsBalance']);
 

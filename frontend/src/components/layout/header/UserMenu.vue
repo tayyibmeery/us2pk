@@ -1,76 +1,109 @@
 <template>
   <div class="relative" ref="dropdownRef">
-    <button
-      class="flex items-center text-gray-700 dark:text-gray-400"
-      @click.prevent="toggleDropdown"
-    >
+    <!-- Toggle Button -->
+    <button class="flex items-center text-gray-700 dark:text-gray-400" @click.prevent="toggleDropdown">
       <span class="mr-3 overflow-hidden rounded-full h-11 w-11">
-        <img src="/images/user/owner.jpg" alt="User" />
+        <img :src="avatarUrl" alt="User avatar" class="object-cover w-full h-full" @error="handleImageError" />
       </span>
-
-      <span class="block mr-1 font-medium text-theme-sm">Musharof </span>
-
+      <span class="block mr-1 font-medium text-theme-sm">{{ user?.name || 'User' }}</span>
       <ChevronDownIcon :class="{ 'rotate-180': dropdownOpen }" />
     </button>
 
-    <!-- Dropdown Start -->
-    <div
-      v-if="dropdownOpen"
-      class="absolute right-0 mt-[17px] flex w-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
-    >
-      <div>
-        <span class="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-          Musharof Chowdhury
-        </span>
-        <span class="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-          randomuser@pimjo.com
-        </span>
+    <!-- Dropdown -->
+    <div v-if="dropdownOpen"
+      class="absolute right-0 mt-[17px] flex w-[280px] flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark">
+      <!-- User Avatar & Name (compact) -->
+      <div class="flex items-center gap-3 pb-3 border-b border-gray-200 dark:border-gray-800">
+        <div class="relative w-14 h-14 group">
+          <div class="overflow-hidden rounded-full border border-gray-200 dark:border-gray-800 h-full w-full">
+            <img :src="avatarUrl" alt="User avatar" class="object-cover w-full h-full" @error="handleImageError" />
+          </div>
+          <!-- Upload overlay -->
+          <label for="avatar-upload-dropdown"
+            class="absolute inset-0 flex items-center justify-center transition-opacity bg-black/40 rounded-full opacity-0 cursor-pointer group-hover:opacity-100">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </label>
+          <input id="avatar-upload-dropdown" type="file" accept="image/*" class="hidden"
+            @change="uploadAvatar($event)" />
+        </div>
+
+        <div>
+          <p class="font-medium text-gray-700 text-theme-sm dark:text-gray-300">
+            {{ user?.name || 'User' }}
+          </p>
+          <p class="text-theme-xs text-gray-500 dark:text-gray-400">
+            {{ user?.email || 'no-email@example.com' }}
+          </p>
+          <p class="text-xs text-gray-400 dark:text-gray-500">
+            {{ user?.city?.city_name || '' }}
+          </p>
+        </div>
       </div>
 
-      <ul class="flex flex-col gap-1 pt-4 pb-3 border-b border-gray-200 dark:border-gray-800">
+      <!-- Dropdown Menu Items -->
+      <ul class="flex flex-col gap-1 pt-3">
         <li v-for="item in menuItems" :key="item.href">
-          <router-link
-            :to="item.href"
-            class="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-          >
-            <!-- SVG icon would go here -->
-            <component
-              :is="item.icon"
-              class="text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"
-            />
+          <router-link :to="item.href"
+            class="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300">
+            <component :is="item.icon" class="text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300" />
             {{ item.text }}
           </router-link>
         </li>
       </ul>
-      <router-link
-        to="/signin"
-        @click="signOut"
-        class="flex items-center gap-3 px-3 py-2 mt-3 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-      >
-        <LogoutIcon
-          class="text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"
-        />
+
+      <!-- Sign Out -->
+      <button @click="signOut"
+        class="flex items-center gap-3 px-3 py-2 mt-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300">
+        <LogoutIcon class="text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300" />
         Sign out
-      </router-link>
+      </button>
     </div>
-    <!-- Dropdown End -->
   </div>
 </template>
 
 <script setup>
-import { UserCircleIcon, ChevronDownIcon, LogoutIcon, SettingsIcon, InfoCircleIcon } from '@/icons'
-import { RouterLink } from 'vue-router'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { RouterLink, useRouter } from 'vue-router'
+import { UserCircleIcon, ChevronDownIcon, LogoutIcon, SettingsIcon } from '@/icons'
+import { useAuthStore } from '@/stores/authStore'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 const dropdownOpen = ref(false)
 const dropdownRef = ref(null)
 
+// User data from store
+const user = computed(() => authStore.user)
+
+// Avatar URL
+const avatarUrl = computed(() => {
+  if (user.value?.avatar) {
+    // If avatar is stored in storage, build full URL
+    if (user.value.avatar.startsWith('avatars/')) {
+      return `${import.meta.env.VITE_BASE_URL || ''}/storage/${user.value.avatar}`
+    }
+    return user.value.avatar
+  }
+  return '/images/user/owner.jpg' // default fallback
+})
+
+const handleImageError = (e) => {
+  e.target.src = '/images/user/owner.jpg'
+}
+
+// Menu items
 const menuItems = [
   { href: '/profile', icon: UserCircleIcon, text: 'Edit profile' },
-  { href: '/chat', icon: SettingsIcon, text: 'Account settings' },
-  { href: '/profile', icon: InfoCircleIcon, text: 'Support' },
+  { href: '/profile', icon: SettingsIcon, text: 'Account settings' },
 ]
 
+// Toggle dropdown
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value
 }
@@ -79,12 +112,31 @@ const closeDropdown = () => {
   dropdownOpen.value = false
 }
 
-const signOut = () => {
-  // Implement sign out logic here
-  console.log('Signing out...')
+// Logout
+const signOut = async () => {
+  await authStore.logout()
   closeDropdown()
+  // router will redirect via store's logout
 }
 
+// Upload avatar
+const uploadAvatar = async (event) => {
+  const input = event.target
+  if (!input.files?.length) return
+
+  const file = input.files[0]
+  try {
+    await authStore.updateAvatar(file)
+    alert('Avatar updated successfully!')
+    closeDropdown() // optional
+  } catch (err) {
+    alert(err.response?.data?.message || 'Avatar upload failed')
+  } finally {
+    input.value = '' // reset input
+  }
+}
+
+// Click outside
 const handleClickOutside = (event) => {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
     closeDropdown()

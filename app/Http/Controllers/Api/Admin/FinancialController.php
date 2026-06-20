@@ -15,7 +15,7 @@ class FinancialController extends Controller
     public function profitAndLoss(Request $request)
     {
         $totalRevenue = Revenue::sum('revenue');
-        $totalShippingCost = Shipment::sum('company_charges') + Shipment::sum('blueex_charges');
+        $totalShippingCost = Shipment::sum('company_charges') + Shipment::sum(\DB::raw('COALESCE(delivery_charges, 0)'));
         $grossProfit = $totalRevenue - $totalShippingCost;
         $totalDue = Debtor::sum('amount_due');
         $totalCollected = Debtor::sum('cod');

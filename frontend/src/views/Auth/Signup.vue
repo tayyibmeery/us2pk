@@ -3,7 +3,7 @@
     <div class="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
       <div class="relative flex flex-col justify-center w-full h-screen lg:flex-row dark:bg-gray-900">
         <div class="flex flex-col flex-1 w-full lg:w-1/2">
-          <div class="w-full max-w-md pt-10 mx-auto">
+          <!-- <div class="w-full max-w-md pt-10 mx-auto">
             <router-link to="/"
               class="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
               <svg class="stroke-current" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"
@@ -13,12 +13,12 @@
               </svg>
               Back to dashboard
             </router-link>
-          </div>
+          </div> -->
           <div class="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
-            <div class="mb-5 sm:mb-8">
-              <h1 class="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">Sign Up
+            <div class="mb-2 sm:mb-8">
+              <h1 class="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md text-center">Sign Up
               </h1>
-              <p class="text-sm text-gray-500 dark:text-gray-400">Enter your email and password to sign up!</p>
+              <!-- <p class="text-sm text-gray-500 dark:text-gray-400">Enter your email and password to sign up!</p> -->
             </div>
             <form @submit.prevent="handleSubmit">
               <div class="space-y-5">
@@ -58,8 +58,9 @@
                   <label for="phone"
                     class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Phone<span
                       class="text-error-500">*</span></label>
-                  <input v-model="form.phone" type="tel" id="phone" placeholder="+92-300-1234567"
-                    class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
+                  <input v-model="form.phone" type="tel" id="phone" placeholder="0300-XXXXXXX" maxlength="11"
+                    inputmode="numeric" @input="form.phone = form.phone.replace(/\D/g, '').slice(0, 11)"
+                    class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm" />
                 </div>
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <div>
@@ -85,7 +86,7 @@
                 <div>
                   <label for="address" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">Full
                     Address<span class="text-error-500">*</span></label>
-                  <textarea v-model="form.address" id="address" rows="2" placeholder="House #, Street, Area, City"
+                  <textarea v-model="form.address" id="address" rows="1" placeholder="House #, Street, Area, City"
                     class="dark:bg-dark-900 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"></textarea>
                 </div>
                 <div>
@@ -105,9 +106,15 @@
                         </span>
                       </div>
                     </div>
-                    <p class="inline-block font-normal text-gray-500 dark:text-gray-400">By creating an account you
+                    <!-- <p class="inline-block font-normal text-gray-500 dark:text-gray-400">By creating an account you
                       agree to the <span class="text-gray-800 dark:text-white/90">Terms and Conditions</span> and our
                       <span class="text-gray-800 dark:text-white">Privacy Policy</span>
+                    </p> -->
+
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">
+                      By creating an account you agree to the <span
+                        class="text-gray-800 dark:text-white/90">Terms</span> and <span
+                        class="text-gray-800 dark:text-white">Privacy Policy</span>.
                     </p>
                   </label>
                 </div>
@@ -135,10 +142,11 @@
             <common-grid-shape />
             <div class="flex flex-col items-center max-w-xs">
               <router-link to="/" class="block mb-4">
-                <img width="231" height="48" src="/images/logo/auth-logo.svg" alt="Logo" />
+                <img width="231" height="48" src="/images/logo/auth-logo.png" alt="Logo" />
               </router-link>
-              <p class="text-center text-gray-400 dark:text-white/60">Free and Open-Source Tailwind CSS Admin Dashboard
-                Template</p>
+              <p class="text-center text-gray-400 dark:text-white/60">US2PK connects Pakistan to the world's best
+                products through trusted shopping, shipping, and delivery solutions.
+              </p>
             </div>
           </div>
         </div>

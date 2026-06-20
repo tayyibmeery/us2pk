@@ -1,29 +1,11 @@
 <template>
   <div
     class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-white/[0.06] dark:bg-gray-900">
-
     <!-- Header -->
     <div
       class="flex flex-col gap-4 border-b border-gray-100 px-6 py-4 dark:border-white/[0.06] sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ title }}</h2>
-        <p v-if="store.pagination" class="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-          {{ store.pagination.total }} total records
-        </p>
-      </div>
-
-      <!-- Controls row -->
-      <div class="flex flex-wrap items-center gap-3">
-        <!-- Per-page -->
-        <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Rows:</span>
-          <select :value="perPage" @change="onPerPageChange"
-            class="h-9 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/[0.08] dark:bg-gray-800 dark:text-gray-200">
-            <option v-for="n in [5, 8, 10, 25, 50]" :key="n" :value="n">{{ n }}</option>
-          </select>
-        </div>
-
-        <!-- Search -->
+      <!-- Left: Search + Total Records -->
+      <div class="flex items-center gap-4">
         <div class="relative">
           <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -34,7 +16,6 @@
           </span>
           <input v-model="search" @input="onSearchInput" type="text" placeholder="Search..."
             class="h-9 w-56 rounded-lg border border-gray-200 bg-white py-1.5 pl-9 pr-4 text-sm text-gray-700 shadow-sm transition placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/[0.08] dark:bg-gray-800 dark:text-gray-200 dark:placeholder:text-gray-500" />
-          <!-- Clear search -->
           <button v-if="search" @click="clearSearch"
             class="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -44,9 +25,24 @@
             </svg>
           </button>
         </div>
+        <p v-if="store.pagination" class="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+          {{ store.pagination.total }} total records
+        </p>
+      </div>
 
-        <!-- Add button -->
-        <button @click="openCreateModal"
+      <!-- Right: Per-page + Add Button -->
+      <div class="flex flex-wrap items-center gap-3">
+        <!-- Per-page -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Rows:</span>
+          <select :value="perPage" @change="onPerPageChange"
+            class="h-9 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 shadow-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-white/[0.08] dark:bg-gray-800 dark:text-gray-200">
+            <option v-for="n in [5, 8, 10, 25, 50]" :key="n" :value="n">{{ n }}</option>
+          </select>
+        </div>
+
+        <!-- Add Button -->
+        <button v-if="modalComponent" @click="openCreateModal"
           class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 active:scale-[0.98] whitespace-nowrap">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path fill-rule="evenodd" clip-rule="evenodd"
@@ -75,12 +71,16 @@
                 <span v-if="col.sortable !== false"
                   class="flex flex-col gap-0.5 opacity-40 group-hover:opacity-70 transition-opacity"
                   :class="{ 'opacity-100 !text-brand-500': sortByKey === col.key }">
-                  <svg width="8" height="4" viewBox="0 0 8 4" fill="none"
-                    :class="sortByKey === col.key && sortOrder === 'asc' ? 'fill-brand-500' : 'fill-gray-400 dark:fill-gray-600'">
+                  <svg width="8" height="4" viewBox="0 0 8 4" fill="none" :class="sortByKey === col.key && sortOrder === 'asc'
+                      ? 'fill-brand-500'
+                      : 'fill-gray-400 dark:fill-gray-600'
+                    ">
                     <path d="M4 0L7.46 4H0.54L4 0Z" fill="currentColor" />
                   </svg>
-                  <svg width="8" height="4" viewBox="0 0 8 4" fill="none"
-                    :class="sortByKey === col.key && sortOrder === 'desc' ? 'fill-brand-500' : 'fill-gray-400 dark:fill-gray-600'">
+                  <svg width="8" height="4" viewBox="0 0 8 4" fill="none" :class="sortByKey === col.key && sortOrder === 'desc'
+                      ? 'fill-brand-500'
+                      : 'fill-gray-400 dark:fill-gray-600'
+                    ">
                     <path d="M4 4L0.54 0H7.46L4 4Z" fill="currentColor" />
                   </svg>
                 </span>
@@ -130,28 +130,18 @@
           <!-- Data rows -->
           <tr v-else v-for="item in store.items" :key="item.id"
             class="group border-b border-gray-50 last:border-0 transition-colors hover:bg-gray-50/70 dark:border-white/[0.04] dark:hover:bg-white/[0.02]">
+            <!-- Columns with slot support -->
             <td v-for="col in columns" :key="col.key" class="px-5 py-3.5">
-              <!-- Status badge auto-detection -->
-              <template v-if="col.key === 'status'">
-                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium" :class="item[col.key]
-                  ? 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'
-                  : 'bg-gray-100 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400'">
-                  <span class="h-1.5 w-1.5 rounded-full" :class="item[col.key] ? 'bg-green-500' : 'bg-gray-400'"></span>
-                  {{ col.format ? col.format(item[col.key]) : (item[col.key] ? 'Active' : 'Inactive') }}
-                </span>
-              </template>
-              <template v-else>
+              <slot :name="'cell-' + col.key" :item="item" :column="col">
                 <span class="text-sm text-gray-700 dark:text-gray-300">
                   {{ col.format ? col.format(item[col.key]) : item[col.key] }}
                 </span>
-              </template>
+              </slot>
             </td>
 
-            <!-- Actions -->
-            <!-- Actions cell -->
+            <!-- Actions (always visible) -->
             <td class="px-5 py-3.5">
               <div class="flex items-center justify-end gap-0.5">
-                <!-- Edit -->
                 <button @click="openEditModal(item)"
                   class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
                   title="Edit">
@@ -161,9 +151,7 @@
                       fill="currentColor" />
                   </svg>
                 </button>
-
-                <!-- Delete -->
-                <button @click="deleteItem(item.id)"
+                <button v-if="!hideDelete" @click="deleteItem(item.id)"
                   class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
                   title="Delete">
                   <svg width="16" height="16" viewBox="0 0 21 21" fill="none">
@@ -179,7 +167,7 @@
       </table>
     </div>
 
-    <!-- Pagination footer -->
+    <!-- Pagination -->
     <div
       class="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-6 py-4 dark:border-white/[0.06] sm:flex-row">
       <p class="text-xs text-gray-400 dark:text-gray-500">
@@ -193,7 +181,6 @@
       </p>
 
       <div class="flex items-center gap-1">
-        <!-- Prev -->
         <button @click="changePage((store.pagination?.current_page ?? 1) - 1)"
           :disabled="!store.pagination?.prev_page_url"
           class="flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.06]">
@@ -204,15 +191,14 @@
           Prev
         </button>
 
-        <!-- Page numbers -->
         <button v-for="page in pageNumbers" :key="page" @click="changePage(page)"
           class="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition" :class="page === store.pagination?.current_page
-            ? 'bg-brand-600 text-white shadow-sm'
-            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[0.06]'">
+              ? 'bg-brand-600 text-white shadow-sm'
+              : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[0.06]'
+            ">
           {{ page }}
         </button>
 
-        <!-- Next -->
         <button @click="changePage((store.pagination?.current_page ?? 1) + 1)"
           :disabled="!store.pagination?.next_page_url"
           class="flex h-8 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.08] dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.06]">
@@ -226,9 +212,9 @@
     </div>
   </div>
 
-  <!-- Modal -->
-  <component :is="modalComponent" :isOpen="modalOpen" :initialData="editingItem" @close="modalOpen = false"
-    @save="handleSave" v-bind="modalProps" />
+  <!-- Modal – only if modalComponent is provided -->
+  <component v-if="modalComponent" :is="modalComponent" :isOpen="modalOpen" :initialData="editingItem"
+    @close="modalOpen = false" @save="handleSave" v-bind="modalProps" />
 
   <!-- Error Toast -->
   <Teleport to="body">
@@ -248,7 +234,6 @@
         <div class="flex-1 pt-0.5">
           <p class="text-sm font-semibold text-gray-800 dark:text-white">Error</p>
           <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ errorMessage }}</p>
-          <!-- Progress -->
           <div class="mt-3 h-0.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
             <div class="h-full bg-red-400 transition-all ease-linear dark:bg-red-500"
               :style="{ width: errorProgress + '%', transitionDuration: '50ms' }"></div>
@@ -268,16 +253,23 @@
 </template>
 
 <script setup lang="ts">
+
 import { ref, computed, watch, onUnmounted } from 'vue'
+import ComponentCard from '@/components/common/ComponentCard.vue'  // ✅ added
 import type { ColumnDefinition } from '@/types/table'
+
+defineOptions({
+  inheritAttrs: false,
+})
 
 const props = defineProps<{
   store: any
   columns: ColumnDefinition[]
   title?: string
   addButtonLabel?: string
-  modalComponent: any
+  modalComponent?: any
   modalProps?: Record<string, any>
+  hideDelete?: boolean
 }>()
 
 // ── Table state ──────────────────────────────────────────────────────────────
@@ -297,17 +289,32 @@ let errorTimer: ReturnType<typeof setTimeout> | null = null
 let progressTimer: ReturnType<typeof setInterval> | null = null
 
 // ── Sync store → local state ──────────────────────────────────────────────────
-watch(() => props.store.sortBy, (v) => { sortByKey.value = v }, { immediate: true })
-watch(() => props.store.sortOrder, (v) => { sortOrder.value = v }, { immediate: true })
-watch(() => props.store.perPage, (v) => { perPage.value = Number(v) }, { immediate: true })
+watch(
+  () => props.store.sortBy,
+  (v) => { sortByKey.value = v },
+  { immediate: true }
+)
+watch(
+  () => props.store.sortOrder,
+  (v) => { sortOrder.value = v },
+  { immediate: true }
+)
+watch(
+  () => props.store.perPage,
+  (v) => { perPage.value = Number(v) },
+  { immediate: true }
+)
 
 // Watch store errors
-watch(() => props.store.error, (err) => {
-  if (err) {
-    showError(err)
-    props.store.error = null
+watch(
+  () => props.store.error,
+  (err) => {
+    if (err) {
+      showError(err)
+      props.store.error = null
+    }
   }
-})
+)
 
 // ── Pagination ────────────────────────────────────────────────────────────────
 const pageNumbers = computed(() => {
@@ -341,7 +348,6 @@ const clearSearch = () => {
 }
 
 // ── Per-page ──────────────────────────────────────────────────────────────────
-// FIX: cast to Number so store receives a number, not a string from <select>
 const onPerPageChange = (event: Event) => {
   const val = Number((event.target as HTMLSelectElement).value)
   perPage.value = val
@@ -412,8 +418,14 @@ const showError = (message: string) => {
 }
 
 const clearError = () => {
-  if (errorTimer) { clearTimeout(errorTimer); errorTimer = null }
-  if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
+  if (errorTimer) {
+    clearTimeout(errorTimer)
+    errorTimer = null
+  }
+  if (progressTimer) {
+    clearInterval(progressTimer)
+    progressTimer = null
+  }
 }
 
 const closeErrorModal = () => {
