@@ -72,4 +72,9 @@ class Consolidation extends Model
 
         return $this;
     }
+
+    public function courier()
+    {
+        return $this->belongsTo(Courier::class);
+    }
 }

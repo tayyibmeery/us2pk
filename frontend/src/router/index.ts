@@ -49,15 +49,24 @@ const router = createRouter({
 
         { path: 'dashboard', name: 'UserDashboard', component: () => import('../views/dashboard/UserDashboard.vue'), meta: { title: 'Dashboard', role: 'user' } },
 
-        // Admin only
+        // ---- Admin only routes ----
         { path: 'admin/users', name: 'AdminUsers', component: () => import('@/views/admin/Users.vue'), meta: { title: 'Users', role: 'admin' } },
-
         { path: 'admin/dashboard', name: 'AdminDashboard', component: () => import('@/views/admin/AdminDashboard.vue'), meta: { title: 'Admin Dashboard', role: 'admin' } },
         { path: 'admin/shipments', name: 'AdminShipments', component: () => import('@/views/admin/Shipments.vue'), meta: { title: 'Shipments', role: 'admin' } },
         { path: 'admin/cities', name: 'AdminCities', component: () => import('@/views/admin/Cities.vue'), meta: { title: 'Cities', role: 'admin' } },
         { path: 'admin/categories', name: 'AdminCategories', component: () => import('@/views/admin/Categories.vue'), meta: { title: 'Categories', role: 'admin' } },
         { path: 'admin/sub-categories', name: 'AdminSubCategories', component: () => import('@/views/admin/SubCategories.vue'), meta: { title: 'Sub Categories', role: 'admin' } },
         { path: 'admin/sub-sub-categories', name: 'AdminSubSubCategories', component: () => import('@/views/admin/SubSubCategories.vue'), meta: { title: 'Sub Sub Categories', role: 'admin' } },
+
+        // ---- 🆕 New admin routes ----
+        { path: 'admin/addresses', name: 'AdminAddresses', component: () => import('@/views/admin/Addresses.vue'), meta: { title: 'Addresses', role: 'admin' } },
+        { path: 'admin/weight-discounts', name: 'AdminWeightDiscounts', component: () => import('@/views/admin/WeightDiscounts.vue'), meta: { title: 'Weight Discounts', role: 'admin' } },
+        { path: 'admin/settings', name: 'AdminSettings', component: () => import('@/views/admin/Settings.vue'), meta: { title: 'Settings', role: 'admin' } },
+        { path: 'admin/stores', name: 'AdminStores', component: () => import('@/views/admin/Stores.vue'), meta: { title: 'Stores', role: 'admin' } },
+        { path: 'admin/pages', name: 'AdminPages', component: () => import('@/views/admin/Pages.vue'), meta: { title: 'Pages', role: 'admin' } },
+        { path: 'admin/invoices', name: 'AdminInvoices', component: () => import('@/views/admin/Invoices.vue'), meta: { title: 'Invoices', role: 'admin' } },
+        { path: 'admin/revenues', name: 'AdminRevenues', component: () => import('@/views/admin/Revenues.vue'), meta: { title: 'Revenues', role: 'admin' } },
+        { path: 'admin/debtors', name: 'AdminDebtors', component: () => import('@/views/admin/Debtors.vue'), meta: { title: 'Debtors', role: 'admin' } },
       ],
     },
 
@@ -70,12 +79,10 @@ router.beforeEach(async (to, from, next) => {
   document.title = `Vue.js ${to.meta.title || ''} | US2PK Dashboard`;
   const auth = useAuthStore();
 
-  // If token exists but user not loaded, fetch user
   if (auth.token && !auth.user) {
     await auth.fetchUser().catch(() => auth.logout());
   }
 
-  // --- Root redirect based on role ---
   if (to.path === '/') {
     if (auth.isAuthenticated) {
       return next(auth.isAdmin ? '/admin/dashboard' : '/dashboard');

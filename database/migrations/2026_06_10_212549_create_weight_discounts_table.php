@@ -10,11 +10,12 @@ return new class extends Migration
     {
         Schema::create('weight_discounts', function (Blueprint $table) {
             $table->id();
-            $table->string('warehouse'); // USA, China, Germany, UK
+            $table->foreignId('warehouse_id')->nullable()->constrained('warehouses')->onDelete('set null');
             $table->decimal('discount_percent', 5, 2)->default(0);
             $table->timestamps();
         });
     }
+
     public function down()
     {
         Schema::dropIfExists('weight_discounts');

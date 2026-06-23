@@ -195,6 +195,15 @@ const menuGroups = [
       //   subItems: [{ name: "Ecommerce", path: "/", pro: false }],
       // },
 
+      { icon: BoxCubeIcon, name: "Addresses", path: "/admin/addresses" , adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Weight Discounts", path: "/admin/weight-discounts", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Settings", path: "/admin/settings", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Stores", path: "/admin/stores", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Pages", path: "/admin/pages", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Invoices", path: "/admin/invoices", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Revenues", path: "/admin/revenues", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Debtors", path: "/admin/debtors", adminOnly: true, },
+
 
 
 

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\WeightDiscount;
+use App\Models\Warehouse;
 use Illuminate\Database\Seeder;
 
 class WeightDiscountSeeder extends Seeder
@@ -17,10 +18,14 @@ class WeightDiscountSeeder extends Seeder
         ];
 
         foreach ($discounts as $discount) {
-            WeightDiscount::updateOrCreate(
-                ['warehouse' => $discount['warehouse']],
-                $discount
-            );
+            // Find warehouse by name (case‑sensitive, adjust if needed)
+            $warehouse = Warehouse::where('name', $discount['warehouse'])->first();
+            if ($warehouse) {
+                WeightDiscount::updateOrCreate(
+                    ['warehouse_id' => $warehouse->id],
+                    ['discount_percent' => $discount['discount_percent']]
+                );
+            }
         }
     }
 }

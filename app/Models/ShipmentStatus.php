@@ -5,14 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Warehouse extends Model
+class ShipmentStatus extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'name',
-        'code',
-        'address',
         'status',
     ];
 
@@ -20,14 +18,8 @@ class Warehouse extends Model
         'status' => 'boolean',
     ];
 
-    // Relationships
-    public function consolidations()
+    public function shipments()
     {
-        return $this->hasMany(Consolidation::class);
-    }
-
-    public function weightDiscounts()
-    {
-        return $this->hasMany(WeightDiscount::class);
+        return $this->hasMany(Shipment::class);
     }
 }

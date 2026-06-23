@@ -8,7 +8,7 @@ use App\Http\Controllers\Api\Admin\{
     UserController,
     ShipmentController,
     ConsolidationController,
-    AddressController,
+
     CategoryController,
     WeightDiscountController,
     SettingController,
@@ -75,7 +75,15 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::apiResource('consolidations', ConsolidationController::class);
     Route::get('warehouses', [WarehouseController::class, 'index']);
     // Addresses, Weight Discounts, Settings, Cities, Stores, Pages
-    Route::apiResource('addresses', AddressController::class);
+
+
+    Route::apiResource('delivery-services', Api\Admin\DeliveryServiceController::class);
+    Route::apiResource('payment-methods', Api\Admin\PaymentMethodController::class);
+    Route::apiResource('sites', Api\Admin\SiteController::class);
+    Route::apiResource('couriers', Api\Admin\CourierController::class);
+    Route::apiResource('shipment-statuses', Api\Admin\ShipmentStatusController::class);
+
+
     Route::apiResource('weight-discounts', WeightDiscountController::class);
     Route::apiResource('settings', SettingController::class);
     Route::apiResource('cities', CityController::class);

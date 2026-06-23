@@ -93,4 +93,25 @@ class Shipment extends Model
             }
         });
     }
+
+
+    public function site()
+    {
+        return $this->belongsTo(Site::class);
+    }
+
+    public function paymentMethod()
+    {
+        return $this->belongsTo(PaymentMethod::class);
+    }
+
+    public function deliveryService()
+    {
+        return $this->belongsTo(DeliveryService::class);
+    }
+
+    public function shipmentStatus()
+    {
+        return $this->belongsTo(ShipmentStatus::class);
+    }
 }
