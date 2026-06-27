@@ -3,15 +3,16 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Courier;
+use App\Models\InternationalCourier;
 
-class CouriersSeeder extends Seeder
+class InternationalCouriersSeeder extends Seeder
 {
     public function run()
     {
         $couriers = ['DHL', 'FedEx', 'Aramex', 'UPS', 'TNT'];
         foreach ($couriers as $name) {
-            Courier::firstOrCreate(['name' => $name]);
+            InternationalCourier::firstOrCreate(['name' => $name]);
         }
     }
 }
+

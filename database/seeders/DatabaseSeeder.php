@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             CitySeeder::class,
             AdminUserSeeder::class,
             ProhibitedItemSeeder::class,
-           
+
             SettingSeeder::class,
             WarehouseSeeder::class,
             WeightDiscountSeeder::class,
@@ -29,10 +29,11 @@ class DatabaseSeeder extends Seeder
             SubSubCategorySeeder::class,
 
             WarehouseSeeder::class,
-            DeliveryServicesSeeder::class,
+
             PaymentMethodsSeeder::class,
             SitesSeeder::class,
-            CouriersSeeder::class,
+            LocalCouriersSeeder::class,
+            InternationalCouriersSeeder::class,
             ShipmentStatusesSeeder::class,
         ]);
     }

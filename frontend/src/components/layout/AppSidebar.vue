@@ -195,17 +195,6 @@ const menuGroups = [
       //   subItems: [{ name: "Ecommerce", path: "/", pro: false }],
       // },
 
-      { icon: BoxCubeIcon, name: "Addresses", path: "/admin/addresses" , adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Weight Discounts", path: "/admin/weight-discounts", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Settings", path: "/admin/settings", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Stores", path: "/admin/stores", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Pages", path: "/admin/pages", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Invoices", path: "/admin/invoices", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Revenues", path: "/admin/revenues", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Debtors", path: "/admin/debtors", adminOnly: true, },
-
-
-
 
       {
         icon: UserGroupIcon,
@@ -219,6 +208,49 @@ const menuGroups = [
         path: "/admin/cities",
         adminOnly: true,
       },
+      {
+        icon: BoxCubeIcon,
+        name: "Payment Methods",
+        path: "/admin/payment-methods",
+        adminOnly: true,
+      },
+      {
+        icon: BoxCubeIcon,
+        name: "Sites",
+        path: "/admin/sites",
+        adminOnly: true,
+      },
+      {
+        icon: BoxCubeIcon,
+        name: "International Couriers",
+        path: "/admin/international-couriers",
+        adminOnly: true,
+      },
+      {
+        icon: BoxCubeIcon,
+        name: "Local Couriers",
+        path: "/admin/local-couriers",
+        adminOnly: true,
+      },
+      {
+        icon: BoxCubeIcon,
+        name: "Shipment Statuses",
+        path: "/admin/shipment-statuses",
+        adminOnly: true,
+      },
+      { icon: BoxCubeIcon, name: "Warehouses", path: "/admin/warehouses", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Weight Discounts", path: "/admin/weight-discounts", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Settings", path: "/admin/settings", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Stores", path: "/admin/stores", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Pages", path: "/admin/pages", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Invoices", path: "/admin/invoices", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Revenues", path: "/admin/revenues", adminOnly: true, },
+      { icon: BoxCubeIcon, name: "Debtors", path: "/admin/debtors", adminOnly: true, },
+
+
+
+
+
 
 
 

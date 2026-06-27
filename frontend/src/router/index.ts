@@ -59,7 +59,13 @@ const router = createRouter({
         { path: 'admin/sub-sub-categories', name: 'AdminSubSubCategories', component: () => import('@/views/admin/SubSubCategories.vue'), meta: { title: 'Sub Sub Categories', role: 'admin' } },
 
         // ---- 🆕 New admin routes ----
-        { path: 'admin/addresses', name: 'AdminAddresses', component: () => import('@/views/admin/Addresses.vue'), meta: { title: 'Addresses', role: 'admin' } },
+        { path: 'admin/payment-methods', name: 'AdminPaymentMethods', component: () => import('@/views/admin/PaymentMethods.vue'), meta: { title: 'Payment Methods', role: 'admin' } },
+        { path: 'admin/sites', name: 'AdminSites', component: () => import('@/views/admin/Sites.vue'), meta: { title: 'Sites', role: 'admin' } },
+        { path: 'admin/international-couriers', name: 'AdminInternationalCouriers', component: () => import('@/views/admin/InternationalCouriers.vue'), meta: { title: 'International Couriers', role: 'admin' } },
+        { path: 'admin/local-couriers', name: 'AdminLocalCouriers', component: () => import('@/views/admin/LocalCouriers.vue'), meta: { title: 'Local Couriers', role: 'admin' } },
+        { path: 'admin/shipment-statuses', name: 'AdminShipmentStatuses', component: () => import('@/views/admin/ShipmentStatuses.vue'), meta: { title: 'Shipment Statuses', role: 'admin' } },
+
+        { path: 'admin/warehouses', name: 'AdminWarehouses', component: () => import('@/views/admin/Warehouses.vue'), meta: { title: 'Warehouses', role: 'admin' } },
         { path: 'admin/weight-discounts', name: 'AdminWeightDiscounts', component: () => import('@/views/admin/WeightDiscounts.vue'), meta: { title: 'Weight Discounts', role: 'admin' } },
         { path: 'admin/settings', name: 'AdminSettings', component: () => import('@/views/admin/Settings.vue'), meta: { title: 'Settings', role: 'admin' } },
         { path: 'admin/stores', name: 'AdminStores', component: () => import('@/views/admin/Stores.vue'), meta: { title: 'Stores', role: 'admin' } },

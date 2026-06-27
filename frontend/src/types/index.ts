@@ -77,7 +77,9 @@ export interface User {
   created_at: string
   updated_at: string
 }
-// frontend/src/types/index.ts
+// src/types/index.ts
+// src/types/index.ts
+
 export interface Shipment {
   id: number
   pcode: string
@@ -90,10 +92,22 @@ export interface Shipment {
   weight_unit: string
   weight_kgs?: number
   seller_tracker_id?: string
-  site_name?: string
   purchase_date?: string
   comments?: string
-  status: string
+  // New foreign keys
+  shipment_status_id?: number | null
+  shipment_status?: { id: number; name: string }
+  payment_method_id?: number | null
+  payment_method?: { id: number; name: string }
+  local_courier_id?: number | null
+  local_courier?: { id: number; name: string }
+  site_id?: number | null
+  site?: { id: number; name: string }
+  // Old fields kept for backward compatibility (or removed)
+  // status?: string
+  // payment_method?: string
+  // local_delivery_by?: string
+  // site_name?: string
   arrival_date?: string
   expected_delivery_date?: string
   date_delivered?: string
@@ -103,11 +117,34 @@ export interface Shipment {
   received_amount?: number
   paid_by: string
   amount_due?: number
-  payment_method?: string
   receivable_cod?: number
-  local_delivery_by?: string
   delivery_charges?: number
   images?: any[]
   created_at: string
   updated_at: string
+}
+
+// Add these helper interfaces if not already present
+export interface Site {
+  id: number
+  name: string
+  status: boolean
+}
+
+export interface ShipmentStatus {
+  id: number
+  name: string
+  status: boolean
+}
+
+export interface PaymentMethod {
+  id: number
+  name: string
+  status: boolean
+}
+
+export interface LocalCourier {
+  id: number
+  name: string
+  status: boolean
 }

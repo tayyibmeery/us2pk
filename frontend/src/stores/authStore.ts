@@ -14,6 +14,10 @@ interface User {
   pcode: string;
   role: 'user' | 'admin';
   status: 'pending' | 'verified' | 'approved';
+  bio?: string;
+  country?: string;
+  postal_code?: string;
+  tax_id?: string;
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -51,27 +55,28 @@ export const useAuthStore = defineStore('auth', {
     },
     async updateProfile(data: Partial<User>) {
       const response = await api.put('/user/profile', data);
-      // Update local user state with fresh data
       this.user = response.data;
       return response.data;
     },
-
-    // ✅ NEW: Update avatar
     async updateAvatar(file: File) {
       const formData = new FormData();
       formData.append('avatar', file);
-      formData.append('_method', 'PUT'); // Laravel method spoofing
-
+      formData.append('_method', 'PUT');
       const response = await api.post('/user/avatar', formData, {
         headers: { 'Content-Type': undefined },
       });
-      // Fetch fresh user data to update avatar URL
       await this.fetchUser();
+      return response.data;
+    },
+
+    // ✅ ADD THIS
+    async changePassword(currentPassword: string, newPassword: string, newPasswordConfirmation: string) {
+      const response = await api.post('/user/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+        new_password_confirmation: newPasswordConfirmation,
+      });
       return response.data;
     },
   },
 });
-
-
-
-

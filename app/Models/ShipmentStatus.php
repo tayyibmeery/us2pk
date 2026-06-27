@@ -22,4 +22,5 @@ class ShipmentStatus extends Model
     {
         return $this->hasMany(Shipment::class);
     }
+    
 }

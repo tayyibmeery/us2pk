@@ -21,22 +21,22 @@ return new class extends Migration
             $table->decimal('roi_percent', 8, 2)->nullable();
             $table->decimal('total_weight_kg', 8, 2);
 
-            // Generic courier reference
-            $table->foreignId('courier_id')->nullable()->constrained('couriers')->onDelete('set null');
+            // ✅ Fixed: use international_couriers table
+            $table->foreignId('international_courier_id')
+                ->nullable()
+                ->constrained('international_couriers')
+                ->onDelete('set null');
 
             $table->date('date_departed')->nullable();
             $table->date('date_reached')->nullable();
 
-            // New generic courier financial fields (replace bluex/pkship)
             $table->decimal('receivable_from_courier', 12, 2)->default(0);
             $table->decimal('courier_charges', 12, 2)->default(0);
 
-            // Other cost components (unchanged)
             $table->decimal('ware_house_charges', 12, 2)->default(0);
             $table->decimal('import_taxes', 12, 2)->default(0);
             $table->decimal('net_st_payable', 12, 2)->default(0);
 
-            // Stored column – now uses courier_charges instead of bluex_charges
             $table->decimal('direct_cost', 12, 2)->storedAs('ware_house_charges + import_taxes + courier_charges + net_st_payable');
 
             $table->decimal('customs_duty', 12, 2)->default(0);

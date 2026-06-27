@@ -62,9 +62,18 @@ class StatisticsController extends Controller
 
     public function shipmentsStats()
     {
-        $stats = Shipment::select('status', DB::raw('count(*) as total'))
-            ->groupBy('status')
-            ->get();
+        // Group by shipment_status_id and join with shipment_statuses to get names
+        $stats = Shipment::select('shipment_status_id', DB::raw('count(*) as total'))
+            ->groupBy('shipment_status_id')
+            ->with('shipmentStatus')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'status' => $item->shipmentStatus ? $item->shipmentStatus->name : 'Unknown',
+                    'total'  => $item->total,
+                ];
+            });
+
         return response()->json($stats);
     }
 

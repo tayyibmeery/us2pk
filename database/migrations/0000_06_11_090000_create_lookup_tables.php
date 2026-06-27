@@ -24,16 +24,16 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // 3. Delivery Services
-        Schema::create('delivery_services', function (Blueprint $table) {
+        // 3. Local Couriers (renamed from delivery_services)
+        Schema::create('local_couriers', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
             $table->boolean('status')->default(true);
             $table->timestamps();
         });
 
-        // 4. Couriers
-        Schema::create('couriers', function (Blueprint $table) {
+        // 4. International Couriers (renamed from couriers)
+        Schema::create('international_couriers', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
             $table->boolean('status')->default(true);
@@ -52,8 +52,8 @@ return new class extends Migration
     public function down()
     {
         Schema::dropIfExists('shipment_statuses');
-        Schema::dropIfExists('couriers');
-        Schema::dropIfExists('delivery_services');
+        Schema::dropIfExists('international_couriers');
+        Schema::dropIfExists('local_couriers');
         Schema::dropIfExists('payment_methods');
         Schema::dropIfExists('sites');
     }

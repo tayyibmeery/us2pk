@@ -79,20 +79,20 @@
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
         </div>
 
-        <!-- Site Name -->
+        <!-- Site (dynamic) -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Site Name
+            Site
           </label>
-          <select v-model="formData.site_name"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
+          <select v-model="formData.site_id"
+            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+            :disabled="sitesLoading">
             <option value="">Select site</option>
-            <option value="Amazon">Amazon</option>
-            <option value="eBay">eBay</option>
-            <option value="AliExpress">AliExpress</option>
-            <option value="Walmart">Walmart</option>
-            <option value="Other">Other</option>
+            <option v-for="site in sites" :key="site.id" :value="site.id">
+              {{ site.name }}
+            </option>
           </select>
+          <p v-if="sitesLoading" class="text-xs text-gray-400 mt-1">Loading sites...</p>
         </div>
 
         <!-- Purchase Date (flatpickr) -->
@@ -116,23 +116,20 @@
           </div>
         </div>
 
-        <!-- Status -->
+        <!-- Status (dynamic) -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Status
           </label>
-          <select v-model="formData.status"
+          <select v-model="formData.shipment_status_id"
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            required>
-            <option value="Bought by Company">Bought by Company</option>
-            <option value="Bought by Customer">Bought by Customer</option>
-            <option value="Reached Shipment in USA facility">Reached Shipment in USA facility</option>
-            <option value="Departed Operations Facility - In Transit">Departed Operations Facility - In Transit</option>
-            <option value="Custom Office at Lahore Airport">Custom Office at Lahore Airport</option>
-            <option value="Reached Lahore Company Office">Reached Lahore Company Office</option>
-            <option value="Out for Delivery">Out for Delivery</option>
-            <option value="Delivered">Delivered</option>
+            :disabled="statusesLoading" required>
+            <option value="">Select status</option>
+            <option v-for="status in statuses" :key="status.id" :value="status.id">
+              {{ status.name }}
+            </option>
           </select>
+          <p v-if="statusesLoading" class="text-xs text-gray-400 mt-1">Loading statuses...</p>
         </div>
 
         <!-- Arrival Date (flatpickr) -->
@@ -257,41 +254,39 @@
           </select>
         </div>
 
-        <!-- Payment Method (dropdown) -->
+        <!-- Payment Method (dynamic) -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Payment Method
           </label>
-          <select v-model="formData.payment_method"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
+          <select v-model="formData.payment_method_id"
+            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+            :disabled="paymentMethodsLoading">
             <option value="">Select method</option>
-            <option value="Cash">Cash</option>
-            <option value="ABL">ABL</option>
-            <option value="SCB">SCB</option>
-            <option value="Faisal Bank">Faisal Bank</option>
-            <option value="BAFL">BAFL</option>
-            <option value="Jazz Cash">Jazz Cash</option>
-            <option value="Easy Paisa">Easy Paisa</option>
-            <option value="Meezan Bank">Meezan Bank</option>
+            <option v-for="method in paymentMethods" :key="method.id" :value="method.id">
+              {{ method.name }}
+            </option>
           </select>
+          <p v-if="paymentMethodsLoading" class="text-xs text-gray-400 mt-1">Loading payment methods...</p>
         </div>
 
-        <!-- Local Delivery By (dropdown) -->
+        <!-- Local Courier (dynamic) -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Local Delivery By
+            Local Courier
           </label>
-          <select v-model="formData.local_delivery_by"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
-            <option value="">Select</option>
-            <option value="By BlueEx">By BlueEx</option>
-            <option value="By Customer Pickup">By Customer Pickup</option>
-            <option value="By TCS">By TCS</option>
-            <option value="By Leopards">By Leopards</option>
+          <select v-model="formData.local_courier_id"
+            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+            :disabled="localCouriersLoading">
+            <option value="">Select courier</option>
+            <option v-for="courier in localCouriers" :key="courier.id" :value="courier.id">
+              {{ courier.name }}
+            </option>
           </select>
+          <p v-if="localCouriersLoading" class="text-xs text-gray-400 mt-1">Loading couriers...</p>
         </div>
 
-        <!-- Delivery Charges (renamed) -->
+        <!-- Delivery Charges -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Delivery Charges (PKR)
@@ -300,20 +295,46 @@
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
         </div>
 
-        <!-- Image Upload -->
+        <!-- Image Upload Section -->
         <div class="sm:col-span-2">
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Product Images
           </label>
-          <input type="file" multiple accept="image/*" @change="handleImageUpload"
-            class="dark:bg-dark-900 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
-          <div v-if="imagePreviews.length" class="flex flex-wrap gap-2 mt-2">
-            <div v-for="(preview, index) in imagePreviews" :key="index" class="relative w-20 h-20">
-              <img :src="preview" class="w-full h-full object-cover rounded border" />
-              <button type="button" @click="removeImage(index)"
-                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">×</button>
+
+          <!-- Existing Images -->
+          <div v-if="existingImages.length" class="flex flex-wrap gap-2 mb-2">
+            <div v-for="img in existingImages" :key="img.id" class="relative w-20 h-20 group">
+              <img :src="getImageUrl(img.image_path)"
+                class="w-full h-full object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
+              <button type="button" @click="removeExistingImage(img.id)"
+                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition opacity-0 group-hover:opacity-100 focus:opacity-100"
+                title="Remove image">
+                ×
+              </button>
             </div>
           </div>
+
+          <!-- New Image Previews -->
+          <div v-if="newImagePreviews.length" class="flex flex-wrap gap-2 mb-2">
+            <div v-for="(preview, index) in newImagePreviews" :key="index" class="relative w-20 h-20 group">
+              <img :src="preview"
+                class="w-full h-full object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
+              <button type="button" @click="removeNewImage(index)"
+                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600 transition">
+                ×
+              </button>
+            </div>
+          </div>
+
+          <!-- File Input -->
+          <input type="file" multiple accept="image/*" @change="handleNewImageUpload"
+            class="dark:bg-dark-900 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+          <p v-if="!existingImages.length && !newImagePreviews.length" class="text-xs text-gray-400 mt-1">
+            No images uploaded yet.
+          </p>
+          <p v-else class="text-xs text-gray-400 mt-1">
+            {{ existingImages.length + newImagePreviews.length }} image(s) (click × to remove)
+          </p>
         </div>
       </div>
     </template>
@@ -321,40 +342,75 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
 import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.css'
 import FormModal from '@/components/common/FormModal.vue'
 import api from '@/services/api'
+import { usePaymentMethodStore } from '@/stores/paymentMethodStore'
+import { useSiteStore } from '@/stores/siteStore'
+import { useShipmentStatusStore } from '@/stores/shipmentStatusStore'
+import { useLocalCourierStore } from '@/stores/localCourierStore'
 import type { Shipment } from '@/types'
+import { useShipmentStore } from '@/stores/shipmentStore'
 
 const props = defineProps<{
   isOpen: boolean
   initialData?: Shipment | null
 }>()
 
+const shipmentStore = useShipmentStore()
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'save', data: Partial<Shipment>, images: File[]): void
+  (e: 'saved'): void
+  (e: 'save', data: any): void
 }>()
+
+// ✅ Prevent double-submit
+const saving = ref(false)
+
+// Image state
+const existingImages = ref<{ id: number; image_path: string }[]>([])
+const imagesToDelete = ref<number[]>([])
+const newImages = ref<File[]>([])
+const newImagePreviews = ref<string[]>([])
+
+const getImageUrl = (path: string) => {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  return `${baseUrl}/storage/${path}`
+}
+
+const paymentMethodStore = usePaymentMethodStore()
+const siteStore = useSiteStore()
+const shipmentStatusStore = useShipmentStatusStore()
+const localCourierStore = useLocalCourierStore()
 
 const users = ref<any[]>([])
 const usersLoading = ref(false)
-const imagePreviews = ref<string[]>([])
-const imageFiles = ref<File[]>([])
+const paymentMethods = ref<any[]>([])
+const paymentMethodsLoading = ref(false)
+const sites = ref<any[]>([])
+const sitesLoading = ref(false)
+const statuses = ref<any[]>([])
+const statusesLoading = ref(false)
+const localCouriers = ref<any[]>([])
+const localCouriersLoading = ref(false)
+
 const datePickerRefs = ref<Record<string, any>>({})
 const flatpickrInstances: Record<string, any> = {}
 
-const formData = ref<Partial<Shipment>>({
+const defaultForm = (): Partial<Shipment> => ({
   user_id: undefined,
   pcode: '',
   description: '',
   weight: 0,
   weight_unit: 'kg',
   seller_tracker_id: '',
-  site_name: '',
+  site_id: null,
   purchase_date: '',
-  status: 'Bought by Company',
+  shipment_status_id: null,
   arrival_date: '',
   expected_delivery_date: '',
   date_delivered: '',
@@ -362,12 +418,14 @@ const formData = ref<Partial<Shipment>>({
   company_charges: 0,
   received_amount: 0,
   paid_by: 'By Customer',
-  payment_method: '',
+  payment_method_id: null,
   receivable_cod: 0,
-  local_delivery_by: '',
+  local_courier_id: null,
   delivery_charges: 0,
   comments: '',
 })
+
+const formData = ref<Partial<Shipment>>(defaultForm())
 
 const totalAmount = computed(() => {
   const item = parseFloat(formData.value.item_value_pkr as any) || 0
@@ -381,76 +439,141 @@ const receivableCod = computed(() => {
   return Math.max(0, total - received)
 })
 
-const calculateTotalAndDue = () => {
-  // just trigger recompute
-}
+const calculateTotalAndDue = () => { /* triggers computed */ }
 
 const resetForm = () => {
-  formData.value = {
-    user_id: undefined,
-    pcode: '',
-    description: '',
-    weight: 0,
-    weight_unit: 'kg',
-    seller_tracker_id: '',
-    site_name: '',
-    purchase_date: '',
-    status: 'Bought by Company',
-    arrival_date: '',
-    expected_delivery_date: '',
-    date_delivered: '',
-    item_value_pkr: 0,
-    company_charges: 0,
-    received_amount: 0,
-    paid_by: 'By Customer',
-    payment_method: '',
-    receivable_cod: 0,
-    local_delivery_by: '',
-    delivery_charges: 0,
-    comments: '',
-  }
-  imagePreviews.value = []
-  imageFiles.value = []
+  formData.value = defaultForm()
+  existingImages.value = []
+  imagesToDelete.value = []
+  newImages.value = []
+  newImagePreviews.value = []
 }
 
-// Initialize flatpickr when modal opens
+const fetchLookupData = async () => {
+  paymentMethodsLoading.value = true
+  try {
+    await paymentMethodStore.fetchItems(1, { per_page: 100 })
+    paymentMethods.value = paymentMethodStore.items
+  } catch (e) {
+    console.error('Failed to load payment methods', e)
+  } finally {
+    paymentMethodsLoading.value = false
+  }
+
+  sitesLoading.value = true
+  try {
+    await siteStore.fetchItems(1, { per_page: 100 })
+    sites.value = siteStore.items
+  } catch (e) {
+    console.error('Failed to load sites', e)
+  } finally {
+    sitesLoading.value = false
+  }
+
+  statusesLoading.value = true
+  try {
+    await shipmentStatusStore.fetchItems(1, { per_page: 100 })
+    statuses.value = shipmentStatusStore.items
+  } catch (e) {
+    console.error('Failed to load statuses', e)
+  } finally {
+    statusesLoading.value = false
+  }
+
+  localCouriersLoading.value = true
+  try {
+    await localCourierStore.fetchItems(1, { per_page: 100 })
+    localCouriers.value = localCourierStore.items
+  } catch (e) {
+    console.error('Failed to load local couriers', e)
+  } finally {
+    localCouriersLoading.value = false
+  }
+}
+
+const initDatePickers = () => {
+  const dateFields = ['purchase_date', 'arrival_date', 'expected_delivery_date', 'date_delivered']
+  dateFields.forEach(field => {
+    const el = datePickerRefs.value[field]
+    if (el) {
+      if (flatpickrInstances[field]) flatpickrInstances[field].destroy()
+      flatpickrInstances[field] = flatpickr(el, {
+        dateFormat: 'Y-m-d',
+        allowInput: true,
+        onChange: (_dates: any, dateStr: string) => {
+          (formData.value as any)[field] = dateStr
+        },
+      })
+      const val = (formData.value as any)[field]
+      if (val) {
+        // Strip ISO if needed before setting
+        const clean = typeof val === 'string' && val.includes('T') ? val.split('T')[0] : val
+        flatpickrInstances[field].setDate(clean)
+      }
+    }
+  })
+}
+
 watch(() => props.isOpen, async (open) => {
   if (open) {
     await nextTick()
-    // Destroy previous instances
-    Object.values(flatpickrInstances).forEach(inst => inst.destroy())
-    // Initialize flatpickr on date fields
-    const dateFields = ['purchase_date', 'arrival_date', 'expected_delivery_date', 'date_delivered']
-    dateFields.forEach(field => {
-      const el = datePickerRefs.value[field]
-      if (el) {
-        flatpickrInstances[field] = flatpickr(el, {
-          dateFormat: 'Y-m-d',
-          allowInput: true,
-          onChange: (selectedDates, dateStr) => {
-            formData.value[field] = dateStr
-          }
-        })
-        // Set initial value
-        if (formData.value[field]) {
-          flatpickrInstances[field].setDate(formData.value[field])
-        }
-      }
-    })
-    fetchUsers()
+    initDatePickers()
+    await fetchUsers()
+    await fetchLookupData()
   } else {
-    Object.values(flatpickrInstances).forEach(inst => inst.destroy())
+    Object.values(flatpickrInstances).forEach((inst: any) => inst.destroy())
   }
 })
 
-// Auto-fetch PCode when user_id changes
+// When editing, re-set datepicker values after formData loads
+watch(() => props.initialData, (newVal) => {
+  if (newVal) {
+    // ✅ Only copy scalar/primitive fields — skip nested objects
+    const cleaned: Partial<Shipment> = {}
+    for (const key of Object.keys(newVal)) {
+      const val = (newVal as any)[key]
+      if (val !== null && val !== undefined && typeof val !== 'object') {
+        (cleaned as any)[key] = val
+      } else if (val === null) {
+        (cleaned as any)[key] = null
+      }
+      // skip arrays and objects (relations)
+    }
+    formData.value = cleaned
+
+    // Load images separately
+    existingImages.value = Array.isArray(newVal.images)
+      ? newVal.images.map((img: any) => ({ id: img.id, image_path: img.image_path }))
+      : []
+
+    newImages.value = []
+    newImagePreviews.value = []
+    imagesToDelete.value = []
+
+    // Update datepickers after next tick
+    nextTick(() => {
+      const dateFields = ['purchase_date', 'arrival_date', 'expected_delivery_date', 'date_delivered']
+      dateFields.forEach(field => {
+        const inst = flatpickrInstances[field]
+        const val = (cleaned as any)[field]
+        if (inst && val) {
+          const clean = typeof val === 'string' && val.includes('T') ? val.split('T')[0] : val
+          inst.setDate(clean)
+        }
+      })
+    })
+  } else {
+    resetForm()
+  }
+}, { immediate: true })
+
 watch(() => formData.value.user_id, async (newUserId) => {
-  if (!newUserId) return
-  const selectedUser = users.value.find(u => u.id === newUserId)
+  if (!newUserId || props.initialData?.id) return  // don't regenerate pcode when editing
+  const selectedUser = users.value.find((u: any) => u.id === newUserId)
   if (selectedUser?.city?.city_code) {
     try {
       const res = await api.get('/admin/shipments/generate-pcode', {
-        params: { city_code: selectedUser.city.city_code }
+        params: { city_code: selectedUser.city.city_code },
       })
       formData.value.pcode = res.data.pcode
     } catch (e) {
@@ -459,32 +582,30 @@ watch(() => formData.value.user_id, async (newUserId) => {
   }
 })
 
-// Update flatpickr values when formData changes (e.g., when editing)
-watch(() => formData.value, (newVal) => {
-  if (!props.isOpen) return
-  const dateFields = ['purchase_date', 'arrival_date', 'expected_delivery_date', 'date_delivered']
-  dateFields.forEach(field => {
-    const inst = flatpickrInstances[field]
-    if (inst && newVal[field]) {
-      inst.setDate(newVal[field])
-    }
-  })
-}, { deep: true })
+const removeExistingImage = (imageId: number) => {
+  imagesToDelete.value.push(imageId)
+  existingImages.value = existingImages.value.filter(img => img.id !== imageId)
+}
 
-watch(
-  () => props.initialData,
-  (newVal) => {
-    if (newVal) {
-      formData.value = { ...newVal }
-      if (newVal.images) {
-        imagePreviews.value = newVal.images.map((img: any) => img.image_path)
+const handleNewImageUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files) {
+    Array.from(target.files).forEach(file => {
+      newImages.value.push(file)
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        if (e.target?.result) newImagePreviews.value.push(e.target.result as string)
       }
-    } else {
-      resetForm()
-    }
-  },
-  { immediate: true }
-)
+      reader.readAsDataURL(file)
+    })
+  }
+  target.value = ''
+}
+
+const removeNewImage = (index: number) => {
+  newImages.value.splice(index, 1)
+  newImagePreviews.value.splice(index, 1)
+}
 
 const fetchUsers = async () => {
   if (users.value.length) return
@@ -499,31 +620,46 @@ const fetchUsers = async () => {
   }
 }
 
-const handleImageUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  if (target.files) {
-    const files = Array.from(target.files)
-    files.forEach(file => {
-      imageFiles.value.push(file)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          imagePreviews.value.push(e.target.result as string)
-        }
-      }
-      reader.readAsDataURL(file)
-    })
+const close = () => {
+  if (saving.value) return  // don't close while saving
+  emit('close')
+}
+
+const save = async () => {
+  if (saving.value) return
+  saving.value = true
+
+  try {
+    let result: any
+
+    if (props.initialData?.id) {
+      result = await shipmentStore.update(
+        props.initialData.id,
+        formData.value,
+        newImages.value,
+        imagesToDelete.value,
+      )
+    } else {
+      result = await shipmentStore.create(formData.value, newImages.value)
+    }
+
+    existingImages.value = Array.isArray(result?.images)
+      ? result.images.map((img: any) => ({ id: img.id, image_path: img.image_path }))
+      : []
+
+    newImages.value = []
+    newImagePreviews.value = []
+    imagesToDelete.value = []
+
+    emit('save', {})  // ✅ triggers DataTable.handleSave which sees selfSaving=true and just refreshes
+    emit('close')
+
+  } catch (error: any) {
+    const msg = error?.response?.data?.message || error?.message || String(error)
+    console.error('Save failed:', msg)
+    alert('Save failed: ' + msg)
+  } finally {
+    saving.value = false
   }
-  target.value = '' // reset input
-}
-
-const removeImage = (index: number) => {
-  imagePreviews.value.splice(index, 1)
-  imageFiles.value.splice(index, 1)
-}
-
-const close = () => emit('close')
-const save = () => {
-  emit('save', formData.value, imageFiles.value)
 }
 </script>

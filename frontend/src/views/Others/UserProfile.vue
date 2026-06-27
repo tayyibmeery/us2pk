@@ -1,5 +1,5 @@
 <template>
-
+  <div>
     <PageBreadcrumb :pageTitle="currentPageTitle" />
 
     <!-- Show loading while user data is being fetched -->
@@ -10,19 +10,14 @@
     <!-- Full profile (only when user is loaded) -->
     <template v-else>
       <div class="space-y-6">
-        <!-- ProfileHeader -->
         <ProfileHeader @avatar-updated="refreshUser" />
-
-        <!-- Personal Info -->
         <ProfilePersonalInfo />
-
-        <!-- Address -->
         <ProfileAddress />
       </div>
 
       <!-- Edit button -->
       <div class="flex justify-center mt-8">
-        <button @click="openEditProfile"
+        <button @click="openEditModal"
           class="flex items-center gap-2 px-6 py-3 text-sm font-medium text-white transition-colors rounded-lg shadow-md bg-brand-500 hover:bg-brand-600 dark:bg-brand-600 dark:hover:bg-brand-700">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -32,17 +27,15 @@
         </button>
       </div>
 
-      <!-- Edit Modal -->
-      <EditProfileModal :isOpen="isEditProfileModalOpen" :userData="user" @close="isEditProfileModalOpen = false"
-        @saved="refreshUser" />
+      <!-- EditProfileModal – placed here so it's inside v-else -->
+      <EditProfileModal :isOpen="isEditModalOpen" @close="isEditModalOpen = false" @saved="refreshUser" />
     </template>
- 
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
-import AdminLayout from '@/components/layout/AdminLayout.vue'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
 import ProfileHeader from '@/components/Profile/ProfileHeader.vue'
 import ProfilePersonalInfo from '@/components/Profile/ProfilePersonalInfo.vue'
@@ -53,10 +46,10 @@ const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 
 const currentPageTitle = computed(() => 'My Profile')
-const isEditProfileModalOpen = ref(false)
+const isEditModalOpen = ref(false)
 
-const openEditProfile = () => {
-  isEditProfileModalOpen.value = true
+const openEditModal = () => {
+  isEditModalOpen.value = true
 }
 
 const refreshUser = async () => {

@@ -77,4 +77,11 @@ class Consolidation extends Model
     {
         return $this->belongsTo(Courier::class);
     }
+
+    
+
+    public function internationalCourier()
+    {
+        return $this->belongsTo(InternationalCourier::class);
+    }
 }

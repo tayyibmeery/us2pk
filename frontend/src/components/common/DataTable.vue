@@ -253,9 +253,7 @@
 </template>
 
 <script setup lang="ts">
-
 import { ref, computed, watch, onUnmounted } from 'vue'
-import ComponentCard from '@/components/common/ComponentCard.vue'  // ✅ added
 import type { ColumnDefinition } from '@/types/table'
 
 defineOptions({
@@ -270,9 +268,14 @@ const props = defineProps<{
   modalComponent?: any
   modalProps?: Record<string, any>
   hideDelete?: boolean
+  selfSaving?: boolean
 }>()
 
-// ── Table state ──────────────────────────────────────────────────────────────
+// ✅ Emit saved so parent (Shipments.vue) can react
+const emit = defineEmits<{
+  (e: 'saved'): void
+}>()
+
 const search = ref<string>(props.store.search ?? '')
 const perPage = ref<number>(Number(props.store.perPage ?? 10))
 const sortByKey = ref<string>(props.store.sortBy ?? 'id')
@@ -281,42 +284,23 @@ const sortOrder = ref<'asc' | 'desc'>(props.store.sortOrder ?? 'asc')
 const modalOpen = ref(false)
 const editingItem = ref<any>(null)
 
-// ── Error toast ───────────────────────────────────────────────────────────────
 const errorModalOpen = ref(false)
 const errorMessage = ref('')
 const errorProgress = ref(0)
 let errorTimer: ReturnType<typeof setTimeout> | null = null
 let progressTimer: ReturnType<typeof setInterval> | null = null
 
-// ── Sync store → local state ──────────────────────────────────────────────────
-watch(
-  () => props.store.sortBy,
-  (v) => { sortByKey.value = v },
-  { immediate: true }
-)
-watch(
-  () => props.store.sortOrder,
-  (v) => { sortOrder.value = v },
-  { immediate: true }
-)
-watch(
-  () => props.store.perPage,
-  (v) => { perPage.value = Number(v) },
-  { immediate: true }
-)
+watch(() => props.store.sortBy, (v) => { sortByKey.value = v }, { immediate: true })
+watch(() => props.store.sortOrder, (v) => { sortOrder.value = v }, { immediate: true })
+watch(() => props.store.perPage, (v) => { perPage.value = Number(v) }, { immediate: true })
 
-// Watch store errors
-watch(
-  () => props.store.error,
-  (err) => {
-    if (err) {
-      showError(err)
-      props.store.error = null
-    }
+watch(() => props.store.error, (err) => {
+  if (err) {
+    showError(err)
+    props.store.error = null
   }
-)
+})
 
-// ── Pagination ────────────────────────────────────────────────────────────────
 const pageNumbers = computed(() => {
   const total = props.store.pagination?.last_page ?? 1
   const current = props.store.pagination?.current_page ?? 1
@@ -332,7 +316,6 @@ const changePage = (page: number) => {
   props.store.fetchItems(page)
 }
 
-// ── Search (debounced, with clear) ────────────────────────────────────────────
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
 const onSearchInput = () => {
@@ -347,14 +330,12 @@ const clearSearch = () => {
   props.store.setSearch('')
 }
 
-// ── Per-page ──────────────────────────────────────────────────────────────────
 const onPerPageChange = (event: Event) => {
   const val = Number((event.target as HTMLSelectElement).value)
   perPage.value = val
   props.store.setPerPage(val)
 }
 
-// ── Sort ──────────────────────────────────────────────────────────────────────
 const onSort = (key: string) => {
   props.store.setSort(key)
 }
@@ -370,7 +351,17 @@ const openEditModal = (item: any) => {
   modalOpen.value = true
 }
 
+// ✅ Modal handles its own saving — we just close and refresh
 const handleSave = async (data: any) => {
+  if (props.selfSaving) {
+    // Modal already saved — just close and refresh
+    modalOpen.value = false
+    await props.store.fetchItems(props.store.pagination?.current_page ?? 1)
+    emit('saved')
+    return
+  }
+
+  // Original behavior for all other modals
   try {
     if (editingItem.value?.id) {
       await props.store.update(editingItem.value.id, data)
@@ -385,11 +376,13 @@ const handleSave = async (data: any) => {
   }
 }
 
+
+// ── Delete ────────────────────────────────────────────────────────────────────
 const deleteItem = async (id: number) => {
   if (!confirm('Delete this record? This action cannot be undone.')) return
   try {
     await props.store.delete(id)
-    props.store.fetchItems(props.store.pagination?.current_page ?? 1)
+    await props.store.fetchItems(props.store.pagination?.current_page ?? 1)
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || 'Delete failed'
     showError(msg)
@@ -418,14 +411,8 @@ const showError = (message: string) => {
 }
 
 const clearError = () => {
-  if (errorTimer) {
-    clearTimeout(errorTimer)
-    errorTimer = null
-  }
-  if (progressTimer) {
-    clearInterval(progressTimer)
-    progressTimer = null
-  }
+  if (errorTimer) { clearTimeout(errorTimer); errorTimer = null }
+  if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
 }
 
 const closeErrorModal = () => {

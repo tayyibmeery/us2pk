@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia';
 import api from '@/services/api';
 
-export interface Address {
+export interface PaymentMethod {
   id: number;
-  warehouse: string;
-  address: string;
+  name: string;
+  status: boolean;
   created_at?: string;
   updated_at?: string;
 }
 
-export const useAddressStore = defineStore('address', {
+export const usePaymentMethodStore = defineStore('paymentMethod', {
   state: () => ({
-    items: [] as Address[],
+    items: [] as PaymentMethod[],
     pagination: {
       current_page: 1,
       last_page: 1,
@@ -20,14 +20,14 @@ export const useAddressStore = defineStore('address', {
     },
     loading: false,
     error: null as string | null,
-    selected: null as Address | null,
+    selected: null as PaymentMethod | null,
   }),
   actions: {
     async fetchItems(page = 1, params = {}) {
       this.loading = true;
       this.error = null;
       try {
-        const res = await api.get('/admin/addresses', { params: { page, ...params } });
+        const res = await api.get('/admin/payment-methods', { params: { page, ...params } });
         this.items = res.data.data;
         this.pagination = {
           current_page: res.data.current_page,
@@ -36,16 +36,16 @@ export const useAddressStore = defineStore('address', {
           total: res.data.total,
         };
       } catch (err: any) {
-        this.error = err.response?.data?.message || 'Failed to fetch addresses';
+        this.error = err.response?.data?.message || 'Failed to fetch payment methods';
         throw err;
       } finally {
         this.loading = false;
       }
     },
-    async create(data: Partial<Address>) {
+    async create(data: Partial<PaymentMethod>) {
       this.loading = true;
       try {
-        const res = await api.post('/admin/addresses', data);
+        const res = await api.post('/admin/payment-methods', data);
         this.items.unshift(res.data);
         this.pagination.total += 1;
         return res.data;
@@ -56,10 +56,10 @@ export const useAddressStore = defineStore('address', {
         this.loading = false;
       }
     },
-    async update(id: number, data: Partial<Address>) {
+    async update(id: number, data: Partial<PaymentMethod>) {
       this.loading = true;
       try {
-        const res = await api.put(`/admin/addresses/${id}`, data);
+        const res = await api.put(`/admin/payment-methods/${id}`, data);
         const idx = this.items.findIndex(i => i.id === id);
         if (idx !== -1) this.items[idx] = res.data;
         return res.data;
@@ -73,7 +73,7 @@ export const useAddressStore = defineStore('address', {
     async delete(id: number) {
       this.loading = true;
       try {
-        await api.delete(`/admin/addresses/${id}`);
+        await api.delete(`/admin/payment-methods/${id}`);
         this.items = this.items.filter(i => i.id !== id);
         this.pagination.total -= 1;
       } catch (err: any) {

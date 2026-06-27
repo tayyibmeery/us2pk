@@ -15,10 +15,13 @@ class Shipment extends Model
         'weight_unit',
         'weight_kgs',
         'seller_tracker_id',
-        'site_name',
         'purchase_date',
         'comments',
-        'status',
+        // ✅ Add these new fields
+        'shipment_status_id',
+        'payment_method_id',
+        'local_courier_id',
+        'site_id',
         'arrival_date',
         'expected_delivery_date',
         'date_delivered',
@@ -26,9 +29,7 @@ class Shipment extends Model
         'company_charges',
         'received_amount',
         'paid_by',
-        'payment_method',
         'receivable_cod',
-        'local_delivery_by',
         'delivery_charges',
     ];
 
@@ -114,4 +115,12 @@ class Shipment extends Model
     {
         return $this->belongsTo(ShipmentStatus::class);
     }
+
+
+
+    public function localCourier()
+    {
+        return $this->belongsTo(LocalCourier::class);
+    }
+
 }

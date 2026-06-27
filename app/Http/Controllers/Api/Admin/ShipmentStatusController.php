@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Shipment;
 use App\Models\ShipmentStatus;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -44,11 +45,15 @@ class ShipmentStatusController extends Controller
 
     public function destroy(ShipmentStatus $shipmentStatus)
     {
-        if ($shipmentStatus->shipments()->exists()) {
+        // Check if any shipment uses this status ID
+        $used = Shipment::where('shipment_status_id', $shipmentStatus->id)->exists();
+
+        if ($used) {
             return response()->json([
                 'message' => 'Cannot delete because it is used in shipments.'
             ], 422);
         }
+
         $shipmentStatus->delete();
         return response()->json(['message' => 'Deleted successfully']);
     }

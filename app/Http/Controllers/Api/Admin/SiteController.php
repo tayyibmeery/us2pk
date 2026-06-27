@@ -44,11 +44,14 @@ class SiteController extends Controller
 
     public function destroy(Site $site)
     {
-        if ($site->shipments()->exists()) {
+        $used = Shipment::where('site_id', $site->id)->exists();
+
+        if ($used) {
             return response()->json([
                 'message' => 'Cannot delete because it is used in shipments.'
             ], 422);
         }
+
         $site->delete();
         return response()->json(['message' => 'Deleted successfully']);
     }

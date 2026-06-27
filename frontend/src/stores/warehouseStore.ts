@@ -1,22 +1,19 @@
 import { defineStore } from 'pinia';
 import api from '@/services/api';
 
-export interface WeightDiscount {
+export interface Warehouse {
   id: number;
-  warehouse_id: number;
-  discount_percent: number;
-  warehouse?: {
-    id: number;
-    name: string;
-    code: string;
-  };
+  name: string;
+  code: string;
+  address: string;
+  status: boolean;
   created_at?: string;
   updated_at?: string;
 }
 
-export const useWeightDiscountStore = defineStore('weightDiscount', {
+export const useWarehouseStore = defineStore('warehouse', {
   state: () => ({
-    items: [] as WeightDiscount[],
+    items: [] as Warehouse[],
     pagination: {
       current_page: 1,
       last_page: 1,
@@ -25,14 +22,14 @@ export const useWeightDiscountStore = defineStore('weightDiscount', {
     },
     loading: false,
     error: null as string | null,
-    selected: null as WeightDiscount | null,
+    selected: null as Warehouse | null,
   }),
   actions: {
     async fetchItems(page = 1, params = {}) {
       this.loading = true;
       this.error = null;
       try {
-        const res = await api.get('/admin/weight-discounts', { params: { page, ...params } });
+        const res = await api.get('/admin/warehouses', { params: { page, ...params } });
         this.items = res.data.data;
         this.pagination = {
           current_page: res.data.current_page,
@@ -41,16 +38,16 @@ export const useWeightDiscountStore = defineStore('weightDiscount', {
           total: res.data.total,
         };
       } catch (err: any) {
-        this.error = err.response?.data?.message || 'Failed to fetch weight discounts';
+        this.error = err.response?.data?.message || 'Failed to fetch warehouses';
         throw err;
       } finally {
         this.loading = false;
       }
     },
-    async create(data: Partial<WeightDiscount>) {
+    async create(data: Partial<Warehouse>) {
       this.loading = true;
       try {
-        const res = await api.post('/admin/weight-discounts', data);
+        const res = await api.post('/admin/warehouses', data);
         this.items.unshift(res.data);
         this.pagination.total += 1;
         return res.data;
@@ -61,10 +58,10 @@ export const useWeightDiscountStore = defineStore('weightDiscount', {
         this.loading = false;
       }
     },
-    async update(id: number, data: Partial<WeightDiscount>) {
+    async update(id: number, data: Partial<Warehouse>) {
       this.loading = true;
       try {
-        const res = await api.put(`/admin/weight-discounts/${id}`, data);
+        const res = await api.put(`/admin/warehouses/${id}`, data);
         const idx = this.items.findIndex(i => i.id === id);
         if (idx !== -1) this.items[idx] = res.data;
         return res.data;
@@ -78,7 +75,7 @@ export const useWeightDiscountStore = defineStore('weightDiscount', {
     async delete(id: number) {
       this.loading = true;
       try {
-        await api.delete(`/admin/weight-discounts/${id}`);
+        await api.delete(`/admin/warehouses/${id}`);
         this.items = this.items.filter(i => i.id !== id);
         this.pagination.total -= 1;
       } catch (err: any) {

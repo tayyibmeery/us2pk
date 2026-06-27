@@ -6,5 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class WeightDiscount extends Model
 {
-    protected $fillable = ['warehouse', 'discount_percent'];
+    protected $fillable = ['warehouse_id', 'discount_percent'];
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
 }

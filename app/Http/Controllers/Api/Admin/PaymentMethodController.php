@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaymentMethod;
+use App\Models\Shipment;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -44,11 +45,15 @@ class PaymentMethodController extends Controller
 
     public function destroy(PaymentMethod $paymentMethod)
     {
-        if ($paymentMethod->shipments()->exists()) {
+        // Check if any shipment uses this payment method via payment_method_id
+        $used = Shipment::where('payment_method_id', $paymentMethod->id)->exists();
+
+        if ($used) {
             return response()->json([
                 'message' => 'Cannot delete because it is used in shipments.'
             ], 422);
         }
+
         $paymentMethod->delete();
         return response()->json(['message' => 'Deleted successfully']);
     }
