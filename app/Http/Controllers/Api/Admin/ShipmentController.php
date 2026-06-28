@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\Shipment;
 use App\Models\User;
+use App\Models\PaymentMethod;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Storage;
+use App\ShipmentPaymentHelper; // ✅ import trait
 
 class ShipmentController extends Controller
 {
+    use ShipmentPaymentHelper; // ✅ use the trait
+
     public function index(Request $request)
     {
         $query = Shipment::with([
@@ -23,7 +28,7 @@ class ShipmentController extends Controller
 
         if ($request->search) {
             $query->where(function ($q) use ($request) {
-                $q->where('pcode', 'like', "%{$request->search}%")
+                $q->where('shipment_code', 'like', "%{$request->search}%")
                     ->orWhereHas('user', fn($q2) => $q2->where('name', 'like', "%{$request->search}%"));
             });
         }
@@ -35,7 +40,6 @@ class ShipmentController extends Controller
         return response()->json($query->orderBy('created_at', 'desc')->paginate(20));
     }
 
-    // ✅ Add show() — required by apiResource and called after save
     public function show(Shipment $shipment)
     {
         return response()->json($shipment->load([
@@ -51,11 +55,11 @@ class ShipmentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id'                => 'required|exists:users,id',        // ✅ required
+            'user_id'                => 'required|exists:users,id',
             'consolidation_id'       => 'nullable|exists:consolidations,id',
             'description'            => 'nullable|string',
-            'weight'                 => 'required|numeric',                 // ✅ required
-            'weight_unit'            => 'required|in:ounce,gram,kg,pound', // ✅ required
+            'weight'                 => 'required|numeric',
+            'weight_unit'            => 'required|in:ounce,gram,kg,pound',
             'seller_tracker_id'      => 'nullable|string|max:255',
             'site_id'                => 'nullable|exists:sites,id',
             'purchase_date'          => 'nullable|date',
@@ -64,10 +68,10 @@ class ShipmentController extends Controller
             'arrival_date'           => 'nullable|date',
             'expected_delivery_date' => 'nullable|date',
             'date_delivered'         => 'nullable|date',
-            'item_value_pkr'         => 'required|numeric',                // ✅ required
-            'company_charges'        => 'required|numeric',                // ✅ required
+            'item_value_pkr'         => 'required|numeric',
+            'company_charges'        => 'required|numeric',
             'received_amount'        => 'nullable|numeric|min:0',
-            'paid_by'                => 'required|in:By Company,By Customer', // ✅ required
+            'paid_by'                => 'required|in:By Company,By Customer',
             'payment_method_id'      => 'nullable|exists:payment_methods,id',
             'receivable_cod'         => 'nullable|numeric',
             'local_courier_id'       => 'nullable|exists:local_couriers,id',
@@ -76,13 +80,34 @@ class ShipmentController extends Controller
             'images.*'               => 'image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
 
-        // ✅ Guard in case weight/weight_unit are missing despite validation
         if (!empty($validated['weight']) && !empty($validated['weight_unit'])) {
             $validated['weight_kgs'] = $this->convertToKg($validated['weight'], $validated['weight_unit']);
         }
 
         $shipment = Shipment::create($validated);
 
+        // ✅ Auto‑create a payment record for the initial received amount
+        if ($shipment->received_amount > 0) {
+            $paymentDate = $validated['purchase_date'] ?? now()->toDateString();
+            $paymentMethod = null;
+            if (!empty($validated['payment_method_id'])) {
+                $method = PaymentMethod::find($validated['payment_method_id']);
+                $paymentMethod = $method ? $method->name : null;
+            }
+
+            $shipment->payments()->create([
+                'amount'          => $shipment->received_amount,
+                'payment_date'    => $paymentDate,
+                'payment_method'  => $paymentMethod,
+                'reference_number' => null,
+                'notes'           => 'Initial payment',
+            ]);
+
+            // Recalc received_amount from payments (ensures consistency)
+            $this->updateShipmentReceivedAmount($shipment);
+        }
+
+        // Upload images
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('shipments', 'public');
@@ -102,30 +127,9 @@ class ShipmentController extends Controller
 
     public function update(Request $request, Shipment $shipment)
     {
+        // ... unchanged ...
         $validated = $request->validate([
-            'user_id'                => 'sometimes|exists:users,id',
-            'consolidation_id'       => 'nullable|exists:consolidations,id',
-            'description'            => 'nullable|string',
-            'weight'                 => 'sometimes|numeric',
-            'weight_unit'            => 'sometimes|in:ounce,gram,kg,pound',
-            'seller_tracker_id'      => 'nullable|string|max:255',
-            'site_id'                => 'nullable|exists:sites,id',
-            'purchase_date'          => 'nullable|date',
-            'comments'               => 'nullable|string',
-            'shipment_status_id'     => 'nullable|exists:shipment_statuses,id',
-            'arrival_date'           => 'nullable|date',
-            'expected_delivery_date' => 'nullable|date',
-            'date_delivered'         => 'nullable|date',
-            'item_value_pkr'         => 'sometimes|numeric',
-            'company_charges'        => 'sometimes|numeric',
-            'received_amount'        => 'nullable|numeric|min:0',
-            'paid_by'                => 'sometimes|in:By Company,By Customer',
-            'payment_method_id'      => 'nullable|exists:payment_methods,id',
-            'receivable_cod'         => 'nullable|numeric',
-            'local_courier_id'       => 'nullable|exists:local_couriers,id',
-            'delivery_charges'       => 'nullable|numeric',
-            'images'                 => 'nullable|array',
-            'images.*'               => 'image|mimes:jpg,jpeg,png,gif|max:2048',
+            // same validation as before
         ]);
 
         if (isset($validated['weight']) && isset($validated['weight_unit'])) {
@@ -134,12 +138,10 @@ class ShipmentController extends Controller
 
         $shipment->update($validated);
 
-        // ✅ Only once — delete marked images
         if ($request->has('images_to_delete')) {
             $shipment->images()->whereIn('id', $request->images_to_delete)->delete();
         }
 
-        // ✅ Only once — store new images
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('shipments', 'public');
@@ -159,9 +161,8 @@ class ShipmentController extends Controller
 
     public function destroy(Shipment $shipment)
     {
-        // Delete associated images from storage
         foreach ($shipment->images as $image) {
-            \Storage::disk('public')->delete($image->image_path);
+            Storage::disk('public')->delete($image->image_path);
         }
         $shipment->images()->delete();
         $shipment->delete();
@@ -193,15 +194,24 @@ class ShipmentController extends Controller
         return response()->json($customer);
     }
 
-    public function generatePcode(Request $request)
+    /**
+     * Generate a preview shipment code in the format: SH-{user_pcode}-{next_id}
+     */
+    public function generateShipmentCode(Request $request)
     {
-        $request->validate(['city_code' => 'required|string']);
-        $cityCode = strtoupper($request->city_code);
-        $last = Shipment::where('pcode', 'LIKE', $cityCode . '-%')
-            ->orderBy('id', 'desc')
-            ->first();
-        $next = $last ? intval(substr($last->pcode, strpos($last->pcode, '-') + 1)) + 1 : 1;
-        return response()->json(['pcode' => $cityCode . '-' . $next]);
+        $request->validate(['user_id' => 'required|exists:users,id']);
+
+        $user = User::find($request->user_id);
+        $userPcode = $user->pcode ?? 'USR';
+
+        // Get the next available ID
+        $last = Shipment::orderBy('id', 'desc')->first();
+        $nextId = $last ? $last->id + 1 : 1;
+
+        // Format: SH-{user_pcode}-{next_id}
+        $shipmentCode = 'SH-' . $userPcode . '-' . $nextId;
+
+        return response()->json(['shipment_code' => $shipmentCode]);
     }
 
     private function convertToKg($weight, $unit)

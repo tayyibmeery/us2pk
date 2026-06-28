@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Shipment extends Model
 {
     protected $fillable = [
-        'pcode',
+        'shipment_code',
         'user_id',
         'consolidation_id',
         'description',
@@ -17,7 +17,6 @@ class Shipment extends Model
         'seller_tracker_id',
         'purchase_date',
         'comments',
-        // ✅ Add these new fields
         'shipment_status_id',
         'payment_method_id',
         'local_courier_id',
@@ -31,20 +30,24 @@ class Shipment extends Model
         'paid_by',
         'receivable_cod',
         'delivery_charges',
+        'amount_due',              // ✅ added – was missing
     ];
-
 
     protected $casts = [
         'purchase_date' => 'date',
         'arrival_date' => 'date',
         'expected_delivery_date' => 'date',
         'date_delivered' => 'date',
-        'item_value_pkr' => 'decimal:2',
-        'company_charges' => 'decimal:2',
-        'received_amount' => 'decimal:2',
-        'delivery_charges' => 'decimal:2',
-        'receivable_cod' => 'decimal:2',
-        'total' => 'decimal:2',
+        // Use float for all numeric fields to get actual numbers
+        'item_value_pkr' => 'float',
+        'company_charges' => 'float',
+        'received_amount' => 'float',
+        'delivery_charges' => 'float',
+        'receivable_cod' => 'float',
+        'total' => 'float',
+        'weight' => 'float',
+        'weight_kgs' => 'float',
+        'amount_due' => 'float',
     ];
 
     public function user()
@@ -65,25 +68,17 @@ class Shipment extends Model
     protected static function booted()
     {
         static::creating(function ($shipment) {
-            // Auto-generate pcode if not set
-            if (!$shipment->pcode) {
-                $city = $shipment->user?->city;
-                if ($city) {
-                    $cityCode = $city->city_code;
-                    $last = self::where('pcode', 'LIKE', $cityCode . '-%')
-                        ->orderBy('id', 'desc')
-                        ->first();
-                    $next = $last ? intval(substr($last->pcode, strpos($last->pcode, '-') + 1)) + 1 : 1;
-                    $shipment->pcode = $cityCode . '-' . $next;
-                } else {
-                    $shipment->pcode = 'PK-' . rand(1000, 9999);
-                }
-            }
-            // Calculate receivable_cod (total - received_amount)
+            $shipment->shipment_code = 'TEMP-' . uniqid();
+
             $total = $shipment->item_value_pkr + $shipment->company_charges;
             $shipment->receivable_cod = max(0, $total - ($shipment->received_amount ?? 0));
-            // amount_due (if paid by customer, total; else 0)
             $shipment->amount_due = $shipment->paid_by === 'By Customer' ? $total : 0;
+        });
+
+        static::created(function ($shipment) {
+            $userPcode = $shipment->user?->pcode ?? 'USR';
+            $shipment->shipment_code = 'SH-' . $userPcode . '-' . $shipment->id;
+            $shipment->saveQuietly();
         });
 
         static::updating(function ($shipment) {
@@ -94,7 +89,6 @@ class Shipment extends Model
             }
         });
     }
-
 
     public function site()
     {
@@ -116,11 +110,26 @@ class Shipment extends Model
         return $this->belongsTo(ShipmentStatus::class);
     }
 
-
-
     public function localCourier()
     {
         return $this->belongsTo(LocalCourier::class);
     }
 
+
+    // Add relationship
+    public function payments()
+    {
+        return $this->hasMany(ShipmentPayment::class);
+    }
+
+    // Method to recalc received_amount from all payments
+    public function recalcReceivedAmount(): void
+    {
+        $this->received_amount = $this->payments()->sum('amount') ?? 0;
+        // receivable_cod will auto-calc via booted() if we save
+        $this->saveQuietly(); // avoid event loops
+    }
+
+    // Override save to update receivable_cod and amount_due after payment changes
+    // We'll handle via controller logic, not event to avoid complexity.
 }

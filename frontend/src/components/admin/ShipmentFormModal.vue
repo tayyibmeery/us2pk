@@ -20,12 +20,12 @@
           <p v-if="usersLoading" class="text-xs text-gray-400 mt-1">Loading users...</p>
         </div>
 
-        <!-- PCode (read-only) -->
+        <!-- shipment_code (read-only) -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            PCode
+            Shipment Code
           </label>
-          <input v-model="formData.pcode" type="text" readonly
+          <input v-model="formData.shipment_code" type="text" readonly
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-600 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400" />
         </div>
 
@@ -403,7 +403,7 @@ const flatpickrInstances: Record<string, any> = {}
 
 const defaultForm = (): Partial<Shipment> => ({
   user_id: undefined,
-  pcode: '',
+  shipment_code: '',
   description: '',
   weight: 0,
   weight_unit: 'kg',
@@ -568,17 +568,14 @@ watch(() => props.initialData, (newVal) => {
 }, { immediate: true })
 
 watch(() => formData.value.user_id, async (newUserId) => {
-  if (!newUserId || props.initialData?.id) return  // don't regenerate pcode when editing
-  const selectedUser = users.value.find((u: any) => u.id === newUserId)
-  if (selectedUser?.city?.city_code) {
-    try {
-      const res = await api.get('/admin/shipments/generate-pcode', {
-        params: { city_code: selectedUser.city.city_code },
-      })
-      formData.value.pcode = res.data.pcode
-    } catch (e) {
-      console.error('Failed to generate pcode', e)
-    }
+  if (!newUserId) return
+  try {
+    const res = await api.get('/admin/shipments/generate-shipment-code', {
+      params: { user_id: newUserId }
+    })
+    formData.value.shipment_code = res.data.shipment_code
+  } catch (e) {
+    console.error('Failed to generate shipment code', e)
   }
 })
 

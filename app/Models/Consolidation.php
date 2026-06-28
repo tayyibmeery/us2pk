@@ -11,12 +11,11 @@ class Consolidation extends Model
         'awb_number',
         'warehouse_id',
         'date_dispatched',
-        'courier',
+        'international_courier_id',
         'date_departed',
         'date_reached',
-        'receiveable_from_bluex',
-        'pkship_charges',
-        'bluex_charges',
+        'receivable_from_courier',
+        'courier_charges',
         'ware_house_charges',
         'import_taxes',
         'net_st_payable',
@@ -25,17 +24,33 @@ class Consolidation extends Model
         'income_tax',
         'caa_charges',
         'output_sales_tax',
+        'total_weight_kg',
+        // Allow these to be set via mass assignment (though we usually set them directly)
         'total_us2pk_charges',
         'direct_costs',
-        'total_weight_kg',
-        'gross_income',
-        'roi_percent'
+        'roi_percent',
     ];
 
     protected $casts = [
         'date_dispatched' => 'date',
         'date_departed'   => 'date',
         'date_reached'    => 'date',
+        'total_weight_kg' => 'float',
+        'receivable_from_courier' => 'float',
+        'courier_charges' => 'float',
+        'ware_house_charges' => 'float',
+        'import_taxes' => 'float',
+        'net_st_payable' => 'float',
+        'direct_cost' => 'float',      // stored column, read-only
+        'direct_costs' => 'float',     // regular column
+        'gross_income' => 'float',     // stored column, read-only
+        'roi_percent' => 'float',
+        'customs_duty' => 'float',
+        'sales_tax' => 'float',
+        'income_tax' => 'float',
+        'caa_charges' => 'float',
+        'output_sales_tax' => 'float',
+        'total_us2pk_charges' => 'float',
     ];
 
     public function warehouse()
@@ -48,40 +63,38 @@ class Consolidation extends Model
         return $this->hasMany(Shipment::class);
     }
 
-    // Helper to recalculate totals from shipments
+    public function internationalCourier()
+    {
+        return $this->belongsTo(InternationalCourier::class);
+    }
+
+    /**
+     * Recalculate all totals from associated shipments.
+     */
     public function recalculateTotals()
     {
         $shipments = $this->shipments;
 
         $this->total_weight_kg = $shipments->sum('weight_kgs');
-        $this->pkship_charges = $shipments->sum('company_charges');
-        $this->bluex_charges = $shipments->sum('blueex_charges');
-        $this->receiveable_from_bluex = $shipments->sum('receivable_cod');
-        $this->output_sales_tax = $shipments->sum('output_tax'); // if you have this field
-
-        // Assume warehouse_charges and import_taxes are entered manually or calculated elsewhere
-        // We'll leave them as is.
+        $this->courier_charges = $shipments->sum('delivery_charges');
+        $this->receivable_from_courier = $shipments->sum('receivable_cod');
+        $this->output_sales_tax = $shipments->sum('output_tax');
 
         $this->import_taxes = $this->customs_duty + $this->sales_tax + $this->income_tax + $this->caa_charges;
         $this->net_st_payable = $this->output_sales_tax - $this->sales_tax;
-        $this->direct_cost = $this->ware_house_charges + $this->import_taxes + $this->bluex_charges + $this->net_st_payable;
-        $this->gross_income = $this->pkship_charges - $this->direct_cost;
-        $this->roi_percent = $this->direct_cost > 0 ? ($this->gross_income / $this->direct_cost) * 100 : 0;
 
-        $this->save();
+        // Set total_us2pk_charges (e.g., sum of courier charges)
+        $this->total_us2pk_charges = $this->courier_charges;
 
+        // ✅ Compute direct_costs (regular column) – this is NOT stored, so we must set it
+        $this->direct_costs = $this->ware_house_charges + $this->import_taxes + $this->courier_charges + $this->net_st_payable;
+
+        // ROI % uses the stored direct_cost column (computed by DB)
+        $this->roi_percent = $this->direct_cost > 0
+            ? (($this->receivable_from_courier - $this->direct_cost) / $this->direct_cost) * 100
+            : 0;
+
+        $this->saveQuietly();
         return $this;
-    }
-
-    public function courier()
-    {
-        return $this->belongsTo(Courier::class);
-    }
-
-    
-
-    public function internationalCourier()
-    {
-        return $this->belongsTo(InternationalCourier::class);
     }
 }

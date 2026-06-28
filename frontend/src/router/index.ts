@@ -59,6 +59,11 @@ const router = createRouter({
         { path: 'admin/sub-sub-categories', name: 'AdminSubSubCategories', component: () => import('@/views/admin/SubSubCategories.vue'), meta: { title: 'Sub Sub Categories', role: 'admin' } },
 
         // ---- 🆕 New admin routes ----
+        {
+          path: 'admin/shipments/:id',
+          component: () => import('@/views/admin/ShipmentView.vue'),
+          meta: { title: 'Shipment Details', role: 'admin' },
+        },
         { path: 'admin/payment-methods', name: 'AdminPaymentMethods', component: () => import('@/views/admin/PaymentMethods.vue'), meta: { title: 'Payment Methods', role: 'admin' } },
         { path: 'admin/sites', name: 'AdminSites', component: () => import('@/views/admin/Sites.vue'), meta: { title: 'Sites', role: 'admin' } },
         { path: 'admin/international-couriers', name: 'AdminInternationalCouriers', component: () => import('@/views/admin/InternationalCouriers.vue'), meta: { title: 'International Couriers', role: 'admin' } },

@@ -82,7 +82,7 @@ export interface User {
 
 export interface Shipment {
   id: number
-  pcode: string
+  shipment_code: string
   user_id: number
   user?: User
   consolidation_id?: number

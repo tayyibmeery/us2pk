@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('shipments', function (Blueprint $table) {
             $table->id();
-            $table->string('pcode')->unique();
+            $table->string('shipment_code')->unique();
 
             $table->foreignId('user_id')->constrained('users');
             $table->foreignId('consolidation_id')->nullable()->constrained('consolidations');

@@ -44,7 +44,7 @@
               <td class="px-4 py-2">{{ c.awb_number || '—' }}</td>
               <td class="px-4 py-2">{{ c.warehouse?.name || '—' }}</td>
               <td class="px-4 py-2">{{ c.date_dispatched || '—' }}</td>
-              <td class="px-4 py-2 text-right">{{ c.pkship_charges?.toLocaleString() }}</td>
+              <td class="px-4 py-2 text-right">{{ c.total_us2pk_charges?.toLocaleString() }}</td>
               <td class="px-4 py-2 text-right">{{ c.direct_cost?.toLocaleString() }}</td>
               <td class="px-4 py-2 text-right">{{ c.gross_income?.toLocaleString() }}</td>
               <td class="px-4 py-2 text-right">{{ c.roi_percent?.toFixed(0) }}%</td>

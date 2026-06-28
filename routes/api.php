@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\Admin\{
     PageController,
     FinancialController,
     PaymentMethodController,
+    ShipmentPaymentController,
     ShipmentStatusController,
     SiteController,
     SubCategoryController,
@@ -61,12 +62,24 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::put('/users/{user}', [UserController::class, 'update']);
 
     // ✅ Shipment custom routes MUST come BEFORE apiResource
-    Route::get('/shipments/generate-pcode', [ShipmentController::class, 'generatePcode']);
+    Route::get('/shipments/generate-shipment-code', [ShipmentController::class, 'generateShipmentCode']);
     Route::get('/shipments/fetch-customer', [ShipmentController::class, 'fetchCustomer']);
     Route::post('/shipments/{shipment}/status', [ShipmentController::class, 'updateStatus']);
 
     // ✅ apiResource AFTER custom routes
     Route::apiResource('shipments', ShipmentController::class);
+
+    Route::prefix('shipments/{shipment}')->group(function () {
+        Route::get('payments', [ShipmentPaymentController::class, 'index']);
+        Route::post('payments', [ShipmentPaymentController::class, 'store']);
+    });
+    Route::prefix('shipment-payments')->group(function () {
+        Route::get('{payment}', [ShipmentPaymentController::class, 'show']);
+        Route::put('{payment}', [ShipmentPaymentController::class, 'update']);
+        Route::delete('{payment}', [ShipmentPaymentController::class, 'destroy']);
+    });
+
+
 
     // Consolidations — custom before apiResource
     Route::get('consolidations/shipmentsJson', [ConsolidationController::class, 'shipmentsJson']);
