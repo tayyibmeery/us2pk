@@ -137,7 +137,12 @@ const columns: ColumnDefinition[] = [
 
   {
     key: 'receivable_cod',
-    label: 'Amount Due (PKR)',
+    label: 'COD (PKR)',
+    format: (v: any) => formatCurrency(v),
+  },
+  {
+    key: 'amount_due',
+    label: ' Amount Due (PKR)',
     format: (v: any) => formatCurrency(v),
   },
   {

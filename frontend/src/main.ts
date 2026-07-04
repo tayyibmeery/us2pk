@@ -26,5 +26,20 @@ app.config.errorHandler = (err, instance, info) => {
 
   app.use(createPinia())
   app.use(router)
-  app.use(VueApexCharts)
+app.use(VueApexCharts)
+
+function formatDate(date: string | undefined) {
+  if (!date) return '—';
+  return new Date(date).toLocaleDateString('en-GB');
+}
+function truncateWords(text: string | null | undefined, limit = 15) {
+  if (!text) return '—';
+  const words = text.split(/\s+/);
+  if (words.length <= limit) return text;
+  return words.slice(0, limit).join(' ') + '…';
+}
+
+// Make them globally available in templates
+app.config.globalProperties.formatDate = formatDate;
+app.config.globalProperties.truncateWords = truncateWords;
   app.mount('#app')

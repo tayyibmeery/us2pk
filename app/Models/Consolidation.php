@@ -10,7 +10,6 @@ class Consolidation extends Model
         'consol_id',
         'awb_number',
         'warehouse_id',
-        'date_dispatched',
         'international_courier_id',
         'date_departed',
         'date_reached',
@@ -25,14 +24,13 @@ class Consolidation extends Model
         'caa_charges',
         'output_sales_tax',
         'total_weight_kg',
-        // Allow these to be set via mass assignment (though we usually set them directly)
         'total_us2pk_charges',
         'direct_costs',
         'roi_percent',
+        // 'gross_income' is NOT in fillable because it's generated
     ];
 
     protected $casts = [
-        'date_dispatched' => 'date',
         'date_departed'   => 'date',
         'date_reached'    => 'date',
         'total_weight_kg' => 'float',
@@ -41,9 +39,9 @@ class Consolidation extends Model
         'ware_house_charges' => 'float',
         'import_taxes' => 'float',
         'net_st_payable' => 'float',
-        'direct_cost' => 'float',      // stored column, read-only
-        'direct_costs' => 'float',     // regular column
-        'gross_income' => 'float',     // stored column, read-only
+        'direct_cost' => 'float',      // stored column (read‑only)
+        'direct_costs' => 'float',
+        'gross_income' => 'float',     // stored column (read‑only)
         'roi_percent' => 'float',
         'customs_duty' => 'float',
         'sales_tax' => 'float',
@@ -75,23 +73,31 @@ class Consolidation extends Model
     {
         $shipments = $this->shipments;
 
+        // Sum child shipment fields
         $this->total_weight_kg = $shipments->sum('weight_kgs');
         $this->courier_charges = $shipments->sum('delivery_charges');
-        $this->receivable_from_courier = $shipments->sum('receivable_cod');
         $this->output_sales_tax = $shipments->sum('output_tax');
 
+        // ✅ Receivable from Courier = Total COD - Local Delivery Charges (net amount)
+        $this->receivable_from_courier = $shipments->sum('receivable_cod') - $shipments->sum('delivery_charges');
+
+        // Total US2PK Charges = sum of company_charges (revenue)
+        $this->total_us2pk_charges = $shipments->sum('company_charges');
+
+        // Import taxes from manual inputs
         $this->import_taxes = $this->customs_duty + $this->sales_tax + $this->income_tax + $this->caa_charges;
+
+        // Net ST Payable = output - input (sales tax liability)
         $this->net_st_payable = $this->output_sales_tax - $this->sales_tax;
 
-        // Set total_us2pk_charges (e.g., sum of courier charges)
-        $this->total_us2pk_charges = $this->courier_charges;
+        // Direct Costs = warehouse + import taxes + local courier charges
+        $this->direct_costs = $this->ware_house_charges
+            + $this->import_taxes
+            + $this->courier_charges;
 
-        // ✅ Compute direct_costs (regular column) – this is NOT stored, so we must set it
-        $this->direct_costs = $this->ware_house_charges + $this->import_taxes + $this->courier_charges + $this->net_st_payable;
-
-        // ROI % uses the stored direct_cost column (computed by DB)
-        $this->roi_percent = $this->direct_cost > 0
-            ? (($this->receivable_from_courier - $this->direct_cost) / $this->direct_cost) * 100
+        // ROI = (Gross Income / Direct Costs) * 100
+        $this->roi_percent = $this->direct_costs > 0
+            ? (($this->total_us2pk_charges - $this->direct_costs) / $this->direct_costs) * 100
             : 0;
 
         $this->saveQuietly();

@@ -26,7 +26,7 @@ class ConsolidationController extends Controller
         $data = $request->validate([
             'awb_number'               => 'nullable|string|max:100',
             'warehouse_id'             => 'nullable|exists:warehouses,id',
-            'date_dispatched'          => 'nullable|date',
+       
             'international_courier_id' => 'nullable|exists:international_couriers,id',
             'date_departed'            => 'nullable|date',
             'date_reached'             => 'nullable|date',
@@ -78,7 +78,7 @@ class ConsolidationController extends Controller
         $data = $request->validate([
             'awb_number'               => 'nullable|string|max:100',
             'warehouse_id'             => 'nullable|exists:warehouses,id',
-            'date_dispatched'          => 'nullable|date',
+
             'international_courier_id' => 'nullable|exists:international_couriers,id',
             'date_departed'            => 'nullable|date',
             'date_reached'             => 'nullable|date',

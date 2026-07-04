@@ -161,7 +161,7 @@
                 class="w-full rounded-lg border p-2 bg-gray-100 dark:bg-gray-700 cursor-not-allowed" />
             </div>
 
-            <!-- Received Amount -->
+            Received Amount
             <div>
               <label class="block text-sm font-medium">Received Amount (PKR)</label>
               <input v-model.number="form.received_amount" type="number" step="0.01"

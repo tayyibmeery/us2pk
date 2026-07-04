@@ -2,11 +2,11 @@ import { defineStore } from 'pinia'
 import api from '@/services/api'
 import type { Shipment, PaginatedResponse } from '@/types'
 
-// Fields to never send to the API — relations and computed values
 const SKIP_KEYS = [
   'images', 'total', 'user', 'site', 'shipment_status',
   'payment_method', 'local_courier', 'consolidation',
   'created_at', 'updated_at', 'weight_kgs', 'amount_due',
+  'receivable_cod',   // ✅ added
 ]
 
 // Date fields that arrive as ISO strings from the API and must be stripped to Y-m-d

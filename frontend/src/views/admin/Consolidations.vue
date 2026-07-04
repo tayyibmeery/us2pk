@@ -30,7 +30,7 @@
               <th class="px-4 py-3 text-left">Consol ID</th>
               <th class="px-4 py-3 text-left">AWB</th>
               <th class="px-4 py-3 text-left">Warehouse</th>
-              <th class="px-4 py-3 text-left">Date Dispatched</th>
+            
               <th class="px-4 py-3 text-right">Total Charges</th>
               <th class="px-4 py-3 text-right">Direct Costs</th>
               <th class="px-4 py-3 text-right">Gross Income</th>
@@ -43,7 +43,7 @@
               <td class="px-4 py-2 font-mono">{{ c.consol_id }}</td>
               <td class="px-4 py-2">{{ c.awb_number || '—' }}</td>
               <td class="px-4 py-2">{{ c.warehouse?.name || '—' }}</td>
-              <td class="px-4 py-2">{{ c.date_dispatched || '—' }}</td>
+
               <td class="px-4 py-2 text-right">{{ c.total_us2pk_charges?.toLocaleString() }}</td>
               <td class="px-4 py-2 text-right">{{ c.direct_cost?.toLocaleString() }}</td>
               <td class="px-4 py-2 text-right">{{ c.gross_income?.toLocaleString() }}</td>

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserDashboardController;
 use App\Http\Controllers\Api\Admin\{
+    AccountingReportController,
     DashboardController,
     UserController,
     ShipmentController,
@@ -15,12 +16,16 @@ use App\Http\Controllers\Api\Admin\{
     RevenueController,
     DebtorController,
     CityController,
+    EmployeeController,
+    ExpenseCategoryController,
+    ExpenseController,
     InternationalCourierController,
     LocalCourierController,
     StoreController,
     PageController,
     FinancialController,
     PaymentMethodController,
+    SalaryPaymentController,
     ShipmentPaymentController,
     ShipmentStatusController,
     SiteController,
@@ -78,6 +83,27 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
         Route::put('{payment}', [ShipmentPaymentController::class, 'update']);
         Route::delete('{payment}', [ShipmentPaymentController::class, 'destroy']);
     });
+
+
+
+
+    // Expense Categories
+    Route::apiResource('expense-categories', ExpenseCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'show']);
+
+    // Expenses
+    Route::apiResource('expenses', ExpenseController::class);
+
+    // Employees
+    Route::apiResource('employees', EmployeeController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('employees/{employee}', [EmployeeController::class, 'show']);
+
+    // Salary Payments
+    Route::apiResource('salary-payments', SalaryPaymentController::class);
+
+    // Accounting Reports
+    Route::get('accounting/summary', [AccountingReportController::class, 'summary']);
+    Route::get('accounting/monthly-breakdown', [AccountingReportController::class, 'monthlyBreakdown']);
 
 
 

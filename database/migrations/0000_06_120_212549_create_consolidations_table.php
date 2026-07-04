@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('consol_id')->unique();
             $table->string('awb_number')->nullable();
             $table->foreignId('warehouse_id')->nullable()->constrained('warehouses')->onDelete('set null');
-            $table->date('date_dispatched')->nullable();
+       
 
             $table->decimal('total_us2pk_charges', 12, 2)->default(0);
             $table->decimal('direct_costs', 12, 2)->default(0);

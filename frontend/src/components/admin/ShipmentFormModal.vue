@@ -194,14 +194,47 @@
           </div>
         </div>
 
+        <!-- Payment Method (dynamic) -->
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+            Payment Method
+          </label>
+          <select v-model="formData.payment_method_id"
+            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+            :disabled="paymentMethodsLoading">
+            <option value="">Select method</option>
+            <option v-for="method in paymentMethods" :key="method.id" :value="method.id">
+              {{ method.name }}
+            </option>
+          </select>
+          <p v-if="paymentMethodsLoading" class="text-xs text-gray-400 mt-1">Loading payment methods...</p>
+        </div>
+
+        <!-- Bought By (formerly Paid By) -->
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+            Bought By
+          </label>
+          <select v-model="formData.paid_by"
+            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+            required>
+            <option value="By Company">By Company</option>
+            <option value="By Customer">By Customer</option>
+          </select>
+        </div>
+
         <!-- Item Value & Company Charges -->
+        <!-- Item Value - now conditionally styled as read-only when disabled -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Item Value (PKR)
           </label>
-          <input v-model.number="formData.item_value_pkr" type="number" step="0.01" placeholder="0.00"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-            required @input="calculateTotalAndDue" />
+          <input v-model.number="formData.item_value_pkr" type="number" step="0.01" placeholder="0.00" :class="[
+            'h-11 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800',
+            isItemValueDisabled
+              ? 'bg-gray-100 text-gray-600 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400'
+              : 'bg-transparent text-gray-800 dark:bg-gray-900 dark:text-white/90'
+          ]" :disabled="isItemValueDisabled" required @input="calculateTotalAndDue" />
         </div>
 
         <div>
@@ -222,14 +255,15 @@
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-600 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400" />
         </div>
 
-        <!-- Received Amount -->
+        <!-- Received Amount - NOW READ-ONLY ON EDIT -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Received Amount (PKR)
           </label>
-          <input v-model.number="formData.received_amount" type="number" step="0.01" placeholder="0.00"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-            @input="calculateTotalAndDue" />
+          <input v-model.number="formData.received_amount" :readonly="isEdit" type="number" step="0.01"
+            placeholder="0.00" 
+            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
+          <p v-if="isEdit" class="text-xs text-gray-400 mt-1">Cant update it update it from payments .</p>
         </div>
 
         <!-- Receivable COD (auto) -->
@@ -239,35 +273,6 @@
           </label>
           <input :value="receivableCod" type="text" readonly
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-600 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400" />
-        </div>
-
-        <!-- Paid By -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Paid By
-          </label>
-          <select v-model="formData.paid_by"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            required>
-            <option value="By Company">By Company</option>
-            <option value="By Customer">By Customer</option>
-          </select>
-        </div>
-
-        <!-- Payment Method (dynamic) -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Payment Method
-          </label>
-          <select v-model="formData.payment_method_id"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            :disabled="paymentMethodsLoading">
-            <option value="">Select method</option>
-            <option v-for="method in paymentMethods" :key="method.id" :value="method.id">
-              {{ method.name }}
-            </option>
-          </select>
-          <p v-if="paymentMethodsLoading" class="text-xs text-gray-400 mt-1">Loading payment methods...</p>
         </div>
 
         <!-- Local Courier (dynamic) -->
@@ -439,6 +444,16 @@ const receivableCod = computed(() => {
   return Math.max(0, total - received)
 })
 
+// ✅ Computed to control disabled state of Item Value
+const isItemValueDisabled = computed(() => formData.value.paid_by === 'By Customer')
+
+// ✅ Watcher to auto-set item_value_pkr to 0 when Bought By is 'By Customer'
+watch(() => formData.value.paid_by, (newVal) => {
+  if (newVal === 'By Customer') {
+    formData.value.item_value_pkr = 0
+  }
+})
+
 const calculateTotalAndDue = () => { /* triggers computed */ }
 
 const resetForm = () => {
@@ -448,7 +463,7 @@ const resetForm = () => {
   newImages.value = []
   newImagePreviews.value = []
 }
-
+const isEdit = computed(() => !!props.initialData?.id)
 const fetchLookupData = async () => {
   paymentMethodsLoading.value = true
   try {
@@ -525,10 +540,9 @@ watch(() => props.isOpen, async (open) => {
   }
 })
 
-// When editing, re-set datepicker values after formData loads
 watch(() => props.initialData, (newVal) => {
   if (newVal) {
-    // ✅ Only copy scalar/primitive fields — skip nested objects
+    // ✅ Copy only scalar/primitive fields — skip nested objects
     const cleaned: Partial<Shipment> = {}
     for (const key of Object.keys(newVal)) {
       const val = (newVal as any)[key]
@@ -537,9 +551,13 @@ watch(() => props.initialData, (newVal) => {
       } else if (val === null) {
         (cleaned as any)[key] = null
       }
-      // skip arrays and objects (relations)
     }
     formData.value = cleaned
+
+    // ✅ If paid_by is 'By Customer', ensure item_value_pkr is 0
+    if (formData.value.paid_by === 'By Customer') {
+      formData.value.item_value_pkr = 0
+    }
 
     // Load images separately
     existingImages.value = Array.isArray(newVal.images)
@@ -549,19 +567,6 @@ watch(() => props.initialData, (newVal) => {
     newImages.value = []
     newImagePreviews.value = []
     imagesToDelete.value = []
-
-    // Update datepickers after next tick
-    nextTick(() => {
-      const dateFields = ['purchase_date', 'arrival_date', 'expected_delivery_date', 'date_delivered']
-      dateFields.forEach(field => {
-        const inst = flatpickrInstances[field]
-        const val = (cleaned as any)[field]
-        if (inst && val) {
-          const clean = typeof val === 'string' && val.includes('T') ? val.split('T')[0] : val
-          inst.setDate(clean)
-        }
-      })
-    })
   } else {
     resetForm()
   }

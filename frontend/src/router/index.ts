@@ -58,6 +58,37 @@ const router = createRouter({
         { path: 'admin/sub-categories', name: 'AdminSubCategories', component: () => import('@/views/admin/SubCategories.vue'), meta: { title: 'Sub Categories', role: 'admin' } },
         { path: 'admin/sub-sub-categories', name: 'AdminSubSubCategories', component: () => import('@/views/admin/SubSubCategories.vue'), meta: { title: 'Sub Sub Categories', role: 'admin' } },
 
+
+
+
+
+
+        // Accounting
+        {
+          path: 'admin/accounting',
+          component: () => import('@/views/admin/AccountingDashboard.vue'),
+          meta: { title: 'Accounting Dashboard', role: 'admin' },
+        },
+        {
+          path: 'admin/expenses',
+          component: () => import('@/views/admin/Expenses.vue'),
+          meta: { title: 'Expenses', role: 'admin' },
+        },
+        {
+          path: 'admin/expense-categories',
+          component: () => import('@/views/admin/ExpenseCategories.vue'),
+          meta: { title: 'Expense Categories', role: 'admin' },
+        },
+        {
+          path: 'admin/employees',
+          component: () => import('@/views/admin/Employees.vue'),
+          meta: { title: 'Employees', role: 'admin' },
+        },
+        {
+          path: 'admin/salary-payments',
+          component: () => import('@/views/admin/SalaryPayments.vue'),
+          meta: { title: 'Salary Payments', role: 'admin' },
+        },
         // ---- 🆕 New admin routes ----
         {
           path: 'admin/shipments/:id',

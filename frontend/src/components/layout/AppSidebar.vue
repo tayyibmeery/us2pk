@@ -189,6 +189,19 @@ const menuGroups = [
         path: "/my-shipments",
         userOnly: true,
       },
+
+
+      {
+        icon: BoxCubeIcon,
+        name: "Accounting",
+        subItems: [
+          { name: "Dashboard", path: "/admin/accounting", adminOnly: true },
+          { name: "Expenses", path: "/admin/expenses", adminOnly: true },
+          { name: "Expense Categories", path: "/admin/expense-categories", adminOnly: true },
+          { name: "Employees", path: "/admin/employees", adminOnly: true },
+          { name: "Salary Payments", path: "/admin/salary-payments", adminOnly: true },
+        ],
+      },
       // {
       //   icon: GridIcon,
       //   name: "Dashboard",
