@@ -9,6 +9,7 @@ use App\Models\PaymentMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\ShipmentPaymentHelper; // ✅ trait (if you have one)
+use App\Services\VoucherService;
 
 class ShipmentController extends Controller
 {
@@ -98,6 +99,11 @@ class ShipmentController extends Controller
         // Create shipment (model events will set receivable_cod and amount_due)
         $shipment = Shipment::create($validated);
 
+        $voucherService = new VoucherService();
+        if (!$shipment->voucher) {
+            $voucherService->generateShipmentVoucher($shipment);
+        }
+
         // ✅ Create initial payment record if received_amount > 0
         if ($shipment->received_amount > 0) {
             $paymentDate = $validated['purchase_date'] ?? now()->toDateString();
@@ -173,6 +179,10 @@ class ShipmentController extends Controller
 
         // Update the shipment (model events will recalc receivable_cod/amount_due)
         $updated = $shipment->update($validated);
+        $voucherService = new VoucherService();
+        if (!$shipment->voucher) {
+            $voucherService->generateShipmentVoucher($shipment);
+        }
 
         if (!$updated) {
             return response()->json(['message' => 'Failed to update shipment'], 500);

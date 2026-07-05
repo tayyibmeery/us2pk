@@ -24,9 +24,6 @@ class DatabaseSeeder extends Seeder
             WarehouseSeeder::class,
             WeightDiscountSeeder::class,
 
-            CategorySeeder::class,
-            SubCategorySeeder::class,
-            SubSubCategorySeeder::class,
 
             WarehouseSeeder::class,
 
@@ -35,6 +32,8 @@ class DatabaseSeeder extends Seeder
             LocalCouriersSeeder::class,
             InternationalCouriersSeeder::class,
             ShipmentStatusesSeeder::class,
+            AccountsSeeder::class,
+            TransactionTypeAccountSeeder::class,
         ]);
     }
 }

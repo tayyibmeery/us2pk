@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\VoucherService;
 
 class ExpenseController extends Controller
 {
@@ -40,6 +41,8 @@ class ExpenseController extends Controller
 
         $validated['created_by'] = Auth::id();
         $expense = Expense::create($validated);
+        $voucherService = new VoucherService();
+        $voucherService->generateExpenseVoucher($expense);
         return response()->json($expense->load('category', 'creator'), 201);
     }
 
@@ -59,6 +62,8 @@ class ExpenseController extends Controller
         ]);
 
         $expense->update($validated);
+        $voucherService = new VoucherService();
+        $voucherService->generateExpenseVoucher($expense);
         return response()->json($expense->load('category', 'creator'));
     }
 

@@ -132,4 +132,9 @@ class Shipment extends Model
 
     // Override save to update receivable_cod and amount_due after payment changes
     // We'll handle via controller logic, not event to avoid complexity.
+
+    public function voucher()
+    {
+        return $this->morphOne(Voucher::class, 'reference', 'reference_type', 'reference_id');
+    }
 }

@@ -25,4 +25,9 @@ class Expense extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function voucher()
+    {
+        return $this->morphOne(Voucher::class, 'reference', 'reference_type', 'reference_id');
+    }
 }

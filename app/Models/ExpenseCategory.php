@@ -9,7 +9,7 @@ class ExpenseCategory extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'type', 'description', 'status'];
+    protected $fillable = ['name', 'type', 'description', 'status', 'account_id'];
 
     protected $casts = [
         'status' => 'boolean',

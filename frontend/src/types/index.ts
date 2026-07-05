@@ -8,38 +8,9 @@ export interface City {
   updated_at?: string
 }
 
-export interface Category {
-  id: number
-  name: string
-  description: string | null
-  status: 'Active' | 'Inactive'
-  created_at?: string
-  updated_at?: string
-}
 
-export interface SubCategory {
-  id: number
-  name: string
-  description: string | null
-  category_id: number
-  category?: Category
-  status: 'Active' | 'Inactive'
-  created_at?: string
-  updated_at?: string
-}
 
-export interface SubSubCategory {
-  id: number
-  name: string
-  description: string | null
-  category_id: number
-  sub_category_id: number
-  category?: Category
-  sub_category?: SubCategory
-  status: 'Active' | 'Inactive'
-  created_at?: string
-  updated_at?: string
-}
+
 
 // Paginated response from Laravel
 export interface PaginatedResponse<T> {

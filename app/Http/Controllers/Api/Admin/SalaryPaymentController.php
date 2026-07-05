@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SalaryPayment;
 use Illuminate\Http\Request;
+use App\Services\VoucherService;
 
 class SalaryPaymentController extends Controller
 {
@@ -29,6 +30,8 @@ class SalaryPaymentController extends Controller
         ]);
 
         $payment = SalaryPayment::create($validated);
+        $voucherService = new VoucherService();
+        $voucherService->generateSalaryPaymentVoucher($payment);
         return response()->json($payment->load('employee'), 201);
     }
 
@@ -49,6 +52,8 @@ class SalaryPaymentController extends Controller
         ]);
 
         $salaryPayment->update($validated);
+        $voucherService = new VoucherService();
+        $voucherService->generateSalaryPaymentVoucher($salaryPayment);
         return response()->json($salaryPayment->load('employee'));
     }
 

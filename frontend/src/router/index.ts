@@ -54,13 +54,20 @@ const router = createRouter({
         { path: 'admin/dashboard', name: 'AdminDashboard', component: () => import('@/views/admin/AdminDashboard.vue'), meta: { title: 'Admin Dashboard', role: 'admin' } },
         { path: 'admin/shipments', name: 'AdminShipments', component: () => import('@/views/admin/Shipments.vue'), meta: { title: 'Shipments', role: 'admin' } },
         { path: 'admin/cities', name: 'AdminCities', component: () => import('@/views/admin/Cities.vue'), meta: { title: 'Cities', role: 'admin' } },
-        { path: 'admin/categories', name: 'AdminCategories', component: () => import('@/views/admin/Categories.vue'), meta: { title: 'Categories', role: 'admin' } },
-        { path: 'admin/sub-categories', name: 'AdminSubCategories', component: () => import('@/views/admin/SubCategories.vue'), meta: { title: 'Sub Categories', role: 'admin' } },
-        { path: 'admin/sub-sub-categories', name: 'AdminSubSubCategories', component: () => import('@/views/admin/SubSubCategories.vue'), meta: { title: 'Sub Sub Categories', role: 'admin' } },
 
 
 
 
+        // ---- Financial Accounting (Admin only) ----
+        { path: 'admin/accounts', name: 'AdminAccounts', component: () => import('@/views/admin/Accounts.vue'), meta: { title: 'Chart of Accounts', role: 'admin' } },
+        { path: 'admin/vouchers', name: 'AdminVouchers', component: () => import('@/views/admin/Vouchers.vue'), meta: { title: 'Vouchers', role: 'admin' } },
+        { path: 'admin/vouchers/:id', name: 'AdminVoucherView', component: () => import('@/views/admin/VoucherView.vue'), meta: { title: 'Voucher Details', role: 'admin' } },
+        { path: 'admin/journal', name: 'AdminJournal', component: () => import('@/views/admin/Journal.vue'), meta: { title: 'General Journal', role: 'admin' } },
+        { path: 'admin/trial-balance', name: 'AdminTrialBalance', component: () => import('@/views/admin/TrialBalance.vue'), meta: { title: 'Trial Balance', role: 'admin' } },
+        { path: 'admin/pandl/since-inception', name: 'AdminPandLSinceInception', component: () => import('@/views/admin/PandL/SinceInception.vue'), meta: { title: 'P&L Since Inception', role: 'admin' } },
+        { path: 'admin/pandl/yearly', name: 'AdminPandLYearly', component: () => import('@/views/admin/PandL/Yearly.vue'), meta: { title: 'P&L Yearly', role: 'admin' } },
+        { path: 'admin/pandl/quarterly', name: 'AdminPandLQuarterly', component: () => import('@/views/admin/PandL/Quarterly.vue'), meta: { title: 'P&L Quarterly', role: 'admin' } },
+        { path: 'admin/pandl/monthly', name: 'AdminPandLMonthly', component: () => import('@/views/admin/PandL/Monthly.vue'), meta: { title: 'P&L Monthly', role: 'admin' } },
 
 
         // Accounting
@@ -104,7 +111,7 @@ const router = createRouter({
         { path: 'admin/warehouses', name: 'AdminWarehouses', component: () => import('@/views/admin/Warehouses.vue'), meta: { title: 'Warehouses', role: 'admin' } },
         { path: 'admin/weight-discounts', name: 'AdminWeightDiscounts', component: () => import('@/views/admin/WeightDiscounts.vue'), meta: { title: 'Weight Discounts', role: 'admin' } },
         { path: 'admin/settings', name: 'AdminSettings', component: () => import('@/views/admin/Settings.vue'), meta: { title: 'Settings', role: 'admin' } },
-        { path: 'admin/stores', name: 'AdminStores', component: () => import('@/views/admin/Stores.vue'), meta: { title: 'Stores', role: 'admin' } },
+
         { path: 'admin/pages', name: 'AdminPages', component: () => import('@/views/admin/Pages.vue'), meta: { title: 'Pages', role: 'admin' } },
         { path: 'admin/invoices', name: 'AdminInvoices', component: () => import('@/views/admin/Invoices.vue'), meta: { title: 'Invoices', role: 'admin' } },
         { path: 'admin/revenues', name: 'AdminRevenues', component: () => import('@/views/admin/Revenues.vue'), meta: { title: 'Revenues', role: 'admin' } },

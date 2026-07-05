@@ -189,7 +189,29 @@ const menuGroups = [
         path: "/my-shipments",
         userOnly: true,
       },
-
+      {
+        icon: BoxCubeIcon,
+        name: "Financial Statement",
+        subItems: [
+          { name: "Chart of Accounts", path: "/admin/accounts" },
+          { name: "Vouchers", path: "/admin/vouchers" },
+          { name: "Approval Screen", path: "/admin/vouchers?approved=0" }, // optional
+          { name: "General Journal", path: "/admin/journal" },
+          { name: "Ledger", path: "/admin/ledger" }, // optional
+          { name: "Trial Balance", path: "/admin/trial-balance" },
+        ],
+      },
+      {
+        icon: BoxCubeIcon,
+        name: "P&L",
+        subItems: [
+          { name: "Since Inception", path: "/admin/pandl/since-inception" },
+          { name: "Annual", path: "/admin/pandl/yearly" },
+          { name: "Quarterly", path: "/admin/pandl/quarterly" },
+          { name: "Monthly", path: "/admin/pandl/monthly" },
+          { name: "Balance Sheet", path: "/admin/balance-sheet" }, // future
+        ],
+      },
 
       {
         icon: BoxCubeIcon,
@@ -254,7 +276,7 @@ const menuGroups = [
       { icon: BoxCubeIcon, name: "Warehouses", path: "/admin/warehouses", adminOnly: true, },
       { icon: BoxCubeIcon, name: "Weight Discounts", path: "/admin/weight-discounts", adminOnly: true, },
       { icon: BoxCubeIcon, name: "Settings", path: "/admin/settings", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Stores", path: "/admin/stores", adminOnly: true, },
+   
       { icon: BoxCubeIcon, name: "Pages", path: "/admin/pages", adminOnly: true, },
       { icon: BoxCubeIcon, name: "Invoices", path: "/admin/invoices", adminOnly: true, },
       { icon: BoxCubeIcon, name: "Revenues", path: "/admin/revenues", adminOnly: true, },
@@ -267,31 +289,6 @@ const menuGroups = [
 
 
 
-      {
-        icon: GridIcon,
-        name: "Categories",
-        subItems: [
-          {
-            icon: GridIcon,
-            name: "Categories",
-            path: "/admin/categories",
-            adminOnly: true,
-          },
-          {
-            icon: GridIcon,
-            name: "Sub Categories",
-            path: "/admin/sub-categories",
-            adminOnly: true,
-          },
-          {
-            icon: GridIcon,
-            name: "Sub Sub Categories",
-            path: "/admin/sub-sub-categories",
-            adminOnly: true,
-          }
-        ],
-        adminOnly: true,
-      },
 
       // {
       //   icon: CalenderIcon,

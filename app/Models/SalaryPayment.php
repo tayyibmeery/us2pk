@@ -20,4 +20,8 @@ class SalaryPayment extends Model
     {
         return $this->belongsTo(Employee::class);
     }
+    public function voucher()
+    {
+        return $this->morphOne(Voucher::class, 'reference', 'reference_type', 'reference_id');
+    }
 }

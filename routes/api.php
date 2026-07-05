@@ -3,12 +3,13 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserDashboardController;
 use App\Http\Controllers\Api\Admin\{
+    AccountController,
     AccountingReportController,
     DashboardController,
     UserController,
     ShipmentController,
     ConsolidationController,
-    CategoryController,
+
     WeightDiscountController,
     SettingController,
     StatisticsController,
@@ -21,16 +22,18 @@ use App\Http\Controllers\Api\Admin\{
     ExpenseController,
     InternationalCourierController,
     LocalCourierController,
-    StoreController,
+ 
     PageController,
     FinancialController,
+    JournalController,
     PaymentMethodController,
+    ProfitLossController,
     SalaryPaymentController,
     ShipmentPaymentController,
     ShipmentStatusController,
     SiteController,
-    SubCategoryController,
-    SubSubCategoryController,
+    TrialBalanceController,
+    VoucherController,
     WarehouseController
 };
 use App\Http\Controllers\CityPublicController;
@@ -121,11 +124,9 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::apiResource('weight-discounts', WeightDiscountController::class);
     Route::apiResource('settings', SettingController::class);
     Route::apiResource('cities', CityController::class);
-    Route::apiResource('stores', StoreController::class);
+
     Route::apiResource('pages', PageController::class);
-    Route::apiResource('categories', CategoryController::class);
-    Route::apiResource('sub-categories', SubCategoryController::class);
-    Route::apiResource('sub-sub-categories', SubSubCategoryController::class);
+
 
     // Statistics
     Route::get('statistics/top-cities', [StatisticsController::class, 'topCities']);
@@ -142,4 +143,23 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     Route::get('financial/pl', [FinancialController::class, 'profitAndLoss']);
     Route::get('financial/trial-balance', [FinancialController::class, 'trialBalance']);
+
+
+
+    Route::apiResource('accounts', AccountController::class);
+    Route::post('accounts/{account}/toggle-status', [AccountController::class, 'toggleStatus']);
+
+    Route::apiResource('vouchers', VoucherController::class);
+    Route::post('vouchers/{voucher}/approve', [VoucherController::class, 'approve']);
+
+    Route::get('journal', [JournalController::class, 'index']);
+
+    Route::get('trial-balance', [TrialBalanceController::class, 'index']);
+
+    Route::prefix('pandl')->group(function () {
+        Route::get('since-inception', [ProfitLossController::class, 'sinceInception']);
+        Route::get('yearly', [ProfitLossController::class, 'yearly']);
+        Route::get('quarterly', [ProfitLossController::class, 'quarterly']);
+        Route::get('monthly', [ProfitLossController::class, 'monthly']);
+    });
 });

@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Consolidation;
 use App\Models\Shipment;
 use Illuminate\Http\Request;
-
+use App\Services\VoucherService;
 class ConsolidationController extends Controller
 {
     public function index(Request $request)
@@ -26,7 +26,7 @@ class ConsolidationController extends Controller
         $data = $request->validate([
             'awb_number'               => 'nullable|string|max:100',
             'warehouse_id'             => 'nullable|exists:warehouses,id',
-       
+
             'international_courier_id' => 'nullable|exists:international_couriers,id',
             'date_departed'            => 'nullable|date',
             'date_reached'             => 'nullable|date',
@@ -62,6 +62,10 @@ class ConsolidationController extends Controller
 
         // Recalculate totals (will update total_weight_kg, etc.)
         $consolidation->recalculateTotals();
+        $voucherService = new VoucherService();
+        if (!$consolidation->voucher) {
+            $voucherService->generateConsolidationCostVoucher($consolidation);
+        }
 
         return response()->json($consolidation->load('warehouse', 'shipments', 'internationalCourier'), 201);
     }
@@ -103,6 +107,11 @@ class ConsolidationController extends Controller
         }
 
         $consolidation->recalculateTotals();
+        $voucherService = new VoucherService();
+        if (!$consolidation->voucher) {
+            $voucherService->generateConsolidationCostVoucher($consolidation);
+        }
+
 
         return response()->json($consolidation->load('warehouse', 'shipments', 'internationalCourier'));
     }

@@ -103,4 +103,9 @@ class Consolidation extends Model
         $this->saveQuietly();
         return $this;
     }
+
+    public function voucher()
+    {
+        return $this->morphOne(Voucher::class, 'reference', 'reference_type', 'reference_id');
+    }
 }
