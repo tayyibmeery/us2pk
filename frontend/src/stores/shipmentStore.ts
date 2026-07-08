@@ -6,10 +6,9 @@ const SKIP_KEYS = [
   'images', 'total', 'user', 'site', 'shipment_status',
   'payment_method', 'local_courier', 'consolidation',
   'created_at', 'updated_at', 'weight_kgs', 'amount_due',
-  'receivable_cod',   // ✅ added
+  'receivable_cod',
 ]
 
-// Date fields that arrive as ISO strings from the API and must be stripped to Y-m-d
 const DATE_KEYS = ['purchase_date', 'arrival_date', 'expected_delivery_date', 'date_delivered']
 
 function buildFormData(data: Partial<Shipment>): FormData {
@@ -22,10 +21,13 @@ function buildFormData(data: Partial<Shipment>): FormData {
 
     let value = (data as any)[key]
 
-    if (value === null || value === undefined) continue
-    if (typeof value === 'object') continue  // skip any remaining nested objects
+    if (value === undefined) continue
+    if (value === null) {
+      formData.append(key, '')
+      continue
+    }
+    if (typeof value === 'object') continue
 
-    // Strip ISO timestamps to plain Y-m-d
     if (DATE_KEYS.includes(key) && typeof value === 'string' && value.includes('T')) {
       value = value.split('T')[0]
     }
@@ -125,9 +127,7 @@ export const useShipmentStore = defineStore('shipment', {
           images.forEach(file => formData.append('images[]', file))
         }
 
-        const res = await api.post<Shipment>('/admin/shipments', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
+        const res = await api.post<Shipment>('/admin/shipments', formData)
         return res.data
       } catch (e: any) {
         this.error = e.message || 'Failed to create shipment'
@@ -157,9 +157,7 @@ export const useShipmentStore = defineStore('shipment', {
           images.forEach(file => formData.append('images[]', file))
         }
 
-        const res = await api.post<Shipment>(`/admin/shipments/${id}`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        })
+        const res = await api.post<Shipment>(`/admin/shipments/${id}`, formData)
         return res.data
       } catch (e: any) {
         this.error = e.message || 'Failed to update shipment'
@@ -188,7 +186,6 @@ export const useShipmentStore = defineStore('shipment', {
       this.error = null
       try {
         await api.delete(`/admin/shipments/${id}`)
-        // Remove from local list immediately
         this.items = this.items.filter(item => item.id !== id)
       } catch (e: any) {
         this.error = e.message || 'Failed to delete shipment'

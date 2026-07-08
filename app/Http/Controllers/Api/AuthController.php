@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Auth\Events\Registered;
 use App\Http\Controllers\Controller;
+use Illuminate\Auth\Events\Verified;
 
 class AuthController extends Controller
 {
@@ -75,12 +76,23 @@ class AuthController extends Controller
         ]);
     }
 
-    // public function logout(Request $request)
-    // {
-    //     $request->user()->currentAccessToken()->delete();
-    //     return response()->json(['message' => 'Logged out']);
-    // }
 
+    public function verifyEmail(Request $request, $id, $hash)
+    {
+        $user = User::findOrFail($id);
+        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return response()->json(['message' => 'Invalid verification link'], 403);
+        }
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email already verified']);
+        }
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
+            $user->status = 'verified';
+            $user->save();
+        }
+        return response()->json(['message' => 'Email verified successfully']);
+    }
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();

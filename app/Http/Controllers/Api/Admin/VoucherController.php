@@ -12,11 +12,23 @@ class VoucherController extends Controller
     public function index(Request $request)
     {
         $query = Voucher::with('details.account')->orderBy('created_at', 'desc');
-        if ($request->id) $query->where('voucher_no', 'like', "%{$request->id}%");
-        if ($request->description) $query->where('description', 'like', "%{$request->description}%");
-        if ($request->is_active !== null) $query->where('is_active', $request->is_active);
-        if ($request->approved !== null) $query->where('approved', $request->approved);
-        if ($request->is_deleted !== null) $query->where('is_deleted', $request->is_deleted);
+
+        if ($request->id) {
+            $query->where('voucher_no', 'like', "%{$request->id}%");
+        }
+        if ($request->description) {
+            $query->where('description', 'like', "%{$request->description}%");
+        }
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->is_active);
+        }
+        if ($request->has('approved')) {
+            $query->where('approved', $request->approved);
+        }
+        if ($request->has('is_deleted')) {
+            $query->where('is_deleted', $request->is_deleted);
+        }
+
         return response()->json($query->paginate(20));
     }
 

@@ -4,7 +4,6 @@
     <!-- Header -->
     <div
       class="flex flex-col gap-4 border-b border-gray-100 px-6 py-4 dark:border-white/[0.06] sm:flex-row sm:items-center sm:justify-between">
-      <!-- Left: Search + Total Records -->
       <div class="flex items-center gap-4">
         <div class="relative">
           <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400">
@@ -26,13 +25,11 @@
           </button>
         </div>
         <p v-if="store.pagination" class="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-          {{ store.pagination.total }} total records
+          {{ store.pagination.total || 0 }} total records
         </p>
       </div>
 
-      <!-- Right: Per-page + Add Button -->
       <div class="flex flex-wrap items-center gap-3">
-        <!-- Per-page -->
         <div class="flex items-center gap-2">
           <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Rows:</span>
           <select :value="perPage" @change="onPerPageChange"
@@ -41,7 +38,6 @@
           </select>
         </div>
 
-        <!-- Add Button -->
         <button v-if="modalComponent" @click="openCreateModal"
           class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 active:scale-[0.98] whitespace-nowrap">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -72,14 +68,14 @@
                   class="flex flex-col gap-0.5 opacity-40 group-hover:opacity-70 transition-opacity"
                   :class="{ 'opacity-100 !text-brand-500': sortByKey === col.key }">
                   <svg width="8" height="4" viewBox="0 0 8 4" fill="none" :class="sortByKey === col.key && sortOrder === 'asc'
-                      ? 'fill-brand-500'
-                      : 'fill-gray-400 dark:fill-gray-600'
+                    ? 'fill-brand-500'
+                    : 'fill-gray-400 dark:fill-gray-600'
                     ">
                     <path d="M4 0L7.46 4H0.54L4 0Z" fill="currentColor" />
                   </svg>
                   <svg width="8" height="4" viewBox="0 0 8 4" fill="none" :class="sortByKey === col.key && sortOrder === 'desc'
-                      ? 'fill-brand-500'
-                      : 'fill-gray-400 dark:fill-gray-600'
+                    ? 'fill-brand-500'
+                    : 'fill-gray-400 dark:fill-gray-600'
                     ">
                     <path d="M4 4L0.54 0H7.46L4 4Z" fill="currentColor" />
                   </svg>
@@ -94,7 +90,6 @@
         </thead>
 
         <tbody>
-          <!-- Loading skeleton -->
           <template v-if="store.loading">
             <tr v-for="i in (store.pagination?.per_page || perPage)" :key="i"
               class="border-b border-gray-50 last:border-0 dark:border-white/[0.04]">
@@ -107,8 +102,7 @@
             </tr>
           </template>
 
-          <!-- Empty state -->
-          <tr v-else-if="!store.items.length">
+          <tr v-else-if="!store.items || !store.items.length">
             <td :colspan="columns.length + 1" class="px-5 py-16 text-center">
               <div class="flex flex-col items-center gap-3">
                 <div class="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 dark:bg-white/[0.04]">
@@ -127,10 +121,8 @@
             </td>
           </tr>
 
-          <!-- Data rows -->
           <tr v-else v-for="item in store.items" :key="item.id"
             class="group border-b border-gray-50 last:border-0 transition-colors hover:bg-gray-50/70 dark:border-white/[0.04] dark:hover:bg-white/[0.02]">
-            <!-- Columns with slot support -->
             <td v-for="col in columns" :key="col.key" class="px-5 py-3.5">
               <slot :name="'cell-' + col.key" :item="item" :column="col">
                 <span class="text-sm text-gray-700 dark:text-gray-300">
@@ -141,7 +133,6 @@
 
             <td class="px-5 py-3.5">
               <slot name="actions" :item="item" :edit="openEditModal" :delete="deleteItem">
-                <!-- Default: Edit + Delete -->
                 <div class="flex items-center justify-end gap-0.5">
                   <button @click="openEditModal(item)"
                     class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
@@ -170,7 +161,7 @@
     </div>
 
     <!-- Pagination -->
-    <div
+    <div v-if="store.pagination && store.pagination.total > 0"
       class="flex flex-col items-center justify-between gap-4 border-t border-gray-100 px-6 py-4 dark:border-white/[0.06] sm:flex-row">
       <p class="text-xs text-gray-400 dark:text-gray-500">
         Showing
@@ -195,8 +186,8 @@
 
         <button v-for="page in pageNumbers" :key="page" @click="changePage(page)"
           class="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition" :class="page === store.pagination?.current_page
-              ? 'bg-brand-600 text-white shadow-sm'
-              : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[0.06]'
+            ? 'bg-brand-600 text-white shadow-sm'
+            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/[0.06]'
             ">
           {{ page }}
         </button>
@@ -214,11 +205,9 @@
     </div>
   </div>
 
-  <!-- Modal – only if modalComponent is provided -->
   <component v-if="modalComponent" :is="modalComponent" :isOpen="modalOpen" :initialData="editingItem"
     @close="modalOpen = false" @save="handleSave" v-bind="modalProps" />
 
-  <!-- Error Toast -->
   <Teleport to="body">
     <Transition enter-active-class="transition duration-200 ease-out"
       enter-from-class="opacity-0 translate-y-2 scale-95" enter-to-class="opacity-100 translate-y-0 scale-100"
@@ -257,6 +246,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue'
 import type { ColumnDefinition } from '@/types/table'
+import { useToastStore } from '@/stores/toastStore'
 
 defineOptions({
   inheritAttrs: false,
@@ -273,11 +263,11 @@ const props = defineProps<{
   selfSaving?: boolean
 }>()
 
-// ✅ Emit saved so parent (Shipments.vue) can react
 const emit = defineEmits<{
   (e: 'saved'): void
 }>()
 
+const toastStore = useToastStore()
 const search = ref<string>(props.store.search ?? '')
 const perPage = ref<number>(Number(props.store.perPage ?? 10))
 const sortByKey = ref<string>(props.store.sortBy ?? 'id')
@@ -304,15 +294,25 @@ watch(() => props.store.error, (err) => {
 })
 
 const pageNumbers = computed(() => {
+  if (!props.store.pagination || !props.store.pagination.last_page) {
+    return [1]
+  }
+
   const total = props.store.pagination?.last_page ?? 1
   const current = props.store.pagination?.current_page ?? 1
   const delta = 2
   const start = Math.max(1, current - delta)
   const end = Math.min(total, current + delta)
-  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  return pages.length > 0 ? pages : [1]
 })
 
 const changePage = (page: number) => {
+  if (!props.store.pagination) {
+    props.store.fetchItems(1)
+    return
+  }
+
   const last = props.store.pagination?.last_page ?? 1
   if (page < 1 || page > last) return
   props.store.fetchItems(page)
@@ -342,7 +342,6 @@ const onSort = (key: string) => {
   props.store.setSort(key)
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
 const openCreateModal = () => {
   editingItem.value = null
   modalOpen.value = true
@@ -353,33 +352,35 @@ const openEditModal = (item: any) => {
   modalOpen.value = true
 }
 
-// ✅ Modal handles its own saving — we just close and refresh
 const handleSave = async (data: any) => {
   if (props.selfSaving) {
-    // Modal already saved — just close and refresh
     modalOpen.value = false
     await props.store.fetchItems(props.store.pagination?.current_page ?? 1)
     emit('saved')
     return
   }
 
-  // Original behavior for all other modals
   try {
     if (editingItem.value?.id) {
       await props.store.update(editingItem.value.id, data)
     } else {
-      await props.store.create(data)
+      if (data && Object.keys(data).length > 0) {
+        await props.store.create(data)
+      } else {
+        console.warn('⚠️ No data to create')
+        return
+      }
     }
     modalOpen.value = false
-    props.store.fetchItems(props.store.pagination?.current_page ?? 1)
+    await props.store.fetchItems(props.store.pagination?.current_page ?? 1)
+    emit('saved')
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || 'Save failed'
     showError(msg)
+    toastStore.error(msg || 'Save failed')
   }
 }
 
-
-// ── Delete ────────────────────────────────────────────────────────────────────
 const deleteItem = async (id: number) => {
   if (!confirm('Delete this record? This action cannot be undone.')) return
   try {
@@ -388,10 +389,10 @@ const deleteItem = async (id: number) => {
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || 'Delete failed'
     showError(msg)
+    toastStore.error(msg || 'Delete failed')
   }
 }
 
-// ── Error toast ───────────────────────────────────────────────────────────────
 const showError = (message: string) => {
   clearError()
   errorMessage.value = message || 'An unexpected error occurred.'

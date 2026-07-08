@@ -120,7 +120,6 @@
           </div>
         </div>
       </nav>
-      <!-- <SidebarWidget v-if="isExpanded || isHovered || isMobileOpen" /> -->
     </div>
   </aside>
 </template>
@@ -129,24 +128,29 @@
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
-import UserGroupIcon from '@/icons/UserGroupIcon.vue'
+import UserGroupIcon from '@/icons/UserGroupIcon.vue';
 import {
   GridIcon,
-  CalenderIcon,
   UserCircleIcon,
-  ChatIcon,
-  MailIcon,
-  DocsIcon,
   PieChartIcon,
   ChevronDownIcon,
   HorizontalDots,
-  PageIcon,
-  TableIcon,
+  BoxCubeIcon,
   ListIcon,
+  TaskIcon,
+  FolderIcon,
   PlugInIcon,
+  BoxIcon,
+  DollarLineIcon,
+  TableIcon,
+  DocsIcon,
+  BarChartIcon,
+  FlagIcon,
+  PageIcon,
+  SendIcon,
+  SettingsIcon,
+  HomeIcon,
 } from "../../icons";
-
-import BoxCubeIcon from "@/icons/BoxCubeIcon.vue";
 import { useSidebar } from "@/composables/useSidebar";
 
 const route = useRoute();
@@ -155,14 +159,16 @@ const isAdmin = computed(() => authStore.user?.role === 'admin');
 
 const { isExpanded, isMobileOpen, isHovered, openSubmenu } = useSidebar();
 
+// Menu is grouped by workflow area (Overview -> Logistics -> Finance -> Directory -> System)
+// so related items sit together instead of being scattered by CRUD type.
 const menuGroups = [
   {
-    title: "Menu",
+    title: "Overview",
     items: [
       {
-        icon: GridIcon,  // or HomeIcon from '@heroicons/vue/24/outline'
-        name: 'Dashboard',
-        path: '/admin/dashboard',
+        icon: GridIcon,
+        name: "Dashboard",
+        path: "/admin/dashboard",
         adminOnly: true,
       },
       {
@@ -172,65 +178,112 @@ const menuGroups = [
       },
       {
         icon: BoxCubeIcon,
+        name: "My Shipments",
+        path: "/my-shipments",
+        userOnly: true,
+      },
+    ],
+  },
+  {
+    title: "Logistics",
+    items: [
+      {
+        icon: BoxCubeIcon,
         name: "Shipments",
         path: "/admin/shipments",
         adminOnly: true,
       },
-      // ✅ Consolidations added here
       {
-        icon: BoxCubeIcon,
+        icon: ListIcon,
         name: "Consolidations",
         path: "/admin/consolidations",
         adminOnly: true,
       },
       {
-        icon: BoxCubeIcon,
-        name: "My Shipments",
-        path: "/my-shipments",
-        userOnly: true,
+        icon: TaskIcon,
+        name: "Shipment Statuses",
+        path: "/admin/shipment-statuses",
+        adminOnly: true,
       },
       {
-        icon: BoxCubeIcon,
+        icon: FolderIcon,
+        name: "Warehouses",
+        path: "/admin/warehouses",
+        adminOnly: true,
+      },
+      {
+        icon: SendIcon,
+        name: "International Couriers",
+        path: "/admin/international-couriers",
+        adminOnly: true,
+      },
+      {
+        icon: BoxIcon,
+        name: "Local Couriers",
+        path: "/admin/local-couriers",
+        adminOnly: true,
+      },
+    ],
+  },
+  {
+    title: "Finance",
+    items: [
+      {
+        icon: DollarLineIcon,
+        name: "Accounting",
+        subItems: [
+          { name: "Dashboard", path: "/admin/accounting" },
+
+        ],
+        adminOnly: true,
+      },
+      {
+        icon: TableIcon,
         name: "Financial Statement",
         subItems: [
           { name: "Chart of Accounts", path: "/admin/accounts" },
           { name: "Vouchers", path: "/admin/vouchers" },
-          { name: "Approval Screen", path: "/admin/vouchers?approved=0" }, // optional
+          { name: "Approval Screen", path: "/admin/vouchers/approval" },
           { name: "General Journal", path: "/admin/journal" },
-          { name: "Ledger", path: "/admin/ledger" }, // optional
           { name: "Trial Balance", path: "/admin/trial-balance" },
         ],
+        adminOnly: true,
       },
       {
-        icon: BoxCubeIcon,
+        icon: PieChartIcon,
         name: "P&L",
         subItems: [
           { name: "Since Inception", path: "/admin/pandl/since-inception" },
           { name: "Annual", path: "/admin/pandl/yearly" },
           { name: "Quarterly", path: "/admin/pandl/quarterly" },
           { name: "Monthly", path: "/admin/pandl/monthly" },
-          { name: "Balance Sheet", path: "/admin/balance-sheet" }, // future
+          { name: "Balance Sheet", path: "/admin/balance-sheet" },
         ],
+        adminOnly: true,
       },
-
       {
-        icon: BoxCubeIcon,
-        name: "Accounting",
-        subItems: [
-          { name: "Dashboard", path: "/admin/accounting", adminOnly: true },
-          { name: "Expenses", path: "/admin/expenses", adminOnly: true },
-          { name: "Expense Categories", path: "/admin/expense-categories", adminOnly: true },
-          { name: "Employees", path: "/admin/employees", adminOnly: true },
-          { name: "Salary Payments", path: "/admin/salary-payments", adminOnly: true },
-        ],
+        icon: DocsIcon,
+        name: "Invoices",
+        path: "/admin/invoices",
+        adminOnly: true,
       },
-      // {
-      //   icon: GridIcon,
-      //   name: "Dashboard",
-      //   subItems: [{ name: "Ecommerce", path: "/", pro: false }],
-      // },
-
-
+      {
+        icon: BarChartIcon,
+        name: "Revenues",
+        path: "/admin/revenues",
+        adminOnly: true,
+      },
+      {
+        icon: UserCircleIcon,
+        name: "Debtors",
+        path: "/admin/debtors",
+        adminOnly: true,
+      },
+    ],
+  },
+  {
+    title: "Directory & Setup",
+    items: [
       {
         icon: UserGroupIcon,
         name: "Users",
@@ -244,124 +297,58 @@ const menuGroups = [
         adminOnly: true,
       },
       {
-        icon: BoxCubeIcon,
+        icon: PlugInIcon,
         name: "Payment Methods",
         path: "/admin/payment-methods",
         adminOnly: true,
       },
       {
-        icon: BoxCubeIcon,
+        icon: HomeIcon,
         name: "Sites",
         path: "/admin/sites",
         adminOnly: true,
       },
-      {
-        icon: BoxCubeIcon,
-        name: "International Couriers",
-        path: "/admin/international-couriers",
-        adminOnly: true,
-      },
-      {
-        icon: BoxCubeIcon,
-        name: "Local Couriers",
-        path: "/admin/local-couriers",
-        adminOnly: true,
-      },
-      {
-        icon: BoxCubeIcon,
-        name: "Shipment Statuses",
-        path: "/admin/shipment-statuses",
-        adminOnly: true,
-      },
-      { icon: BoxCubeIcon, name: "Warehouses", path: "/admin/warehouses", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Weight Discounts", path: "/admin/weight-discounts", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Settings", path: "/admin/settings", adminOnly: true, },
-   
-      { icon: BoxCubeIcon, name: "Pages", path: "/admin/pages", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Invoices", path: "/admin/invoices", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Revenues", path: "/admin/revenues", adminOnly: true, },
-      { icon: BoxCubeIcon, name: "Debtors", path: "/admin/debtors", adminOnly: true, },
-
-
-
-
-
-
-
-
-
       // {
-      //   icon: CalenderIcon,
-      //   name: "Calendar",
-      //   path: "/calendar",
-      // },
-      // {
-      //   name: "Forms",
-      //   icon: ListIcon,
-      //   subItems: [
-      //     { name: "Form Elements", path: "/form-elements", pro: false },
-      //   ],
-      // },
-      // {
-      //   name: "Tables",
-      //   icon: TableIcon,
-      //   subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-      // },
-      // {
-      //   name: "Pages",
-      //   icon: PageIcon,
-      //   subItems: [
-      //     { name: "Black Page", path: "/blank", pro: false },
-      //     { name: "404 Page", path: "/error-404", pro: false },
-      //   ],
+      //   icon: FlagIcon,
+      //   name: "Weight Discounts",
+      //   path: "/admin/weight-discounts",
+      //   adminOnly: true,
       // },
     ],
   },
-  // {
-  //   title: "Others",
-  //   items: [
-  //     {
-  //       icon: PieChartIcon,
-  //       name: "Charts",
-  //       subItems: [
-  //         { name: "Line Chart", path: "/line-chart", pro: false },
-  //         { name: "Bar Chart", path: "/bar-chart", pro: false },
-  //       ],
-  //     },
-  //     {
-  //       icon: BoxCubeIcon,
-  //       name: "Ui Elements",
-  //       subItems: [
-  //         { name: "Alerts", path: "/alerts", pro: false },
-  //         { name: "Avatars", path: "/avatars", pro: false },
-  //         { name: "Badge", path: "/badge", pro: false },
-  //         { name: "Buttons", path: "/buttons", pro: false },
-  //         { name: "Images", path: "/images", pro: false },
-  //         { name: "Videos", path: "/videos", pro: false },
-  //       ],
-  //     },
-  //     {
-  //       icon: PlugInIcon,
-  //       name: "Authentication",
-  //       subItems: [
-  //         { name: "Signin", path: "/signin", pro: false },
-  //         { name: "Signup", path: "/signup", pro: false },
-  //       ],
-  //     },
-  //   ],
-  // },
+  {
+    title: "System",
+    items: [
+      {
+        icon: SettingsIcon,
+        name: "Settings",
+        path: "/admin/settings",
+        adminOnly: true,
+      },
+      {
+        icon: PageIcon,
+        name: "Pages",
+        path: "/admin/pages",
+        adminOnly: true,
+      },
+    ],
+  },
 ];
 
-// Filter menu items based on role
+// Filter menu items based on roleT
 const filteredMenuGroups = computed(() => {
-  return menuGroups.map(group => ({
-    ...group,
-    items: group.items.filter(item => {
-      if (item.adminOnly && !isAdmin.value) return false;
-      if (item.userOnly && isAdmin.value) return false;
-      return true;
-    })
-  }));
+  return menuGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        if (item.adminOnly && !isAdmin.value) return false;
+        if (item.userOnly && isAdmin.value) return false;
+        return true;
+      }),
+    }))
+    // Hide any group that ends up with zero visible items (e.g. all-admin
+    // groups for a non-admin user) so we don't render an empty heading.
+    .filter(group => group.items.length > 0);
 });
 
 const isActive = (path) => route.path === path;

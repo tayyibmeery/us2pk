@@ -22,7 +22,6 @@ class JournalController extends Controller
             if ($request->balanced === 'Balanced') {
                 $query->has('details');
             } else {
-                // Not balanced: exclude balanced ones
                 $query->whereDoesntHave('details');
             }
         }
@@ -31,11 +30,24 @@ class JournalController extends Controller
 
         $journal = [];
         foreach ($vouchers as $voucher) {
+            // ✅ Safely get reference data
+            $reference = null;
+            try {
+                $reference = $voucher->reference;
+            } catch (\Exception $e) {
+                // If morph fails, just skip or set to null
+            }
+
+            $shipmentCode = null;
+            if ($reference && $voucher->reference_type === 'shipment' && $reference instanceof \App\Models\Shipment) {
+                $shipmentCode = $reference->shipment_code;
+            }
+
             foreach ($voucher->details as $detail) {
                 $journal[] = [
                     'date' => $voucher->date->format('d/m/Y'),
                     'voucher_no' => $voucher->voucher_no,
-                    'shipment_code' => $voucher->reference_type === 'shipment' ? optional($voucher->reference)->shipment_code : null,
+                    'shipment_code' => $shipmentCode,
                     'source' => $voucher->source,
                     'account_name' => $detail->account->name,
                     'debit' => $detail->debit,

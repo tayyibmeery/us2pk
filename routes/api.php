@@ -18,17 +18,17 @@ use App\Http\Controllers\Api\Admin\{
     DebtorController,
     CityController,
     EmployeeController,
-    ExpenseCategoryController,
-    ExpenseController,
+
+
     InternationalCourierController,
     LocalCourierController,
- 
+
     PageController,
     FinancialController,
     JournalController,
     PaymentMethodController,
     ProfitLossController,
-    SalaryPaymentController,
+
     ShipmentPaymentController,
     ShipmentStatusController,
     SiteController,
@@ -41,7 +41,10 @@ use App\Http\Controllers\CityPublicController;
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
 Route::get('/public/cities', [CityPublicController::class, 'index']);
+
+Route::get('public/landing', [PageController::class, 'publicLanding']);
 
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware(['auth:sanctum', 'signed'])->name('verification.verify');
@@ -90,19 +93,14 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
 
 
-    // Expense Categories
-    Route::apiResource('expense-categories', ExpenseCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
-    Route::get('expense-categories/{expenseCategory}', [ExpenseCategoryController::class, 'show']);
 
-    // Expenses
-    Route::apiResource('expenses', ExpenseController::class);
+
 
     // Employees
     Route::apiResource('employees', EmployeeController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::get('employees/{employee}', [EmployeeController::class, 'show']);
 
-    // Salary Payments
-    Route::apiResource('salary-payments', SalaryPaymentController::class);
+
 
     // Accounting Reports
     Route::get('accounting/summary', [AccountingReportController::class, 'summary']);

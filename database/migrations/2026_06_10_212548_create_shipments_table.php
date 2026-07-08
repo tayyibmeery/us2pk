@@ -59,6 +59,7 @@ return new class extends Migration
             $table->decimal('company_charges', 12, 2);
             $table->decimal('received_amount', 12, 2)->default(0);
             $table->decimal('total', 12, 2)->storedAs('item_value_pkr + company_charges');
+            $table->decimal('output_tax', 12, 2)->default(0);
             $table->decimal('amount_due', 12, 2)->nullable();
             $table->decimal('receivable_cod', 12, 2)->nullable();
             $table->decimal('delivery_charges', 12, 2)->nullable();

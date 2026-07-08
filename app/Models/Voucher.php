@@ -56,4 +56,9 @@ class Voucher extends Model
     {
         return $this->total_debit == $this->total_credit;
     }
+
+    public function reference()
+    {
+        return $this->morphTo('reference', 'reference_type', 'reference_id');
+    }
 }

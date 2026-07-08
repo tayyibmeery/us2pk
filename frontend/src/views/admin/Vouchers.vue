@@ -1,8 +1,27 @@
 <template>
   <div class="space-y-6">
-    <PageBreadcrumb :pageTitle="'Vouchers'" />
+    <PageBreadcrumb :pageTitle="pageTitle" />
+
+    <!-- Filter Tabs -->
+    <div
+      class="flex flex-wrap items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Filter:</label>
+        <select v-model="filterStatus" @change="onFilterChange"
+          class="h-9 rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+          <option value="">All Vouchers</option>
+          <option value="0">Not Approved</option>
+          <option value="1">Approved</option>
+          <option value="deleted">Deleted</option>
+        </select>
+      </div>
+      <button @click="clearFilters" class="text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400">
+        Clear
+      </button>
+    </div>
+
     <DataTable :store="voucherStore" :columns="columns" title="Vouchers" addButtonLabel="Create Voucher"
-      :modalComponent="VoucherFormModal" :selfSaving="true" @saved="handleSaved">
+      :modalComponent="VoucherFormModal" @saved="handleSaved">
       <template #actions="{ item, edit, delete: deleteFn }">
         <div class="flex items-center justify-end gap-0.5">
           <router-link :to="`/admin/vouchers/${item.id}`"
@@ -46,21 +65,35 @@
         </span>
       </template>
       <template #cell-amount="{ item }">
-        {{ item.total_debit?.toFixed(2) }}
+        {{ Number(item.total_debit || 0).toFixed(2) }}
       </template>
     </DataTable>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import VoucherFormModal from '@/components/admin/VoucherFormModal.vue'
 import { useVoucherStore } from '@/stores/voucherStore'
+import { useToastStore } from '@/stores/toastStore'
 import type { ColumnDefinition } from '@/types/table'
 
+const route = useRoute()
+const router = useRouter()
 const voucherStore = useVoucherStore()
+const toastStore = useToastStore()
+
+const filterStatus = ref<string>('')
+
+const pageTitle = computed(() => {
+  if (filterStatus.value === '0') return 'Approval Screen - Not Approved'
+  if (filterStatus.value === '1') return 'Approved Vouchers'
+  if (filterStatus.value === 'deleted') return 'Deleted Vouchers'
+  return 'Vouchers'
+})
 
 const columns: ColumnDefinition[] = [
   { key: 'voucher_no', label: 'Voucher #' },
@@ -71,20 +104,77 @@ const columns: ColumnDefinition[] = [
 ]
 
 const handleSaved = () => {
-  voucherStore.fetchItems(voucherStore.pagination?.current_page || 1)
+  fetchVouchers()
 }
 
 const approveVoucher = async (id: number) => {
   if (!confirm('Approve this voucher?')) return
   try {
     await voucherStore.approve(id)
-    voucherStore.fetchItems(voucherStore.pagination?.current_page || 1)
-  } catch (e) {
-    alert('Failed to approve voucher')
+    toastStore.success('Voucher approved successfully!')
+    await fetchVouchers()
+  } catch (e: any) {
+    toastStore.error(e.response?.data?.message || 'Failed to approve voucher')
   }
 }
 
+const fetchVouchers = () => {
+  const params: any = {}
+
+  // Map filter status to API parameters
+  if (filterStatus.value === '0') {
+    params.approved = false
+    params.is_deleted = false
+  } else if (filterStatus.value === '1') {
+    params.approved = true
+    params.is_deleted = false
+  } else if (filterStatus.value === 'deleted') {
+    params.is_deleted = true
+  }
+
+  voucherStore.fetchItems(1, params)
+}
+
+const onFilterChange = () => {
+  // Update URL with filter parameter
+  const query: any = {}
+  if (filterStatus.value) {
+    query.approved = filterStatus.value
+  }
+  router.push({ query })
+  fetchVouchers()
+}
+
+const clearFilters = () => {
+  filterStatus.value = ''
+  router.push({ query: {} })
+  fetchVouchers()
+}
+
+// Watch for route query changes
+watch(() => route.query.approved, (newVal) => {
+  if (newVal === '0') {
+    filterStatus.value = '0'
+  } else if (newVal === '1') {
+    filterStatus.value = '1'
+  } else if (newVal === 'deleted') {
+    filterStatus.value = 'deleted'
+  } else {
+    filterStatus.value = ''
+  }
+  fetchVouchers()
+}, { immediate: true })
+
 onMounted(() => {
-  voucherStore.fetchItems(1)
+  // Check URL query parameter on mount
+  const approvedParam = route.query.approved as string
+  if (approvedParam === '0') {
+    filterStatus.value = '0'
+  } else if (approvedParam === '1') {
+    filterStatus.value = '1'
+  } else if (approvedParam === 'deleted') {
+    filterStatus.value = 'deleted'
+  }
+  fetchVouchers()
 })
 </script>

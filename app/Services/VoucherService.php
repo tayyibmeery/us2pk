@@ -10,9 +10,6 @@ use Illuminate\Support\Facades\DB;
 
 class VoucherService
 {
-    /**
-     * Generate a voucher number (USV-00001)
-     */
     public function generateVoucherNumber()
     {
         $last = Voucher::orderBy('id', 'desc')->first();
@@ -21,7 +18,7 @@ class VoucherService
     }
 
     /**
-     * Create a voucher with details
+     * Create a new voucher with entries.
      */
     public function generateVoucher($source, $referenceType, $referenceId, $date, $description, array $entries, $approved = false)
     {
@@ -54,7 +51,35 @@ class VoucherService
     }
 
     /**
-     * Generate voucher for shipment revenue
+     * Update an existing voucher: clear old details and add new ones.
+     */
+    public function updateVoucher(Voucher $voucher, $date, $description, array $entries)
+    {
+        return DB::transaction(function () use ($voucher, $date, $description, $entries) {
+            $voucher->update([
+                'date' => $date,
+                'description' => $description,
+            ]);
+
+            // Delete old details
+            $voucher->details()->delete();
+
+            foreach ($entries as $entry) {
+                VoucherDetail::create([
+                    'voucher_id' => $voucher->id,
+                    'account_id' => $entry['account_id'],
+                    'debit' => $entry['debit'] ?? 0,
+                    'credit' => $entry['credit'] ?? 0,
+                    'description' => $entry['description'] ?? null,
+                ]);
+            }
+
+            return $voucher;
+        });
+    }
+
+    /**
+     * Generate shipment revenue voucher – balanced double entry.
      */
     public function generateShipmentVoucher($shipment)
     {
@@ -63,26 +88,52 @@ class VoucherService
             throw new \Exception('No mapping for shipment_revenue');
         }
 
-        $total = $shipment->item_value_pkr + $shipment->company_charges;
-        $received = $shipment->received_amount ?? 0;
-        $receivable = max(0, $total - $received);
-
-        $entries = [];
-
-        $debtorAccountId = Account::where('name', 'Debtors')->value('id');
-        $cashAccountId = Account::where('name', 'Cash Account')->value('id');
         $revenueAccountId = $mapping->credit_account_id;
         $taxPayableAccountId = Account::where('name', 'Sales Tax Payable')->value('id');
+        $cashAccountId = Account::where('name', 'Cash Account')->value('id');
+        $debtorAccountId = Account::where('name', 'Debtors')->value('id');
 
-        if ($receivable > 0) {
-            $entries[] = ['account_id' => $debtorAccountId, 'debit' => $receivable];
+        // Revenue and tax
+        $revenue = $shipment->company_charges;
+        $tax = $shipment->output_tax ?? 0;
+        $totalCredit = $revenue + $tax;
+
+        // Already received amount (could be partial)
+        $received = $shipment->received_amount ?? 0;
+
+        // Debit Cash up to received, but not exceeding totalCredit
+        $cashDebit = min($received, $totalCredit);
+        // Remaining goes to Debtors (if any)
+        $debtorDebit = $totalCredit - $cashDebit;
+
+        $entries = [];
+        if ($cashDebit > 0) {
+            $entries[] = ['account_id' => $cashAccountId, 'debit' => $cashDebit];
         }
-        if ($received > 0) {
-            $entries[] = ['account_id' => $cashAccountId, 'debit' => $received];
+        if ($debtorDebit > 0) {
+            $entries[] = ['account_id' => $debtorAccountId, 'debit' => $debtorDebit];
         }
-        $entries[] = ['account_id' => $revenueAccountId, 'credit' => $shipment->company_charges];
-        if ($shipment->output_tax > 0) {
-            $entries[] = ['account_id' => $taxPayableAccountId, 'credit' => $shipment->output_tax];
+        $entries[] = ['account_id' => $revenueAccountId, 'credit' => $revenue];
+        if ($tax > 0) {
+            $entries[] = ['account_id' => $taxPayableAccountId, 'credit' => $tax];
+        }
+
+        // If for some reason entries are empty, skip
+        if (empty($entries)) {
+            return null;
+        }
+
+        // Ensure balanced (should be)
+        $totalDebit = array_sum(array_column($entries, 'debit'));
+        $totalCreditCalculated = array_sum(array_column($entries, 'credit'));
+        if ($totalDebit != $totalCreditCalculated) {
+            // Adjust: add difference to Debtors or Cash (should not happen)
+            $diff = $totalCreditCalculated - $totalDebit;
+            if ($diff > 0) {
+                $entries[] = ['account_id' => $debtorAccountId, 'debit' => $diff];
+            } elseif ($diff < 0) {
+                $entries[] = ['account_id' => $debtorAccountId, 'credit' => -$diff];
+            }
         }
 
         return $this->generateVoucher(
@@ -95,9 +146,7 @@ class VoucherService
         );
     }
 
-    /**
-     * Generate voucher for consolidation costs
-     */
+
     public function generateConsolidationCostVoucher($consolidation)
     {
         $mapping = TransactionTypeAccount::where('transaction_type', 'consolidation_cost')->first();
@@ -166,25 +215,84 @@ class VoucherService
     }
 
     /**
-     * Generate voucher for salary payment
+     * Sync shipment voucher – creates or updates the linked voucher.
      */
-    public function generateSalaryPaymentVoucher($salaryPayment)
+    public function syncShipmentVoucher($shipment)
     {
-        $salaryAccountId = Account::where('name', 'Salaries & Wages Expense')->value('id');
+        $entries = $this->buildShipmentEntries($shipment);
+        if (empty($entries)) {
+            return null;
+        }
+
+        $description = "Revenue from shipment {$shipment->shipment_code}";
+        $date = $shipment->created_at->toDateString();
+
+        if ($shipment->voucher) {
+            return $this->updateVoucher(
+                $shipment->voucher,
+                $date,
+                $description,
+                $entries
+            );
+        } else {
+            return $this->generateVoucher(
+                'system',
+                'shipment',
+                $shipment->id,
+                $date,
+                $description,
+                $entries
+            );
+        }
+    }
+
+    /**
+     * Build balanced entries for a shipment.
+     */
+    private function buildShipmentEntries($shipment)
+    {
+        $mapping = TransactionTypeAccount::where('transaction_type', 'shipment_revenue')->first();
+        if (!$mapping) {
+            throw new \Exception('No mapping for shipment_revenue');
+        }
+
+        $revenueAccountId = $mapping->credit_account_id;
+        $taxPayableAccountId = Account::where('name', 'Sales Tax Payable')->value('id');
         $cashAccountId = Account::where('name', 'Cash Account')->value('id');
+        $debtorAccountId = Account::where('name', 'Debtors')->value('id');
 
-        $entries = [
-            ['account_id' => $salaryAccountId, 'debit' => $salaryPayment->amount],
-            ['account_id' => $cashAccountId, 'credit' => $salaryPayment->amount],
-        ];
+        $revenue = $shipment->company_charges;
+        $tax = $shipment->output_tax ?? 0;
+        $totalCredit = $revenue + $tax;
 
-        return $this->generateVoucher(
-            'system',
-            'salary_payment',
-            $salaryPayment->id,
-            $salaryPayment->paid_date,
-            "Salary payment to {$salaryPayment->employee->name} for {$salaryPayment->month}/{$salaryPayment->year}",
-            $entries
-        );
+        $received = $shipment->received_amount ?? 0;
+        $cashDebit = min($received, $totalCredit);
+        $debtorDebit = $totalCredit - $cashDebit;
+
+        $entries = [];
+        if ($cashDebit > 0) {
+            $entries[] = ['account_id' => $cashAccountId, 'debit' => $cashDebit];
+        }
+        if ($debtorDebit > 0) {
+            $entries[] = ['account_id' => $debtorAccountId, 'debit' => $debtorDebit];
+        }
+        $entries[] = ['account_id' => $revenueAccountId, 'credit' => $revenue];
+        if ($tax > 0) {
+            $entries[] = ['account_id' => $taxPayableAccountId, 'credit' => $tax];
+        }
+
+        // Ensure balanced – add a balancing entry if needed
+        $totalDebit = array_sum(array_column($entries, 'debit'));
+        $totalCreditCalc = array_sum(array_column($entries, 'credit'));
+        if ($totalDebit != $totalCreditCalc) {
+            $diff = $totalCreditCalc - $totalDebit;
+            if ($diff > 0) {
+                $entries[] = ['account_id' => $debtorAccountId, 'debit' => $diff];
+            } elseif ($diff < 0) {
+                $entries[] = ['account_id' => $debtorAccountId, 'credit' => -$diff];
+            }
+        }
+
+        return $entries;
     }
 }

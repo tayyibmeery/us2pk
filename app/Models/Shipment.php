@@ -31,6 +31,7 @@ class Shipment extends Model
         'receivable_cod',
         'delivery_charges',
         'amount_due',              // ✅ added – was missing
+        'output_tax',   // add this
     ];
 
     protected $casts = [
@@ -48,6 +49,7 @@ class Shipment extends Model
         'weight' => 'float',
         'weight_kgs' => 'float',
         'amount_due' => 'float',
+        'output_tax' => 'float',
     ];
 
     public function user()

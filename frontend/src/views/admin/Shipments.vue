@@ -23,7 +23,6 @@
       :modalComponent="ShipmentFormModal" :selfSaving="true" @saved="handleSaved">
       <template #actions="{ item, edit, delete: deleteFn }">
         <div class="flex items-center justify-end gap-0.5">
-          <!-- View -->
           <router-link :to="`/admin/shipments/${item.id}`"
             class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-500/10 dark:hover:text-blue-400"
             title="View">
@@ -33,11 +32,9 @@
             </svg>
           </router-link>
 
-          <!-- Edit -->
           <button @click="edit(item)"
             class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
             title="Edit">
-            <!-- reuse the edit SVG -->
             <svg width="16" height="16" viewBox="0 0 21 21" fill="none">
               <path fill-rule="evenodd" clip-rule="evenodd"
                 d="M17.0911 3.53206C16.2124 2.65338 14.7878 2.65338 13.9091 3.53206L5.6074 11.8337C5.29899 12.1421 5.08687 12.5335 4.99684 12.9603L4.26177 16.445C4.20943 16.6931 4.286 16.9508 4.46529 17.1301C4.64458 17.3094 4.90232 17.3859 5.15042 17.3336L8.63507 16.5985C9.06184 16.5085 9.45324 16.2964 9.76165 15.988L18.0633 7.68631C18.942 6.80763 18.942 5.38301 18.0633 4.50433L17.0911 3.53206ZM14.9697 4.59272C15.2626 4.29982 15.7375 4.29982 16.0304 4.59272L17.0027 5.56499C17.2956 5.85788 17.2956 6.33276 17.0027 6.62565L16.1043 7.52402L14.0714 5.49109L14.9697 4.59272ZM13.0107 6.55175L6.66806 12.8944C6.56526 12.9972 6.49455 13.1277 6.46454 13.2699L5.96704 15.6283L8.32547 15.1308C8.46772 15.1008 8.59819 15.0301 8.70099 14.9273L15.0436 8.58468L13.0107 6.55175Z"
@@ -45,7 +42,6 @@
             </svg>
           </button>
 
-          <!-- Delete -->
           <button @click="deleteFn(item.id)"
             class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
             title="Delete">
@@ -101,10 +97,8 @@ const statusOptions = ref<{ id: number; name: string }[]>([])
 const statusFilter = ref('')
 
 const columns: ColumnDefinition[] = [
-  // { key: 'id', label: 'ID' },
   { key: 'user', label: 'User' },
   { key: 'shipment_code', label: 'Ship-Code' },
-
   {
     key: 'weight',
     label: 'Weight',
@@ -119,11 +113,6 @@ const columns: ColumnDefinition[] = [
     label: 'Status',
     format: (value: any) => value?.name || 'Unknown',
   },
-  // {
-  //   key: 'site',
-  //   label: 'Site',
-  //   format: (value: any) => value?.name || '-',
-  // },
   {
     key: 'arrival_date',
     label: 'Arrival',
@@ -134,7 +123,6 @@ const columns: ColumnDefinition[] = [
     label: 'Total (PKR)',
     format: (v: any) => formatCurrency(v),
   },
-
   {
     key: 'receivable_cod',
     label: 'COD (PKR)',
@@ -142,7 +130,7 @@ const columns: ColumnDefinition[] = [
   },
   {
     key: 'amount_due',
-    label: ' Amount Due (PKR)',
+    label: 'Amount Due (PKR)',
     format: (v: any) => formatCurrency(v),
   },
   {
@@ -217,7 +205,6 @@ const clearFilters = () => {
   shipmentStore.setStatusFilter('')
 }
 
-// ✅ Called by DataTable after modal emits 'saved'
 const handleSaved = async () => {
   await shipmentStore.fetchItems(shipmentStore.pagination?.current_page || 1)
 }

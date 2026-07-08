@@ -24,14 +24,24 @@ class PageController extends Controller
         $validated = $request->validate([
             'title'   => 'required|string|max:255',
             'slug'    => 'nullable|string|max:255|unique:pages',
+            'type'    => 'required|string|in:page,hero,service,testimonial,team,pricing,faq,blog,about,whyus,contact',
             'content' => 'required|string',
             'status'  => 'boolean',
+            'order'   => 'nullable|integer',
+            'image'   => 'nullable|string|max:255',
+            'icon'    => 'nullable|string|max:255',
+            'meta'    => 'nullable|array',
         ]);
         if (empty($validated['slug'])) {
             $validated['slug'] = Str::slug($validated['title']);
         }
+        if (!isset($validated['order'])) {
+            $validated['order'] = 0;
+        }
         return response()->json(Page::create($validated), 201);
     }
+
+
 
     public function show(Page $page)
     {
@@ -43,8 +53,13 @@ class PageController extends Controller
         $validated = $request->validate([
             'title'   => 'sometimes|string|max:255',
             'slug'    => ['sometimes', 'string', 'max:255', Rule::unique('pages')->ignore($page->id)],
+            'type'    => 'sometimes|string|in:page,hero,service,testimonial,team,pricing,faq,blog,about,whyus,contact',
             'content' => 'sometimes|string',
             'status'  => 'sometimes|boolean',
+            'order'   => 'nullable|integer',
+            'image'   => 'nullable|string|max:255',
+            'icon'    => 'nullable|string|max:255',
+            'meta'    => 'nullable|array',
         ]);
         if (isset($validated['slug']) && empty($validated['slug'])) {
             $validated['slug'] = Str::slug($validated['title'] ?? $page->title);
@@ -57,5 +72,17 @@ class PageController extends Controller
     {
         $page->delete();
         return response()->json(['message' => 'Page deleted']);
+    }
+
+
+    public function publicLanding()
+    {
+        $pages = Page::where('status', true)
+            ->whereIn('type', ['hero', 'service', 'testimonial', 'team', 'pricing', 'faq', 'blog', 'about', 'whyus', 'contact'])
+            ->orderBy('order')
+            ->get();
+
+        // Group by type for easier frontend consumption
+        return response()->json($pages->groupBy('type'));
     }
 }

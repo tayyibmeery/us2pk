@@ -1,7 +1,7 @@
 <template>
   <FormModal :isOpen="isOpen" :title="formData.id ? 'Edit Shipment' : 'Add Shipment'"
     :subtitle="formData.id ? 'Update the shipment details below.' : 'Fill in the details to add a new shipment.'"
-    :saveLabel="formData.id ? 'Update' : 'Create'" @close="close" @save="save">
+    :saveLabel="formData.id ? 'Update' : 'Create'" :loading="saving" @close="close" @save="save">
     <template #fields>
       <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <!-- User -->
@@ -224,7 +224,6 @@
         </div>
 
         <!-- Item Value & Company Charges -->
-        <!-- Item Value - now conditionally styled as read-only when disabled -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Item Value (PKR)
@@ -263,7 +262,7 @@
           <input v-model.number="formData.received_amount" :readonly="isEdit" type="number" step="0.01"
             placeholder="0.00"
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
-          <p v-if="isEdit" class="text-xs text-gray-400 mt-1">Cant update it update it from payments .</p>
+          <p v-if="isEdit" class="text-xs text-gray-400 mt-1">Can't update it update it from payments.</p>
         </div>
 
         <!-- Receivable COD (auto) -->
@@ -306,7 +305,6 @@
             Product Images
           </label>
 
-          <!-- Existing Images -->
           <div v-if="existingImages.length" class="flex flex-wrap gap-2 mb-2">
             <div v-for="img in existingImages" :key="img.id" class="relative w-20 h-20 group">
               <img :src="getImageUrl(img.image_path)"
@@ -319,7 +317,6 @@
             </div>
           </div>
 
-          <!-- New Image Previews -->
           <div v-if="newImagePreviews.length" class="flex flex-wrap gap-2 mb-2">
             <div v-for="(preview, index) in newImagePreviews" :key="index" class="relative w-20 h-20 group">
               <img :src="preview"
@@ -331,7 +328,6 @@
             </div>
           </div>
 
-          <!-- File Input -->
           <input type="file" multiple accept="image/*" @change="handleNewImageUpload"
             class="dark:bg-dark-900 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
           <p v-if="!existingImages.length && !newImagePreviews.length" class="text-xs text-gray-400 mt-1">
@@ -368,13 +364,10 @@ const shipmentStore = useShipmentStore()
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'saved'): void
-  (e: 'save', data: any): void
 }>()
 
-// ✅ Prevent double-submit
 const saving = ref(false)
 
-// Image state
 const existingImages = ref<{ id: number; image_path: string }[]>([])
 const imagesToDelete = ref<number[]>([])
 const newImages = ref<File[]>([])
@@ -444,10 +437,8 @@ const receivableCod = computed(() => {
   return Math.max(0, total - received)
 })
 
-// ✅ Computed to control disabled state of Item Value
 const isItemValueDisabled = computed(() => formData.value.paid_by === 'By Customer')
 
-// ✅ Watcher to auto-set item_value_pkr to 0 when Bought By is 'By Customer'
 watch(() => formData.value.paid_by, (newVal) => {
   if (newVal === 'By Customer') {
     formData.value.item_value_pkr = 0
@@ -463,7 +454,9 @@ const resetForm = () => {
   newImages.value = []
   newImagePreviews.value = []
 }
+
 const isEdit = computed(() => !!props.initialData?.id)
+
 const fetchLookupData = async () => {
   paymentMethodsLoading.value = true
   try {
@@ -521,7 +514,6 @@ const initDatePickers = () => {
       })
       const val = (formData.value as any)[field]
       if (val) {
-        // Strip ISO if needed before setting
         const clean = typeof val === 'string' && val.includes('T') ? val.split('T')[0] : val
         flatpickrInstances[field].setDate(clean)
       }
@@ -542,7 +534,6 @@ watch(() => props.isOpen, async (open) => {
 
 watch(() => props.initialData, (newVal) => {
   if (newVal) {
-    // ✅ Copy only scalar/primitive fields — skip nested objects
     const cleaned: Partial<Shipment> = {}
     for (const key of Object.keys(newVal)) {
       const val = (newVal as any)[key]
@@ -554,12 +545,10 @@ watch(() => props.initialData, (newVal) => {
     }
     formData.value = cleaned
 
-    // ✅ If paid_by is 'By Customer', ensure item_value_pkr is 0
     if (formData.value.paid_by === 'By Customer') {
       formData.value.item_value_pkr = 0
     }
 
-    // Load images separately
     existingImages.value = Array.isArray(newVal.images)
       ? newVal.images.map((img: any) => ({ id: img.id, image_path: img.image_path }))
       : []
@@ -623,12 +612,47 @@ const fetchUsers = async () => {
 }
 
 const close = () => {
-  if (saving.value) return  // don't close while saving
+  if (saving.value) return
   emit('close')
 }
 
 const save = async () => {
   if (saving.value) return
+
+  const cleanData: Partial<Shipment> = {
+    user_id: formData.value.user_id,
+    shipment_code: formData.value.shipment_code,
+    description: formData.value.description,
+    comments: formData.value.comments,
+    weight: formData.value.weight,
+    weight_unit: formData.value.weight_unit,
+    seller_tracker_id: formData.value.seller_tracker_id,
+    site_id: formData.value.site_id,
+    purchase_date: formData.value.purchase_date,
+    shipment_status_id: formData.value.shipment_status_id,
+    arrival_date: formData.value.arrival_date,
+    expected_delivery_date: formData.value.expected_delivery_date,
+    date_delivered: formData.value.date_delivered,
+    payment_method_id: formData.value.payment_method_id,
+    paid_by: formData.value.paid_by,
+    item_value_pkr: formData.value.item_value_pkr,
+    company_charges: formData.value.company_charges,
+    received_amount: formData.value.received_amount,
+    local_courier_id: formData.value.local_courier_id,
+    delivery_charges: formData.value.delivery_charges,
+  }
+
+  const requiredFields = ['user_id', 'weight', 'weight_unit', 'item_value_pkr', 'company_charges', 'paid_by']
+  const missing = requiredFields.filter(field => {
+    const val = cleanData[field as keyof typeof cleanData]
+    return val === undefined || val === null || val === ''
+  })
+
+  if (missing.length) {
+    alert(`Please fill in the following required fields: ${missing.join(', ')}`)
+    return
+  }
+
   saving.value = true
 
   try {
@@ -637,12 +661,12 @@ const save = async () => {
     if (props.initialData?.id) {
       result = await shipmentStore.update(
         props.initialData.id,
-        formData.value,
+        cleanData,
         newImages.value,
         imagesToDelete.value,
       )
     } else {
-      result = await shipmentStore.create(formData.value, newImages.value)
+      result = await shipmentStore.create(cleanData, newImages.value)
     }
 
     existingImages.value = Array.isArray(result?.images)
@@ -653,7 +677,7 @@ const save = async () => {
     newImagePreviews.value = []
     imagesToDelete.value = []
 
-    emit('save', {})  // ✅ triggers DataTable.handleSave which sees selfSaving=true and just refreshes
+    emit('saved')
     emit('close')
 
   } catch (error: any) {

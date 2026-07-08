@@ -78,32 +78,31 @@ const authStore = useAuthStore()
 const dropdownOpen = ref(false)
 const dropdownRef = ref(null)
 
-// User data from store
 const user = computed(() => authStore.user)
 
-// Avatar URL
 const avatarUrl = computed(() => {
   if (user.value?.avatar) {
-    // If avatar is stored in storage, build full URL
     if (user.value.avatar.startsWith('avatars/')) {
       return `${import.meta.env.VITE_BASE_URL || ''}/storage/${user.value.avatar}`
     }
     return user.value.avatar
   }
-  return '/images/user/owner.jpg' // default fallback
+  return '/images/user/owner.jpg'
 })
 
 const handleImageError = (e) => {
+  if (e.target.src.includes('owner.jpg')) {
+    e.target.onerror = null; // stop further error handling
+    return;
+  }
   e.target.src = '/images/user/owner.jpg'
 }
 
-// Menu items
 const menuItems = [
   { href: '/profile', icon: UserCircleIcon, text: 'Edit profile' },
   { href: '/profile', icon: SettingsIcon, text: 'Account settings' },
 ]
 
-// Toggle dropdown
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value
 }
@@ -112,14 +111,11 @@ const closeDropdown = () => {
   dropdownOpen.value = false
 }
 
-// Logout
 const signOut = async () => {
   await authStore.logout()
   closeDropdown()
-  // router will redirect via store's logout
 }
 
-// Upload avatar
 const uploadAvatar = async (event) => {
   const input = event.target
   if (!input.files?.length) return
@@ -128,15 +124,14 @@ const uploadAvatar = async (event) => {
   try {
     await authStore.updateAvatar(file)
     alert('Avatar updated successfully!')
-    closeDropdown() // optional
+    closeDropdown()
   } catch (err) {
     alert(err.response?.data?.message || 'Avatar upload failed')
   } finally {
-    input.value = '' // reset input
+    input.value = ''
   }
 }
 
-// Click outside
 const handleClickOutside = (event) => {
   if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
     closeDropdown()

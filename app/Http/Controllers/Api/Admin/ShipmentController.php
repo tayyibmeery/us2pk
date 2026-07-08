@@ -8,16 +8,13 @@ use App\Models\User;
 use App\Models\PaymentMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use App\ShipmentPaymentHelper; // ✅ trait (if you have one)
+use App\ShipmentPaymentHelper;
 use App\Services\VoucherService;
 
 class ShipmentController extends Controller
 {
-    use ShipmentPaymentHelper; // optional, if you have helper methods
+    use ShipmentPaymentHelper;
 
-    /**
-     * List shipments with relationships and search/filter.
-     */
     public function index(Request $request)
     {
         $query = Shipment::with([
@@ -44,9 +41,6 @@ class ShipmentController extends Controller
         return response()->json($query->orderBy('created_at', 'desc')->paginate(20));
     }
 
-    /**
-     * Show a single shipment.
-     */
     public function show(Shipment $shipment)
     {
         return response()->json($shipment->load([
@@ -59,12 +53,8 @@ class ShipmentController extends Controller
         ]));
     }
 
-    /**
-     * Create a new shipment.
-     */
     public function store(Request $request)
     {
-        // ✅ Validation – required on server side
         $validated = $request->validate([
             'user_id'                => 'required|exists:users,id',
             'consolidation_id'       => 'nullable|exists:consolidations,id',
@@ -84,27 +74,21 @@ class ShipmentController extends Controller
             'received_amount'        => 'nullable|numeric|min:0',
             'paid_by'                => 'required|in:By Company,By Customer',
             'payment_method_id'      => 'nullable|exists:payment_methods,id',
-            'receivable_cod'         => 'nullable|numeric', // will be overwritten by model event
             'local_courier_id'       => 'nullable|exists:local_couriers,id',
             'delivery_charges'       => 'nullable|numeric',
             'images'                 => 'nullable|array',
             'images.*'               => 'image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
+        
 
-        // Convert weight to kg
+
         if (!empty($validated['weight']) && !empty($validated['weight_unit'])) {
             $validated['weight_kgs'] = $this->convertToKg($validated['weight'], $validated['weight_unit']);
         }
 
-        // Create shipment (model events will set receivable_cod and amount_due)
         $shipment = Shipment::create($validated);
 
-        $voucherService = new VoucherService();
-        if (!$shipment->voucher) {
-            $voucherService->generateShipmentVoucher($shipment);
-        }
-
-        // ✅ Create initial payment record if received_amount > 0
+        // --- Initial payment ---
         if ($shipment->received_amount > 0) {
             $paymentDate = $validated['purchase_date'] ?? now()->toDateString();
             $paymentMethod = null;
@@ -121,17 +105,23 @@ class ShipmentController extends Controller
                 'notes'            => 'Initial payment',
             ]);
 
-            // Optional: recalc received_amount from payments (if you want to ensure consistency)
-            // $this->updateShipmentReceivedAmount($shipment);
+            // ✅ Recalculate received_amount from payments
+            $this->updateShipmentReceivedAmount($shipment);
         }
 
-        // Upload images
+        // --- Images ---
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('shipments', 'public');
                 $shipment->images()->create(['image_path' => $path]);
             }
         }
+
+        // --- Voucher handling ---
+        // ✅ Load voucher relationship to check existence
+        $shipment->load('voucher');
+        $voucherService = new VoucherService();
+        $voucherService->syncShipmentVoucher($shipment);
 
         return response()->json($shipment->load([
             'user',
@@ -143,12 +133,8 @@ class ShipmentController extends Controller
         ]), 201);
     }
 
-    /**
-     * Update an existing shipment.
-     */
     public function update(Request $request, Shipment $shipment)
     {
-        // ✅ Validation – must be present on server side
         $validated = $request->validate([
             'user_id'                => 'sometimes|exists:users,id',
             'description'            => 'sometimes|string',
@@ -169,34 +155,22 @@ class ShipmentController extends Controller
             'payment_method_id'      => 'sometimes|exists:payment_methods,id',
             'local_courier_id'       => 'sometimes|exists:local_couriers,id',
             'delivery_charges'       => 'sometimes|numeric',
-            // 'receivable_cod' and 'amount_due' are not validated – they are computed by model events
         ]);
 
-        // Convert weight to kg if provided
+
         if (isset($validated['weight']) && isset($validated['weight_unit'])) {
             $validated['weight_kgs'] = $this->convertToKg($validated['weight'], $validated['weight_unit']);
         }
 
-        // Update the shipment (model events will recalc receivable_cod/amount_due)
-        $updated = $shipment->update($validated);
-        $voucherService = new VoucherService();
-        if (!$shipment->voucher) {
-            $voucherService->generateShipmentVoucher($shipment);
-        }
+        $shipment->update($validated);
 
-        if (!$updated) {
-            return response()->json(['message' => 'Failed to update shipment'], 500);
-        }
-
-        // ✅ Sync the initial payment when received_amount changes
+        // --- Sync initial payment when received_amount changes ---
         if ($request->has('received_amount') && $shipment->wasChanged('received_amount')) {
             $payment = $shipment->payments()->where('notes', 'Initial payment')->first();
             if ($payment) {
-                // Update existing initial payment
                 $payment->amount = $shipment->received_amount;
                 $payment->save();
             } else {
-                // Create a new initial payment if none exists (e.g., deleted manually)
                 $paymentDate = $shipment->purchase_date ?? now()->toDateString();
                 $paymentMethod = $shipment->paymentMethod ? $shipment->paymentMethod->name : null;
                 $shipment->payments()->create([
@@ -207,9 +181,12 @@ class ShipmentController extends Controller
                     'notes'            => 'Initial payment',
                 ]);
             }
+
+            // ✅ Recalculate received_amount from payments
+            $this->updateShipmentReceivedAmount($shipment);
         }
 
-        // Handle image deletions
+        // --- Images ---
         if ($request->has('images_to_delete')) {
             $ids = $request->input('images_to_delete');
             if (is_array($ids)) {
@@ -217,13 +194,17 @@ class ShipmentController extends Controller
             }
         }
 
-        // Handle new image uploads
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('shipments', 'public');
                 $shipment->images()->create(['image_path' => $path]);
             }
         }
+
+        $shipment->refresh();
+        $shipment->load('voucher'); // explicitly load the morph relation
+        $voucherService = new VoucherService();
+        $voucherService->syncShipmentVoucher($shipment);
 
         return response()->json($shipment->load([
             'user',
@@ -235,9 +216,6 @@ class ShipmentController extends Controller
         ]));
     }
 
-    /**
-     * Delete a shipment and its images.
-     */
     public function destroy(Shipment $shipment)
     {
         foreach ($shipment->images as $image) {
@@ -249,9 +227,6 @@ class ShipmentController extends Controller
         return response()->json(['message' => 'Deleted']);
     }
 
-    /**
-     * Update only the status.
-     */
     public function updateStatus(Request $request, Shipment $shipment)
     {
         $request->validate([
@@ -267,9 +242,6 @@ class ShipmentController extends Controller
         ]);
     }
 
-    /**
-     * Fetch a customer by pcode or name (used for autocomplete).
-     */
     public function fetchCustomer(Request $request)
     {
         $request->validate(['q' => 'required|string']);
@@ -279,9 +251,6 @@ class ShipmentController extends Controller
         return response()->json($customer);
     }
 
-    /**
-     * Generate a preview shipment code.
-     */
     public function generateShipmentCode(Request $request)
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
@@ -297,16 +266,13 @@ class ShipmentController extends Controller
         ]);
     }
 
-    /**
-     * Convert weight to kilograms.
-     */
     private function convertToKg($weight, $unit)
     {
         return match ($unit) {
             'ounce' => $weight * 0.0283495,
             'gram'  => $weight / 1000,
             'pound' => $weight * 0.453592,
-            default => $weight, // 'kg'
+            default => $weight, // kg
         };
     }
 }

@@ -11,11 +11,15 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $city = City::where('city_code', 'LHE')->first();
-        if (!$city) {
-            $city = City::create(['city_name' => 'Lahore', 'city_code' => 'LHE', 'status' => true]);
-        }
+        $city = City::firstOrCreate(
+            ['city_code' => 'LHE'],
+            [
+                'city_name' => 'Lahore',
+                'status' => true,
+            ]
+        );
 
+        // Admin User
         User::updateOrCreate(
             ['email' => 'admin@us2pk.com'],
             [
@@ -27,8 +31,25 @@ class AdminUserSeeder extends Seeder
                 'pcode'             => 'ADMIN01',
                 'role'              => 'admin',
                 'status'            => 'approved',
-                'email_verified_at' => now(),
                 'source'            => 'System',
+                'email_verified_at' => now(),
+            ]
+        );
+
+        // Demo User
+        User::updateOrCreate(
+            ['email' => 'user@us2pk.com'],
+            [
+                'name'              => 'Demo User',
+                'password'          => Hash::make('password'),
+                'phone'             => '+92-300-9876543',
+                'address'           => 'Johar Town, Lahore',
+                'city_id'           => $city->id,
+                'pcode'             => 'LHE001',
+                'role'              => 'user',
+                'status'            => 'approved',
+                'source'            => 'System',
+                'email_verified_at' => now(),
             ]
         );
     }

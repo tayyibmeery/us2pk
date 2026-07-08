@@ -72,18 +72,7 @@ const formData = ref({
   is_active: true,
 });
 
-watch(() => props.initialData, (data) => {
-  if (data) {
-    formData.value = { ...data };
-  } else {
-    resetForm();
-  }
-}, { immediate: true });
-
-watch(() => props.isOpen, (open) => {
-  if (!open) resetForm();
-});
-
+// ✅ Moved resetForm BEFORE the watches
 const resetForm = () => {
   formData.value = {
     id: null,
@@ -95,6 +84,19 @@ const resetForm = () => {
     is_active: true,
   };
 };
+
+// Now watches can safely call resetForm
+watch(() => props.initialData, (data) => {
+  if (data) {
+    formData.value = { ...data };
+  } else {
+    resetForm();
+  }
+}, { immediate: true });
+
+watch(() => props.isOpen, (open) => {
+  if (!open) resetForm();
+});
 
 const close = () => emit('close');
 const save = () => {

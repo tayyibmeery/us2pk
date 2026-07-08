@@ -10,7 +10,7 @@
       </span>
     </div>
     <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
-      <div><strong>Date:</strong> {{ voucher.date }}</div>
+      <div><strong>Date:</strong> {{ formatDate(voucher.date) }}</div>
       <div><strong>Source:</strong> {{ voucher.source }}</div>
       <div class="col-span-2"><strong>Description:</strong> {{ voucher.description }}</div>
     </div>
@@ -24,16 +24,16 @@
       </thead>
       <tbody>
         <tr v-for="detail in voucher.details" :key="detail.id" class="border-t">
-          <td class="px-4 py-2">{{ detail.account?.name }}</td>
-          <td class="px-4 py-2 text-right">{{ detail.debit }}</td>
-          <td class="px-4 py-2 text-right">{{ detail.credit }}</td>
+          <td class="px-4 py-2">{{ detail.account?.name || 'N/A' }}</td>
+          <td class="px-4 py-2 text-right">{{ Number(detail.debit).toFixed(2) }}</td>
+          <td class="px-4 py-2 text-right">{{ Number(detail.credit).toFixed(2) }}</td>
         </tr>
       </tbody>
       <tfoot class="font-bold bg-gray-50 dark:bg-gray-800">
         <tr>
           <td class="px-4 py-2">Total</td>
-          <td class="px-4 py-2 text-right">{{ totalDebit }}</td>
-          <td class="px-4 py-2 text-right">{{ totalCredit }}</td>
+          <td class="px-4 py-2 text-right">{{ Number(totalDebit).toFixed(2) }}</td>
+          <td class="px-4 py-2 text-right">{{ Number(totalCredit).toFixed(2) }}</td>
         </tr>
       </tfoot>
     </table>
@@ -56,8 +56,20 @@ const router = useRouter();
 const loading = ref(false);
 const voucher = ref<any>(null);
 
-const totalDebit = computed(() => voucher.value?.details?.reduce((sum: number, d: any) => sum + d.debit, 0) || 0);
-const totalCredit = computed(() => voucher.value?.details?.reduce((sum: number, d: any) => sum + d.credit, 0) || 0);
+const totalDebit = computed(() => {
+  if (!voucher.value?.details) return 0;
+  return voucher.value.details.reduce((sum: number, d: any) => sum + (Number(d.debit) || 0), 0);
+});
+
+const totalCredit = computed(() => {
+  if (!voucher.value?.details) return 0;
+  return voucher.value.details.reduce((sum: number, d: any) => sum + (Number(d.credit) || 0), 0);
+});
+
+const formatDate = (date: string) => {
+  if (!date) return '—';
+  return new Date(date).toLocaleDateString('en-GB');
+};
 
 async function fetchVoucher() {
   loading.value = true;

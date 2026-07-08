@@ -36,17 +36,20 @@
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
           <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Weight</p>
           <p class="text-xl font-bold text-gray-800 dark:text-white/90">
-            {{ (Number(consolidation.total_weight_kg) || 0).toFixed(2) }} kg</p>
+            {{ (Number(consolidation.total_weight_kg) || 0).toFixed(2) }} kg
+          </p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
           <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Revenue (US2PK)</p>
           <p class="text-xl font-bold text-gray-800 dark:text-white/90">PKR
-            {{ (Number(consolidation.total_us2pk_charges) || 0).toLocaleString() }}</p>
+            {{ (Number(consolidation.total_us2pk_charges) || 0).toLocaleString() }}
+          </p>
         </div>
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
           <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Net Receivable from Courier</p>
           <p class="text-xl font-bold text-green-600 dark:text-green-400">PKR
-            {{ (Number(consolidation.receivable_from_courier) || 0).toLocaleString() }}</p>
+            {{ (Number(consolidation.receivable_from_courier) || 0).toLocaleString() }}
+          </p>
         </div>
       </div>
 
@@ -133,7 +136,7 @@
             <div class="flex justify-between border-b border-gray-100 py-1 dark:border-gray-700/50 font-semibold">
               <span class="text-gray-700 dark:text-gray-300">Direct Costs (Total)</span>
               <span class="text-gray-800 dark:text-white/90">PKR
-                {{ (Number(consolidation.direct_costs) || 0).toLocaleString() }}</span>
+                {{ (Number(consolidation.direct_cost) || 0).toLocaleString() }}</span>
             </div>
             <div class="flex justify-between py-1 text-base font-bold">
               <span class="text-gray-800 dark:text-white/90">Gross Income</span>
@@ -261,12 +264,14 @@
                 <td class="px-3 py-2 text-sm">{{ s.user?.city?.city_name || '—' }}</td>
                 <td class="px-3 py-2 text-sm">{{ formatDate(s.arrival_date) || '—' }}</td>
                 <td class="px-3 py-2 text-sm max-w-xs truncate" :title="s.description">
-                  {{ truncateWords(s.description, 10) || '—' }}</td>
+                  {{ truncateWords(s.description, 10) || '—' }}
+                </td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.weight_kgs) || 0).toFixed(2) }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.company_charges) || 0).toLocaleString() }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.amount_due) || 0).toLocaleString() }}</td>
                 <td class="px-3 py-2 text-right text-sm font-medium">
-                  {{ (Number(s.receivable_cod) || 0).toLocaleString() }}</td>
+                  {{ (Number(s.receivable_cod) || 0).toLocaleString() }}
+                </td>
                 <td class="px-3 py-2 text-sm">{{ s.local_courier?.name || '—' }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.delivery_charges) || 0).toFixed(2) }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.output_tax) || 0).toFixed(2) }}</td>

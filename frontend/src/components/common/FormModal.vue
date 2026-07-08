@@ -35,9 +35,9 @@
               class="flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] sm:w-auto">
               {{ cancelLabel }}
             </button>
-            <button type="submit"
-              class="flex w-full justify-center rounded-lg bg-brand-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-600 sm:w-auto">
-              {{ saveLabel }}
+            <button type="submit" :disabled="loading"
+              class="flex w-full justify-center rounded-lg bg-brand-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50 sm:w-auto">
+              {{ loading ? 'Saving...' : saveLabel }}
             </button>
           </div>
         </form>
@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import Modal from '@/components/Modal.vue'
 
-// ✅ withDefaults ensures fallback values
+// ✅ Single, clean props definition with defaults
 const props = withDefaults(
   defineProps<{
     isOpen: boolean
@@ -57,10 +57,12 @@ const props = withDefaults(
     subtitle?: string
     saveLabel?: string
     cancelLabel?: string
+    loading?: boolean
   }>(),
   {
     saveLabel: 'Save',
     cancelLabel: 'Cancel',
+    loading: false,
   }
 )
 

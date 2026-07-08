@@ -131,8 +131,9 @@ async function handleSubmit() {
   error.value = '';
   try {
     await authStore.login(email.value, password.value);
-    if (authStore.isAdmin) router.push('/admin');
+    if (authStore.isAdmin) router.push('/admin/dashboard');
     else router.push('/dashboard');
+  
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Login failed.';
   } finally {
