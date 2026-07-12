@@ -17,9 +17,12 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(value, key) in data" :key="key" v-if="typeof value === 'number'">
-          <td class="font-semibold">{{ key.replace(/_/g, ' ').toUpperCase() }}</td>
-          <td class="text-right" :class="value < 0 ? 'text-red-500' : 'text-green-600'">{{ value.toFixed(2) }}</td>
+        <!-- Show only the main P&L numbers -->
+        <tr v-for="(value, key) in flatData" :key="key">
+          <td class="font-semibold">{{ formatKey(key) }}</td>
+          <td class="text-right" :class="value < 0 ? 'text-red-500' : 'text-green-600'">
+            {{ value.toFixed(2) }}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -27,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import api from '@/services/api';
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue';
 
@@ -36,6 +39,24 @@ const years = Array.from({ length: 10 }, (_, i) => year.value - i);
 const data = ref<any>({});
 const loading = ref(false);
 const error = ref('');
+
+// Computed property to filter only number fields from top level
+const flatData = computed(() => {
+  if (!data.value) return {};
+  const result: Record<string, number> = {};
+  const excludeKeys = ['allocations', 'details'];
+
+  for (const [key, value] of Object.entries(data.value)) {
+    if (typeof value === 'number' && !excludeKeys.includes(key)) {
+      result[key] = value;
+    }
+  }
+  return result;
+});
+
+function formatKey(key: string): string {
+  return key.replace(/_/g, ' ').toUpperCase();
+}
 
 async function fetchData() {
   loading.value = true;

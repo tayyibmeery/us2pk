@@ -62,13 +62,22 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         static::creating(function ($user) {
             if (empty($user->pcode)) {
+
                 $counter = PcodeCounter::firstOrCreate(
                     ['city_id' => $user->city_id],
                     ['last_number' => 0]
                 );
+
                 $counter->increment('last_number');
+
                 $cityCode = $user->city->city_code;
-                $user->pcode = $cityCode . $counter->last_number;
+
+                // Add zero only for numbers below 100
+                $number = $counter->last_number < 100
+                    ? str_pad($counter->last_number, 2, '0', STR_PAD_LEFT)
+                    : $counter->last_number;
+
+                $user->pcode = $cityCode . $number;
             }
         });
     }

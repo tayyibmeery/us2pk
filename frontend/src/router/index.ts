@@ -67,7 +67,14 @@ const router = createRouter({
         { path: 'pandl/yearly', name: 'AdminPandLYearly', component: () => import('@/views/admin/PandL/Yearly.vue'), meta: { title: 'P&L Yearly' } },
         { path: 'pandl/quarterly', name: 'AdminPandLQuarterly', component: () => import('@/views/admin/PandL/Quarterly.vue'), meta: { title: 'P&L Quarterly' } },
         { path: 'pandl/monthly', name: 'AdminPandLMonthly', component: () => import('@/views/admin/PandL/Monthly.vue'), meta: { title: 'P&L Monthly' } },
-        { path: 'accounting', name: 'AdminAccounting', component: () => import('@/views/admin/AccountingDashboard.vue'), meta: { title: 'Accounting Dashboard' } },
+        { path: 'pandl/balance-sheet', name: 'AdminBalanceSheet', component: () => import('@/views/admin/PandL/BalanceSheet.vue'), meta: { title: 'Balance Sheet' } },
+
+        {
+          path: 'ledger',
+          name: 'AdminLedger',
+          component: () => import('@/views/admin/Ledger.vue'),
+          meta: { title: 'Ledger' },
+        },
         { path: 'payment-methods', name: 'AdminPaymentMethods', component: () => import('@/views/admin/PaymentMethods.vue'), meta: { title: 'Payment Methods' } },
         { path: 'sites', name: 'AdminSites', component: () => import('@/views/admin/Sites.vue'), meta: { title: 'Sites' } },
         { path: 'international-couriers', name: 'AdminInternationalCouriers', component: () => import('@/views/admin/InternationalCouriers.vue'), meta: { title: 'International Couriers' } },
@@ -75,7 +82,7 @@ const router = createRouter({
         { path: 'shipment-statuses', name: 'AdminShipmentStatuses', component: () => import('@/views/admin/ShipmentStatuses.vue'), meta: { title: 'Shipment Statuses' } },
         { path: 'warehouses', name: 'AdminWarehouses', component: () => import('@/views/admin/Warehouses.vue'), meta: { title: 'Warehouses' } },
         { path: 'weight-discounts', name: 'AdminWeightDiscounts', component: () => import('@/views/admin/WeightDiscounts.vue'), meta: { title: 'Weight Discounts' } },
-        { path: 'settings', name: 'AdminSettings', component: () => import('@/views/admin/Settings.vue'), meta: { title: 'Settings' } },
+
         { path: 'pages', name: 'AdminPages', component: () => import('@/views/admin/Pages.vue'), meta: { title: 'Pages' } },
         { path: 'invoices', name: 'AdminInvoices', component: () => import('@/views/admin/Invoices.vue'), meta: { title: 'Invoices' } },
         { path: 'revenues', name: 'AdminRevenues', component: () => import('@/views/admin/Revenues.vue'), meta: { title: 'Revenues' } },

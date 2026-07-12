@@ -88,13 +88,30 @@ class StatisticsController extends Controller
 
     public function debtorsBalance()
     {
-        $totalDue = Debtor::sum('amount_due');
-        $totalPaid = Debtor::sum('cod');
-        $balance = Debtor::sum('balance');
-        return response()->json([
-            'total_due'    => $totalDue,
-            'total_paid'   => $totalPaid,
-            'balance'      => $balance,
-        ]);
+        try {
+            // ✅ Use the correct column names from debtors table
+            $totalBalance = Debtor::sum('balance');
+            $totalReceivable = Debtor::sum('receivable_cod');
+            $totalAmountDue = Debtor::sum('amount_due');
+            $totalDebtors = Debtor::count();
+
+            return response()->json([
+                'total_debtors' => $totalDebtors,
+                'total_balance' => $totalBalance,
+                'total_receivable' => $totalReceivable,
+                'total_amount_due' => $totalAmountDue,
+                'average_balance' => $totalDebtors > 0 ? $totalBalance / $totalDebtors : 0,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Debtors balance error: ' . $e->getMessage());
+            return response()->json([
+                'total_debtors' => 0,
+                'total_balance' => 0,
+                'total_receivable' => 0,
+                'total_amount_due' => 0,
+                'average_balance' => 0,
+            ]);
+        }
     }
+
 }

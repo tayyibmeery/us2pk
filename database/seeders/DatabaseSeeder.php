@@ -20,7 +20,6 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             ProhibitedItemSeeder::class,
 
-            SettingSeeder::class,
             WarehouseSeeder::class,
             WeightDiscountSeeder::class,
 
@@ -33,7 +32,7 @@ class DatabaseSeeder extends Seeder
             InternationalCouriersSeeder::class,
             ShipmentStatusesSeeder::class,
             AccountsSeeder::class,
-          
+
             TransactionTypeAccountSeeder::class,
 
         ]);

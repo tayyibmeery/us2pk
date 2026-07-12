@@ -11,7 +11,7 @@ use App\Http\Controllers\Api\Admin\{
     ConsolidationController,
 
     WeightDiscountController,
-    SettingController,
+
     StatisticsController,
     InvoiceController,
     RevenueController,
@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Admin\{
     PageController,
     FinancialController,
     JournalController,
+    LedgerController,
     PaymentMethodController,
     ProfitLossController,
 
@@ -102,10 +103,6 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
 
 
-    // Accounting Reports
-    Route::get('accounting/summary', [AccountingReportController::class, 'summary']);
-    Route::get('accounting/monthly-breakdown', [AccountingReportController::class, 'monthlyBreakdown']);
-
 
 
     // Consolidations — custom before apiResource
@@ -120,7 +117,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::apiResource('sites', SiteController::class);
     Route::apiResource('shipment-statuses', ShipmentStatusController::class);
     Route::apiResource('weight-discounts', WeightDiscountController::class);
-    Route::apiResource('settings', SettingController::class);
+
     Route::apiResource('cities', CityController::class);
 
     Route::apiResource('pages', PageController::class);
@@ -134,10 +131,21 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('statistics/delivery-time', [StatisticsController::class, 'deliveryTime']);
     Route::get('statistics/debtors-balance', [StatisticsController::class, 'debtorsBalance']);
 
+
     Route::apiResource('invoices', InvoiceController::class);
+    Route::get('invoices/stats', [InvoiceController::class, 'stats']);
     Route::apiResource('revenues', RevenueController::class);
     Route::get('revenues/total', [RevenueController::class, 'total']);
-    Route::apiResource('debtors', DebtorController::class);
+    // Debtors
+    Route::get('debtors', [DebtorController::class, 'index']);
+    Route::get('debtors/{id}', [DebtorController::class, 'show']);
+    Route::post('debtors', [DebtorController::class, 'store']);
+    Route::put('debtors/{id}', [DebtorController::class, 'update']);
+    Route::delete('debtors/{id}', [DebtorController::class, 'destroy']);
+    Route::post('debtors/{id}/payment', [DebtorController::class, 'recordPayment']);
+    Route::get('debtors/stats', [DebtorController::class, 'stats']);
+    Route::get('debtors/export', [DebtorController::class, 'export']);
+    Route::post('debtors/sync', [DebtorController::class, 'syncFromInvoices']);
 
     Route::get('financial/pl', [FinancialController::class, 'profitAndLoss']);
     Route::get('financial/trial-balance', [FinancialController::class, 'trialBalance']);
@@ -149,9 +157,10 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     Route::apiResource('vouchers', VoucherController::class);
     Route::post('vouchers/{voucher}/approve', [VoucherController::class, 'approve']);
+    Route::get('/vouchers/by-number/{voucher_no}', [VoucherController::class, 'showByNumber']);
 
     Route::get('journal', [JournalController::class, 'index']);
-
+    Route::get('/ledger', [LedgerController::class, 'index']);
     Route::get('trial-balance', [TrialBalanceController::class, 'index']);
 
     Route::prefix('pandl')->group(function () {
@@ -159,5 +168,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
         Route::get('yearly', [ProfitLossController::class, 'yearly']);
         Route::get('quarterly', [ProfitLossController::class, 'quarterly']);
         Route::get('monthly', [ProfitLossController::class, 'monthly']);
+        Route::get('balance-sheet', [ProfitLossController::class, 'balanceSheet']);
+        Route::get('balance-sheet/today', [ProfitLossController::class, 'balanceSheetToday']);
+        Route::get('balance-sheet/yearly', [ProfitLossController::class, 'balanceSheetYearly']);
     });
 });

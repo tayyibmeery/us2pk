@@ -9,6 +9,18 @@ use App\Services\VoucherService;
 
 class VoucherController extends Controller
 {
+    public function showByNumber($voucherNo)
+    {
+        $voucher = Voucher::with('details.account', 'creator', 'approver')
+            ->where('voucher_no', $voucherNo)
+            ->first();
+
+        if (!$voucher) {
+            return response()->json(['message' => 'Voucher not found'], 404);
+        }
+
+        return response()->json($voucher);
+    }
     public function index(Request $request)
     {
         $query = Voucher::with('details.account')->orderBy('created_at', 'desc');

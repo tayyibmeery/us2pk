@@ -121,4 +121,147 @@ class ProfitLossController extends Controller
         $data = $this->buildPL($accounts, $start, $end);
         return response()->json($data);
     }
+
+    /**
+     * Generate Balance Sheet
+     */
+    public function balanceSheet(Request $request)
+    {
+        $year = $request->year ?? now()->year;
+        $month = $request->month ?? now()->month;
+        $day = $request->day ?? now()->day;
+
+        // For balance sheet, we want data up to a specific date
+        $endDate = Carbon::create($year, $month, $day)->endOfDay();
+        $startDate = Carbon::create(2000, 1, 1); // From the beginning or any cutoff
+
+        // Get all active accounts
+        $accounts = Account::where('is_active', true)->get();
+
+        // Classify accounts by type
+        $assetAccounts = $accounts->filter(function ($account) {
+            return $account->type === 'Asset';
+        });
+
+        $liabilityAccounts = $accounts->filter(function ($account) {
+            return $account->type === 'Liability';
+        });
+
+        $equityAccounts = $accounts->filter(function ($account) {
+            return $account->type === 'Equity';
+        });
+
+        // Calculate balances
+        $assets = $this->calculateBalances($assetAccounts, $startDate, $endDate);
+        $liabilities = $this->calculateBalances($liabilityAccounts, $startDate, $endDate);
+        $equity = $this->calculateBalances($equityAccounts, $startDate, $endDate);
+
+        // Calculate totals
+        $totalAssets = array_sum(array_column($assets, 'balance'));
+        $totalLiabilities = array_sum(array_column($liabilities, 'balance'));
+        $totalEquity = array_sum(array_column($equity, 'balance'));
+
+        // Add net profit/loss to equity if we have P&L for the period
+        $netProfit = $this->getNetProfit($startDate, $endDate);
+
+        // If net profit is positive, add to retained earnings
+        // If negative, subtract from retained earnings
+        $equity['Net Profit/Loss'] = [
+            'name' => 'Net Profit/Loss',
+            'balance' => $netProfit,
+            'type' => 'Equity'
+        ];
+        $totalEquity += $netProfit;
+
+        // The accounting equation should balance: Assets = Liabilities + Equity
+        $liabilitiesAndEquity = $totalLiabilities + $totalEquity;
+
+        return response()->json([
+            'date' => $endDate->format('Y-m-d'),
+            'assets' => [
+                'items' => $assets,
+                'total' => $totalAssets
+            ],
+            'liabilities' => [
+                'items' => $liabilities,
+                'total' => $totalLiabilities
+            ],
+            'equity' => [
+                'items' => $equity,
+                'total' => $totalEquity
+            ],
+            'total_liabilities_equity' => $liabilitiesAndEquity,
+            'difference' => $totalAssets - $liabilitiesAndEquity, // Should be 0
+            'equation_balanced' => ($totalAssets - $liabilitiesAndEquity) == 0
+        ]);
+    }
+
+    /**
+     * Calculate balances for a collection of accounts
+     */
+    protected function calculateBalances($accounts, $start, $end)
+    {
+        $result = [];
+
+        foreach ($accounts as $account) {
+            $balance = $this->getAccountBalance($account, $start, $end);
+
+            // Only include accounts with non-zero balance
+            if ($balance != 0) {
+                $result[] = [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'balance' => $balance,
+                    'type' => $account->type,
+                    'nature' => $account->nature,
+                    'category' => $account->pandlcategory ?? 'General'
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get net profit/loss for a specific period
+     */
+    protected function getNetProfit($start, $end)
+    {
+        // Get all active accounts
+        $accounts = Account::where('is_active', true)->get();
+
+        // Build P&L for the period
+        $plData = $this->buildPL($accounts, $start, $end);
+
+        // Return the net profit
+        return $plData['net_profit'] ?? 0;
+    }
+
+    /**
+     * Balance Sheet as of today (convenience method)
+     */
+    public function balanceSheetToday()
+    {
+        return $this->balanceSheet(new Request([
+            'year' => now()->year,
+            'month' => now()->month,
+            'day' => now()->day
+        ]));
+    }
+
+    /**
+     * Balance Sheet with year/month selection
+     */
+    public function balanceSheetYearly(Request $request)
+    {
+        $year = $request->year ?? now()->year;
+        $month = $request->month ?? 12;
+        $day = $request->day ?? 31;
+
+        return $this->balanceSheet(new Request([
+            'year' => $year,
+            'month' => $month,
+            'day' => $day
+        ]));
+    }
 }

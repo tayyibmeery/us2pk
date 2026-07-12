@@ -171,11 +171,11 @@ const menuGroups = [
         path: "/admin/dashboard",
         adminOnly: true,
       },
-      {
-        icon: UserCircleIcon,
-        name: "User Profile",
-        path: "/profile",
-      },
+      // {
+      //   icon: UserCircleIcon,
+      //   name: "User Profile",
+      //   path: "/profile",
+      // },
       {
         icon: BoxCubeIcon,
         name: "My Shipments",
@@ -199,44 +199,21 @@ const menuGroups = [
         path: "/admin/consolidations",
         adminOnly: true,
       },
-      {
-        icon: TaskIcon,
-        name: "Shipment Statuses",
-        path: "/admin/shipment-statuses",
-        adminOnly: true,
-      },
-      {
-        icon: FolderIcon,
-        name: "Warehouses",
-        path: "/admin/warehouses",
-        adminOnly: true,
-      },
-      {
-        icon: SendIcon,
-        name: "International Couriers",
-        path: "/admin/international-couriers",
-        adminOnly: true,
-      },
-      {
-        icon: BoxIcon,
-        name: "Local Couriers",
-        path: "/admin/local-couriers",
-        adminOnly: true,
-      },
+
     ],
   },
   {
     title: "Finance",
     items: [
-      {
-        icon: DollarLineIcon,
-        name: "Accounting",
-        subItems: [
-          { name: "Dashboard", path: "/admin/accounting" },
+      // {
+      //   icon: DollarLineIcon,
+      //   name: "Accounting",
+      //   subItems: [
+      //     { name: "Dashboard", path: "/admin/accounting" },
 
-        ],
-        adminOnly: true,
-      },
+      //   ],
+      //   adminOnly: true,
+      // },
       {
         icon: TableIcon,
         name: "Financial Statement",
@@ -245,6 +222,7 @@ const menuGroups = [
           { name: "Vouchers", path: "/admin/vouchers" },
           { name: "Approval Screen", path: "/admin/vouchers/approval" },
           { name: "General Journal", path: "/admin/journal" },
+          { name: "Ledger", path: "/admin/ledger" },
           { name: "Trial Balance", path: "/admin/trial-balance" },
         ],
         adminOnly: true,
@@ -257,7 +235,7 @@ const menuGroups = [
           { name: "Annual", path: "/admin/pandl/yearly" },
           { name: "Quarterly", path: "/admin/pandl/quarterly" },
           { name: "Monthly", path: "/admin/pandl/monthly" },
-          { name: "Balance Sheet", path: "/admin/balance-sheet" },
+          { name: "Balance Sheet", path: "/admin/pandl/balance-sheet" },
         ],
         adminOnly: true,
       },
@@ -297,6 +275,30 @@ const menuGroups = [
         adminOnly: true,
       },
       {
+        icon: TaskIcon,
+        name: "Shipment Statuses",
+        path: "/admin/shipment-statuses",
+        adminOnly: true,
+      },
+      {
+        icon: FolderIcon,
+        name: "Warehouses",
+        path: "/admin/warehouses",
+        adminOnly: true,
+      },
+      {
+        icon: SendIcon,
+        name: "International Couriers",
+        path: "/admin/international-couriers",
+        adminOnly: true,
+      },
+      {
+        icon: BoxIcon,
+        name: "Local Couriers",
+        path: "/admin/local-couriers",
+        adminOnly: true,
+      },
+      {
         icon: PlugInIcon,
         name: "Payment Methods",
         path: "/admin/payment-methods",
@@ -304,7 +306,7 @@ const menuGroups = [
       },
       {
         icon: HomeIcon,
-        name: "Sites",
+        name: "Shopping Sites",
         path: "/admin/sites",
         adminOnly: true,
       },
@@ -319,12 +321,7 @@ const menuGroups = [
   {
     title: "System",
     items: [
-      {
-        icon: SettingsIcon,
-        name: "Settings",
-        path: "/admin/settings",
-        adminOnly: true,
-      },
+
       {
         icon: PageIcon,
         name: "Pages",

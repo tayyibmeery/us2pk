@@ -1,26 +1,37 @@
 <template>
-  <div class="max-w-full overflow-x-auto custom-scrollbar">
-    <div id="chartOne" class="-ml-5 min-w-[650px] xl:min-w-full pl-2">
-      <VueApexCharts type="bar" height="180" :options="chartOptions" :series="series" />
-    </div>
-  </div>
+  <ApexChartWrapper type="bar" height="180" :options="chartOptions" :series="series" :hasData="hasData" />
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import VueApexCharts from 'vue3-apexcharts'
+import ApexChartWrapper from './ApexChartWrapper.vue'
 
 const props = defineProps({
   chartData: {
     type: Object,
     required: true,
-    // expected shape: { categories: string[], series: { name: string, data: number[] }[] }
+    default: () => ({ categories: [], series: [] })
   },
+  color: {
+    type: String,
+    default: '#465FFF'
+  }
 })
 
-const series = computed(() => props.chartData.series)
+const hasData = computed(() => {
+  if (!props.chartData) return false
+  const categories = props.chartData.categories || []
+  const series = props.chartData.series || []
+  return categories.length > 0 && series.length > 0 && series.some((s: any) => s.data?.length > 0)
+})
+
+const series = computed(() => {
+  if (!props.chartData?.series) return []
+  return props.chartData.series
+})
+
 const chartOptions = computed(() => ({
-  colors: ['#465fff'],
+  colors: [props.color || '#465fff'],
   chart: {
     fontFamily: 'Outfit, sans-serif',
     type: 'bar',
@@ -37,7 +48,7 @@ const chartOptions = computed(() => ({
   dataLabels: { enabled: false },
   stroke: { show: true, width: 4, colors: ['transparent'] },
   xaxis: {
-    categories: props.chartData.categories,
+    categories: props.chartData?.categories || [],
     axisBorder: { show: false },
     axisTicks: { show: false },
   },

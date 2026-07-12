@@ -17,6 +17,9 @@ return new class extends Migration
             $table->decimal('cod', 12, 2)->default(0);
             $table->date('cod_date')->nullable();
             $table->decimal('output_tax', 12, 2)->default(0);
+            $table->index('date');
+            $table->index('invoice_no');
+            $table->index('shipment_id');
             $table->timestamps();
         });
     }

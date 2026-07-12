@@ -98,7 +98,7 @@ const statusFilter = ref('')
 
 const columns: ColumnDefinition[] = [
   { key: 'user', label: 'User' },
-  { key: 'shipment_code', label: 'Ship-Code' },
+  { key: 'shipment_code', label: 'Sh-Code' },
   {
     key: 'weight',
     label: 'Weight',
@@ -113,40 +113,40 @@ const columns: ColumnDefinition[] = [
     label: 'Status',
     format: (value: any) => value?.name || 'Unknown',
   },
-  {
-    key: 'arrival_date',
-    label: 'Arrival',
-    format: (v: string) => (v ? new Date(v).toLocaleDateString() : '-'),
-  },
+  // {
+  //   key: 'arrival_date',
+  //   label: 'Arrival',
+  //   format: (v: string) => (v ? new Date(v).toLocaleDateString() : '-'),
+  // },
   {
     key: 'total',
-    label: 'Total (PKR)',
+    label: 'Total',
     format: (v: any) => formatCurrency(v),
   },
   {
     key: 'receivable_cod',
-    label: 'COD (PKR)',
+    label: 'COD ',
     format: (v: any) => formatCurrency(v),
   },
-  {
-    key: 'amount_due',
-    label: 'Amount Due (PKR)',
-    format: (v: any) => formatCurrency(v),
-  },
-  {
-    key: 'delivery_charges',
-    label: 'Delivery Charges',
-    format: (v: any) => {
-      if (v === undefined || v === null || v === '') return '0.00'
-      const num = typeof v === 'string' ? parseFloat(v) : v
-      return isNaN(num) ? '0.00' : num.toFixed(2)
-    },
-  },
-  {
-    key: 'created_at',
-    label: 'Created',
-    format: (v: string) => (v ? new Date(v).toLocaleDateString() : '-'),
-  },
+  // {
+  //   key: 'amount_due',
+  //   label: 'Amo. Due',
+  //   format: (v: any) => formatCurrency(v),
+  // },
+  // {
+  //   key: 'delivery_charges',
+  //   label: 'Del. Chg',
+  //   format: (v: any) => {
+  //     if (v === undefined || v === null || v === '') return '0.00'
+  //     const num = typeof v === 'string' ? parseFloat(v) : v
+  //     return isNaN(num) ? '0.00' : num.toFixed(2)
+  //   },
+  // },
+  // {
+  //   key: 'created_at',
+  //   label: 'Created',
+  //   format: (v: string) => (v ? new Date(v).toLocaleDateString() : '-'),
+  // },
 ]
 
 const statusBadgeClass = (status: string) => {

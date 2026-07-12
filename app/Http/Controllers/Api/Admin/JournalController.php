@@ -30,32 +30,48 @@ class JournalController extends Controller
 
         $journal = [];
         foreach ($vouchers as $voucher) {
-            // ✅ Safely get reference data
-            $reference = null;
-            try {
-                $reference = $voucher->reference;
-            } catch (\Exception $e) {
-                // If morph fails, just skip or set to null
+            // Get reference safely
+            $shipmentCode = null;
+            if ($voucher->reference_type === 'shipment' && $voucher->reference_id) {
+                try {
+                    $shipment = \App\Models\Shipment::find($voucher->reference_id);
+                    if ($shipment) {
+                        $shipmentCode = $shipment->shipment_code;
+                    }
+                } catch (\Exception $e) {
+                    // Ignore
+                }
             }
 
-            $shipmentCode = null;
-            if ($reference && $voucher->reference_type === 'shipment' && $reference instanceof \App\Models\Shipment) {
-                $shipmentCode = $reference->shipment_code;
-            }
+            // Calculate totals for this voucher
+            $totalDebit = 0;
+            $totalCredit = 0;
 
             foreach ($voucher->details as $detail) {
-                $journal[] = [
-                    'date' => $voucher->date->format('d/m/Y'),
-                    'voucher_no' => $voucher->voucher_no,
-                    'shipment_code' => $shipmentCode,
-                    'source' => $voucher->source,
-                    'account_name' => $detail->account->name,
-                    'debit' => $detail->debit,
-                    'credit' => $detail->credit,
-                    'balanced' => $voucher->isBalanced() ? 'Balanced' : 'Not Balanced',
-                    'description' => $voucher->description,
-                ];
+                $totalDebit += (float) $detail->debit;
+                $totalCredit += (float) $detail->credit;
             }
+
+            // Each voucher gets one row with its details
+            $row = [
+                'date' => $voucher->date->format('d/m/Y'),
+                'voucher_no' => $voucher->voucher_no,
+                'shipment_code' => $shipmentCode,
+                'source' => $voucher->source,
+                'total_debit' => $totalDebit,
+                'total_credit' => $totalCredit,
+                'balanced' => ($totalDebit == $totalCredit) ? 'Balanced' : 'Not Balanced',
+                'description' => $voucher->description,
+                'details' => $voucher->details->map(function ($detail) {
+                    return [
+                        'account_name' => $detail->account->name,
+                        'debit' => (float) $detail->debit,
+                        'credit' => (float) $detail->credit,
+                    ];
+                }),
+            ];
+
+            $journal[] = $row;
         }
 
         return response()->json([

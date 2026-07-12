@@ -79,8 +79,6 @@ class ShipmentController extends Controller
             'images'                 => 'nullable|array',
             'images.*'               => 'image|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
-        
-
 
         if (!empty($validated['weight']) && !empty($validated['weight_unit'])) {
             $validated['weight_kgs'] = $this->convertToKg($validated['weight'], $validated['weight_unit']);
@@ -88,7 +86,11 @@ class ShipmentController extends Controller
 
         $shipment = Shipment::create($validated);
 
-        // --- Initial payment ---
+        // ✅ Generate vouchers using the new service
+        $voucherService = new VoucherService();
+        $voucherService->syncShipmentVouchers($shipment);
+
+        // Create initial payment
         if ($shipment->received_amount > 0) {
             $paymentDate = $validated['purchase_date'] ?? now()->toDateString();
             $paymentMethod = null;
@@ -104,24 +106,15 @@ class ShipmentController extends Controller
                 'reference_number' => null,
                 'notes'            => 'Initial payment',
             ]);
-
-            // ✅ Recalculate received_amount from payments
-            $this->updateShipmentReceivedAmount($shipment);
         }
 
-        // --- Images ---
+        // Upload images
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('shipments', 'public');
                 $shipment->images()->create(['image_path' => $path]);
             }
         }
-
-        // --- Voucher handling ---
-        // ✅ Load voucher relationship to check existence
-        $shipment->load('voucher');
-        $voucherService = new VoucherService();
-        $voucherService->syncShipmentVoucher($shipment);
 
         return response()->json($shipment->load([
             'user',
@@ -132,7 +125,6 @@ class ShipmentController extends Controller
             'site',
         ]), 201);
     }
-
     public function update(Request $request, Shipment $shipment)
     {
         $validated = $request->validate([
@@ -201,10 +193,12 @@ class ShipmentController extends Controller
             }
         }
 
-        $shipment->refresh();
-        $shipment->load('voucher'); // explicitly load the morph relation
-        $voucherService = new VoucherService();
-        $voucherService->syncShipmentVoucher($shipment);
+        // $shipment->refresh();
+        // $shipment->load('voucher'); // explicitly load the morph relation
+        // $voucherService = new VoucherService();
+        // $voucherService->syncShipmentVoucher($shipment);
+        $this->syncShipmentVouchers($shipment);
+
 
         return response()->json($shipment->load([
             'user',
@@ -274,5 +268,12 @@ class ShipmentController extends Controller
             'pound' => $weight * 0.453592,
             default => $weight, // kg
         };
+    }
+
+
+    private function syncShipmentVouchers($shipment)
+    {
+        $voucherService = new VoucherService();
+        return $voucherService->syncShipmentVouchers($shipment);
     }
 }

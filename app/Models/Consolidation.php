@@ -67,6 +67,50 @@ class Consolidation extends Model
     /**
      * Recalculate all totals from associated shipments.
      */
+    // public function recalculateTotals()
+    // {
+    //     $shipments = $this->shipments;
+
+    //     // Sum child shipment fields
+    //     $this->total_weight_kg = $shipments->sum('weight_kgs');
+    //     $this->courier_charges = $shipments->sum('delivery_charges');
+    //     $this->output_sales_tax = $shipments->sum('output_tax');
+
+    //     // Receivable from Courier = Total COD - Local Delivery Charges
+    //     $this->receivable_from_courier = $shipments->sum('receivable_cod') - $shipments->sum('delivery_charges');
+
+    //     // Total US2PK Charges = sum of company_charges (revenue)
+    //     $this->total_us2pk_charges = $shipments->sum('company_charges');
+
+    //     // Import taxes (manual inputs)
+    //     $this->import_taxes = $this->customs_duty + $this->sales_tax + $this->income_tax + $this->caa_charges;
+
+    //     // Net Sales Tax Payable = Output Tax - Input Tax
+    //     $this->net_st_payable = $this->output_sales_tax - $this->sales_tax;
+
+    //     // --------------------------------------------------------------------
+    //     // IMPORTANT: direct_cost is a STORED column – we do NOT assign it.
+    //     // We compute it in PHP only for ROI calculation.
+    //     // The database will set direct_cost automatically when we save.
+    //     // --------------------------------------------------------------------
+    //     $directCost = $this->ware_house_charges
+    //         + $this->import_taxes
+    //         + $this->courier_charges
+    //         + $this->net_st_payable;
+
+    //     // ROI = (Gross Income / Direct Costs) * 100
+    //     $this->roi_percent = $directCost > 0
+    //         ? (($this->total_us2pk_charges - $directCost) / $directCost) * 100
+    //         : 0;
+
+    //     $this->saveQuietly();
+    //     return $this;
+    // }
+
+    /**
+     * Recalculate all totals from associated shipments.
+     * ❌ Removed courier charges from direct_cost calculation
+     */
     public function recalculateTotals()
     {
         $shipments = $this->shipments;
@@ -88,15 +132,9 @@ class Consolidation extends Model
         // Net Sales Tax Payable = Output Tax - Input Tax
         $this->net_st_payable = $this->output_sales_tax - $this->sales_tax;
 
-        // --------------------------------------------------------------------
-        // IMPORTANT: direct_cost is a STORED column – we do NOT assign it.
-        // We compute it in PHP only for ROI calculation.
-        // The database will set direct_cost automatically when we save.
-        // --------------------------------------------------------------------
-        $directCost = $this->ware_house_charges
-            + $this->import_taxes
-            + $this->courier_charges
-            + $this->net_st_payable;
+        // ✅ Direct Cost = Warehouse Charges + Import Taxes (EXCLUDING courier charges)
+        // Courier charges are already recorded in shipment COD vouchers
+        $directCost = $this->ware_house_charges + $this->import_taxes + $this->net_st_payable;
 
         // ROI = (Gross Income / Direct Costs) * 100
         $this->roi_percent = $directCost > 0

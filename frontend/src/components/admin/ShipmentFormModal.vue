@@ -194,21 +194,7 @@
           </div>
         </div>
 
-        <!-- Payment Method (dynamic) -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Payment Method
-          </label>
-          <select v-model="formData.payment_method_id"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            :disabled="paymentMethodsLoading">
-            <option value="">Select method</option>
-            <option v-for="method in paymentMethods" :key="method.id" :value="method.id">
-              {{ method.name }}
-            </option>
-          </select>
-          <p v-if="paymentMethodsLoading" class="text-xs text-gray-400 mt-1">Loading payment methods...</p>
-        </div>
+
 
         <!-- Bought By (formerly Paid By) -->
         <div>
@@ -265,6 +251,21 @@
           <p v-if="isEdit" class="text-xs text-gray-400 mt-1">Can't update it update it from payments.</p>
         </div>
 
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
+            Payment Method
+          </label>
+          <select v-model="formData.payment_method_id"
+            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+            :disabled="paymentMethodsLoading">
+            <option value="">Select method</option>
+            <option v-for="method in paymentMethods" :key="method.id" :value="method.id">
+              {{ method.name }}
+            </option>
+          </select>
+          <p v-if="paymentMethodsLoading" class="text-xs text-gray-400 mt-1">Loading payment methods...</p>
+        </div>
+
         <!-- Receivable COD (auto) -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -273,6 +274,7 @@
           <input :value="receivableCod" type="text" readonly
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-600 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400" />
         </div>
+        <!-- Payment Method (dynamic) -->
 
         <!-- Local Courier (dynamic) -->
         <div>

@@ -18,7 +18,7 @@ class AccountController extends Controller
         if ($request->ownership) $query->where('ownership', $request->ownership);
         if ($request->pandlcategory) $query->where('pandlcategory', $request->pandlcategory);
         if ($request->status !== null) $query->where('is_active', $request->status);
-        return response()->json($query->orderBy('name')->paginate(20));
+        return response()->json($query->orderBy('name')->paginate(100));
     }
 
     public function store(Request $request)

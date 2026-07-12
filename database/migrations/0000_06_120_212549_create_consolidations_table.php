@@ -16,7 +16,7 @@ return new class extends Migration
 
             $table->decimal('total_us2pk_charges', 12, 2)->default(0);
             $table->decimal('roi_percent', 8, 2)->nullable();
-            $table->decimal('total_weight_kg', 8, 2);
+            $table->decimal('total_weight_kg', 8, 2)->default(0);
 
             $table->foreignId('international_courier_id')
                 ->nullable()
@@ -38,9 +38,12 @@ return new class extends Migration
             $table->decimal('output_sales_tax', 12, 2)->default(0);
 
             // ---- Stored (generated) columns ----
+            // ✅ Direct Cost = Warehouse Charges + Import Taxes + Net ST Payable
+            // (EXCLUDING courier_charges - they are recorded in shipment COD vouchers)
             $table->decimal('direct_cost', 12, 2)
-                ->storedAs('ware_house_charges + import_taxes + courier_charges + net_st_payable');
+                ->storedAs('ware_house_charges + import_taxes + net_st_payable');
 
+            // Gross Income = Total US2PK Charges - Direct Cost
             $table->decimal('gross_income', 12, 2)
                 ->storedAs('total_us2pk_charges - direct_cost');
 
