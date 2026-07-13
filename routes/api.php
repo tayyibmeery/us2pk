@@ -68,6 +68,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     // Users
     Route::get('/users', [UserController::class, 'index']);
+
     Route::get('/users/{user}', [UserController::class, 'show']);
     Route::post('/users/{user}/status', [UserController::class, 'updateStatus']);
     Route::post('/users', [UserController::class, 'store']);
@@ -75,6 +76,8 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
 
     // ✅ Shipment custom routes MUST come BEFORE apiResource
     Route::get('/shipments/generate-shipment-code', [ShipmentController::class, 'generateShipmentCode']);
+    Route::post('/shipments/bulk-status', [ShipmentController::class, 'updateBulkStatus']);
+    Route::get('/users/search', [ShipmentController::class, 'searchUsers']);
     Route::get('/shipments/fetch-customer', [ShipmentController::class, 'fetchCustomer']);
     Route::post('/shipments/{shipment}/status', [ShipmentController::class, 'updateStatus']);
 

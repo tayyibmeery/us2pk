@@ -239,9 +239,9 @@
                 <th
                   class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   US2PK</th>
-                <th
+                <!-- <th
                   class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Amount Due</th>
+                  Amount Due</th> -->
                 <th
                   class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Receivable COD</th>
@@ -268,7 +268,7 @@
                 </td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.weight_kgs) || 0).toFixed(2) }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.company_charges) || 0).toLocaleString() }}</td>
-                <td class="px-3 py-2 text-right text-sm">{{ (Number(s.amount_due) || 0).toLocaleString() }}</td>
+                <!-- <td class="px-3 py-2 text-right text-sm">{{ (Number(s.amount_due) || 0).toLocaleString() }}</td> -->
                 <td class="px-3 py-2 text-right text-sm font-medium">
                   {{ (Number(s.receivable_cod) || 0).toLocaleString() }}
                 </td>

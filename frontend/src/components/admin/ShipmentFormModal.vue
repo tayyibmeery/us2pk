@@ -4,20 +4,37 @@
     :saveLabel="formData.id ? 'Update' : 'Create'" :loading="saving" @close="close" @save="save">
     <template #fields>
       <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <!-- User -->
+        <!-- User - Searchable Dropdown -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            User
+            User <span class="text-red-500">*</span>
           </label>
-          <select v-model="formData.user_id"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            :disabled="usersLoading" required>
-            <option value="" disabled>Select a user</option>
-            <option v-for="user in users" :key="user.id" :value="user.id">
-              {{ user.name }} ({{ user.email }})
-            </option>
-          </select>
-          <p v-if="usersLoading" class="text-xs text-gray-400 mt-1">Loading users...</p>
+          <div class="relative">
+            <input type="text" v-model="userSearch" @input="onUserSearch" @focus="onUserSearchFocus"
+              placeholder="Search by name, email or pcode..."
+              class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+              :disabled="usersLoading" autocomplete="off" />
+            <div v-if="showUserDropdown && filteredUsers.length > 0"
+              class="absolute z-50 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 shadow-lg">
+              <div v-for="user in filteredUsers" :key="user.id" @click="selectUser(user)"
+                class="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer flex flex-col"
+                :class="{ 'bg-brand-50 dark:bg-brand-900/20': formData.user_id === user.id }">
+                <span class="font-medium text-gray-800 dark:text-gray-200">{{ user.name }}</span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ user.email }} | PCODE:
+                  {{ user.pcode || 'N/A' }}</span>
+              </div>
+            </div>
+            <div v-else-if="showUserDropdown && !usersLoading && filteredUsers.length === 0 && userSearch.length > 0"
+              class="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800 shadow-lg p-4 text-center text-gray-500 dark:text-gray-400">
+              No users found
+            </div>
+          </div>
+          <p v-if="usersLoading" class="text-xs text-gray-400 mt-1">
+            <span class="inline-block animate-spin mr-1">⟳</span> Loading users...
+          </p>
+          <p v-if="formData.user_id && selectedUser" class="text-xs text-green-600 dark:text-green-400 mt-1">
+            ✓ Selected: {{ selectedUser.name }} ({{ selectedUser.email }})
+          </p>
         </div>
 
         <!-- shipment_code (read-only) -->
@@ -49,7 +66,7 @@
         <!-- Weight & Unit -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Weight
+            Weight <span class="text-red-500">*</span>
           </label>
           <input v-model.number="formData.weight" type="number" step="0.01" placeholder="e.g. 1.5"
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
@@ -58,7 +75,7 @@
 
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Weight Unit
+            Weight Unit <span class="text-red-500">*</span>
           </label>
           <select v-model="formData.weight_unit"
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
@@ -95,29 +112,11 @@
           <p v-if="sitesLoading" class="text-xs text-gray-400 mt-1">Loading sites...</p>
         </div>
 
-        <!-- Purchase Date (flatpickr) -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Purchase Date
-          </label>
-          <div class="relative">
-            <input :ref="el => { if (el) datePickerRefs.purchase_date = el }" v-model="formData.purchase_date"
-              type="text"
-              class="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-              placeholder="Select date" readonly />
-            <span
-              class="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
-              <svg class="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                  d="M6.66659 1.5415C7.0808 1.5415 7.41658 1.87729 7.41658 2.2915V2.99984H12.5833V2.2915C12.5833 1.87729 12.919 1.5415 13.3333 1.5415C13.7475 1.5415 14.0833 1.87729 14.0833 2.2915V2.99984L15.4166 2.99984C16.5212 2.99984 17.4166 3.89527 17.4166 4.99984V7.49984V15.8332C17.4166 16.9377 16.5212 17.8332 15.4166 17.8332H4.58325C3.47868 17.8332 2.58325 16.9377 2.58325 15.8332V7.49984V4.99984C2.58325 3.89527 3.47868 2.99984 4.58325 2.99984L5.91659 2.99984V2.2915C5.91659 1.87729 6.25237 1.5415 6.66659 1.5415ZM6.66659 4.49984H4.58325C4.30711 4.49984 4.08325 4.7237 4.08325 4.99984V6.74984H15.9166V4.99984C15.9166 4.7237 15.6927 4.49984 15.4166 4.49984H13.3333H6.66659ZM15.9166 8.24984H4.08325V15.8332C4.08325 16.1093 4.30711 16.3332 4.58325 16.3332H15.4166C15.6927 16.3332 15.9166 16.1093 15.9166 15.8332V8.24984Z"
-                  fill="currentColor" />
-              </svg>
-            </span>
-          </div>
-        </div>
+        <!-- Purchase Date (hidden - auto-set to today) -->
+        <input type="hidden" ref="purchaseDateInput" v-model="formData.purchase_date" />
 
-        <!-- Status (dynamic) -->
-        <div>
+        <!-- Status - Only show when editing -->
+        <div v-if="isEdit">
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Status
           </label>
@@ -132,25 +131,8 @@
           <p v-if="statusesLoading" class="text-xs text-gray-400 mt-1">Loading statuses...</p>
         </div>
 
-        <!-- Arrival Date (flatpickr) -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Arrival Date
-          </label>
-          <div class="relative">
-            <input :ref="el => { if (el) datePickerRefs.arrival_date = el }" v-model="formData.arrival_date" type="text"
-              class="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-              placeholder="Select date" readonly />
-            <span
-              class="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
-              <svg class="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                  d="M6.66659 1.5415C7.0808 1.5415 7.41658 1.87729 7.41658 2.2915V2.99984H12.5833V2.2915C12.5833 1.87729 12.919 1.5415 13.3333 1.5415C13.7475 1.5415 14.0833 1.87729 14.0833 2.2915V2.99984L15.4166 2.99984C16.5212 2.99984 17.4166 3.89527 17.4166 4.99984V7.49984V15.8332C17.4166 16.9377 16.5212 17.8332 15.4166 17.8332H4.58325C3.47868 17.8332 2.58325 16.9377 2.58325 15.8332V7.49984V4.99984C2.58325 3.89527 3.47868 2.99984 4.58325 2.99984L5.91659 2.99984V2.2915C5.91659 1.87729 6.25237 1.5415 6.66659 1.5415ZM6.66659 4.49984H4.58325C4.30711 4.49984 4.08325 4.7237 4.08325 4.99984V6.74984H15.9166V4.99984C15.9166 4.7237 15.6927 4.49984 15.4166 4.49984H13.3333H6.66659ZM15.9166 8.24984H4.08325V15.8332C4.08325 16.1093 4.30711 16.3332 4.58325 16.3332H15.4166C15.6927 16.3332 15.9166 16.1093 15.9166 15.8332V8.24984Z"
-                  fill="currentColor" />
-              </svg>
-            </span>
-          </div>
-        </div>
+        <!-- Hidden status field for creation - auto-set based on bought_by -->
+        <input v-if="!isEdit" type="hidden" v-model="formData.shipment_status_id" />
 
         <!-- Expected Delivery Date (flatpickr) -->
         <div>
@@ -173,35 +155,12 @@
           </div>
         </div>
 
-        <!-- Date Delivered (flatpickr) -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Date Delivered
-          </label>
-          <div class="relative">
-            <input :ref="el => { if (el) datePickerRefs.date_delivered = el }" v-model="formData.date_delivered"
-              type="text"
-              class="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-              placeholder="Select date" readonly />
-            <span
-              class="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
-              <svg class="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                  d="M6.66659 1.5415C7.0808 1.5415 7.41658 1.87729 7.41658 2.2915V2.99984H12.5833V2.2915C12.5833 1.87729 12.919 1.5415 13.3333 1.5415C13.7475 1.5415 14.0833 1.87729 14.0833 2.2915V2.99984L15.4166 2.99984C16.5212 2.99984 17.4166 3.89527 17.4166 4.99984V7.49984V15.8332C17.4166 16.9377 16.5212 17.8332 15.4166 17.8332H4.58325C3.47868 17.8332 2.58325 16.9377 2.58325 15.8332V7.49984V4.99984C2.58325 3.89527 3.47868 2.99984 4.58325 2.99984L5.91659 2.99984V2.2915C5.91659 1.87729 6.25237 1.5415 6.66659 1.5415ZM6.66659 4.49984H4.58325C4.30711 4.49984 4.08325 4.7237 4.08325 4.99984V6.74984H15.9166V4.99984C15.9166 4.7237 15.6927 4.49984 15.4166 4.49984H13.3333H6.66659ZM15.9166 8.24984H4.08325V15.8332C4.08325 16.1093 4.30711 16.3332 4.58325 16.3332H15.4166C15.6927 16.3332 15.9166 16.1093 15.9166 15.8332V8.24984Z"
-                  fill="currentColor" />
-              </svg>
-            </span>
-          </div>
-        </div>
-
-
-
         <!-- Bought By (formerly Paid By) -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Bought By
+            Bought By <span class="text-red-500">*</span>
           </label>
-          <select v-model="formData.paid_by"
+          <select v-model="formData.bought_by" @change="onBoughtByChange"
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             required>
             <option value="By Company">By Company</option>
@@ -212,7 +171,7 @@
         <!-- Item Value & Company Charges -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Item Value (PKR)
+            Item Value (PKR) <span class="text-red-500">*</span>
           </label>
           <input v-model.number="formData.item_value_pkr" type="number" step="0.01" placeholder="0.00" :class="[
             'h-11 w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800',
@@ -224,7 +183,7 @@
 
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Company Charges (PKR)
+            Company Charges (PKR) <span class="text-red-500">*</span>
           </label>
           <input v-model.number="formData.company_charges" type="number" step="0.01" placeholder="0.00"
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
@@ -248,7 +207,7 @@
           <input v-model.number="formData.received_amount" :readonly="isEdit" type="number" step="0.01"
             placeholder="0.00"
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
-          <p v-if="isEdit" class="text-xs text-gray-400 mt-1">Can't update it update it from payments.</p>
+          <p v-if="isEdit" class="text-xs text-gray-400 mt-1">Can't update it from here. Update it from payments.</p>
         </div>
 
         <div>
@@ -274,7 +233,6 @@
           <input :value="receivableCod" type="text" readonly
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-600 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400" />
         </div>
-        <!-- Payment Method (dynamic) -->
 
         <!-- Local Courier (dynamic) -->
         <div>
@@ -345,7 +303,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, computed } from 'vue'
+import { ref, watch, nextTick, computed, onMounted, onUnmounted } from 'vue'
 import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.css'
 import FormModal from '@/components/common/FormModal.vue'
@@ -387,8 +345,15 @@ const siteStore = useSiteStore()
 const shipmentStatusStore = useShipmentStatusStore()
 const localCourierStore = useLocalCourierStore()
 
-const users = ref<any[]>([])
+// User search related refs
+const userSearch = ref('')
+const showUserDropdown = ref(false)
+const allUsers = ref<any[]>([])
+const filteredUsers = ref<any[]>([])
+const userSearchTimeout = ref<number | null>(null)
 const usersLoading = ref(false)
+
+// Other refs
 const paymentMethods = ref<any[]>([])
 const paymentMethodsLoading = ref(false)
 const sites = ref<any[]>([])
@@ -409,15 +374,13 @@ const defaultForm = (): Partial<Shipment> => ({
   weight_unit: 'kg',
   seller_tracker_id: '',
   site_id: null,
-  purchase_date: '',
+  purchase_date: new Date().toISOString().split('T')[0],
   shipment_status_id: null,
-  arrival_date: '',
   expected_delivery_date: '',
-  date_delivered: '',
   item_value_pkr: 0,
   company_charges: 0,
   received_amount: 0,
-  paid_by: 'By Customer',
+  bought_by: 'By Customer',
   payment_method_id: null,
   receivable_cod: 0,
   local_courier_id: null,
@@ -427,6 +390,7 @@ const defaultForm = (): Partial<Shipment> => ({
 
 const formData = ref<Partial<Shipment>>(defaultForm())
 
+// Computed
 const totalAmount = computed(() => {
   const item = parseFloat(formData.value.item_value_pkr as any) || 0
   const charges = parseFloat(formData.value.company_charges as any) || 0
@@ -439,11 +403,56 @@ const receivableCod = computed(() => {
   return Math.max(0, total - received)
 })
 
-const isItemValueDisabled = computed(() => formData.value.paid_by === 'By Customer')
+const isItemValueDisabled = computed(() => formData.value.bought_by === 'By Customer')
 
-watch(() => formData.value.paid_by, (newVal) => {
-  if (newVal === 'By Customer') {
+const selectedUser = computed(() => {
+  return allUsers.value.find(u => u.id === formData.value.user_id)
+})
+
+const isEdit = computed(() => !!props.initialData?.id)
+
+// Handle Bought By change - auto-set status
+const onBoughtByChange = () => {
+  if (!isEdit.value) {
+    // Only auto-set status when creating new shipment
+    const paidBy = formData.value.bought_by
+    let statusName = ''
+
+    if (paidBy === 'By Company') {
+      statusName = 'Bought by Company'
+    } else if (paidBy === 'By Customer') {
+      statusName = 'Bought by Customer'
+    }
+
+    // Find the status ID by name
+    const status = statuses.value.find(s => s.name === statusName)
+    if (status) {
+      formData.value.shipment_status_id = status.id
+    }
+  }
+
+  // Handle item value disabled state
+  if (formData.value.bought_by === 'By Customer') {
     formData.value.item_value_pkr = 0
+  }
+}
+
+// Watch for statuses loading and auto-set status
+watch([() => statuses.value, () => formData.value.bought_by, isEdit], () => {
+  if (!isEdit.value && statuses.value.length > 0 && formData.value.bought_by) {
+    const paidBy = formData.value.bought_by
+    let statusName = ''
+
+    if (paidBy === 'By Company') {
+      statusName = 'Bought by Company'
+    } else if (paidBy === 'By Customer') {
+      statusName = 'Bought by Customer'
+    }
+
+    const status = statuses.value.find(s => s.name === statusName)
+    if (status && !formData.value.shipment_status_id) {
+      formData.value.shipment_status_id = status.id
+    }
   }
 })
 
@@ -455,9 +464,122 @@ const resetForm = () => {
   imagesToDelete.value = []
   newImages.value = []
   newImagePreviews.value = []
+  userSearch.value = ''
+  showUserDropdown.value = false
 }
 
-const isEdit = computed(() => !!props.initialData?.id)
+// User search functions
+const onUserSearch = () => {
+  if (userSearchTimeout.value) {
+    clearTimeout(userSearchTimeout.value)
+  }
+  userSearchTimeout.value = setTimeout(() => {
+    searchUsers(userSearch.value)
+  }, 300) as unknown as number
+}
+
+const onUserSearchFocus = () => {
+  if (allUsers.value.length === 0) {
+    fetchAllUsers()
+  } else {
+    showUserDropdown.value = true
+    filterUsers(userSearch.value)
+  }
+}
+
+const searchUsers = async (query: string) => {
+  if (!query || query.length < 1) {
+    if (allUsers.value.length === 0) {
+      await fetchAllUsers()
+    } else {
+      filterUsers('')
+    }
+    return
+  }
+
+  try {
+    usersLoading.value = true
+    const response = await api.get('/admin/users/search', {
+      params: {
+        search: query,
+        per_page: 20
+      }
+    })
+    filteredUsers.value = response.data.data || response.data || []
+    showUserDropdown.value = true
+  } catch (error) {
+    console.error('Failed to search users:', error)
+    // Fallback to client-side filtering
+    filterUsers(query)
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+const filterUsers = (query: string) => {
+  if (!query || query.trim() === '') {
+    filteredUsers.value = allUsers.value
+  } else {
+    const searchTerm = query.toLowerCase().trim()
+    filteredUsers.value = allUsers.value.filter(user =>
+      user.name?.toLowerCase().includes(searchTerm) ||
+      user.email?.toLowerCase().includes(searchTerm) ||
+      user.pcode?.toLowerCase().includes(searchTerm)
+    )
+  }
+  showUserDropdown.value = true
+}
+
+const fetchAllUsers = async () => {
+  if (allUsers.value.length > 0) {
+    filteredUsers.value = allUsers.value
+    showUserDropdown.value = true
+    return
+  }
+
+  usersLoading.value = true
+  try {
+    const response = await api.get('/admin/users', {
+      params: { per_page: 1000 }
+    })
+    allUsers.value = response.data.data || response.data || []
+    filteredUsers.value = allUsers.value
+    showUserDropdown.value = true
+  } catch (error) {
+    console.error('Failed to fetch users:', error)
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+const selectUser = (user: any) => {
+  formData.value.user_id = user.id
+  userSearch.value = `${user.name} (${user.email})`
+  showUserDropdown.value = false
+
+  // Trigger shipment code generation
+  generateShipmentCode(user.id)
+}
+
+const generateShipmentCode = async (userId: number) => {
+  try {
+    const res = await api.get('/admin/shipments/generate-shipment-code', {
+      params: { user_id: userId }
+    })
+    formData.value.shipment_code = res.data.shipment_code
+  } catch (e) {
+    console.error('Failed to generate shipment code', e)
+  }
+}
+
+// Close dropdown when clicking outside
+const closeUserDropdown = (event: Event) => {
+  const target = event.target as HTMLElement
+  const dropdown = target.closest('.relative')
+  if (!dropdown) {
+    showUserDropdown.value = false
+  }
+}
 
 const fetchLookupData = async () => {
   paymentMethodsLoading.value = true
@@ -484,6 +606,15 @@ const fetchLookupData = async () => {
   try {
     await shipmentStatusStore.fetchItems(1, { per_page: 100 })
     statuses.value = shipmentStatusStore.items
+    // Auto-set status after loading
+    if (!isEdit.value && formData.value.bought_by) {
+      const paidBy = formData.value.bought_by
+      let statusName = paidBy === 'By Company' ? 'Bought by Company' : 'Bought by Customer'
+      const status = statuses.value.find(s => s.name === statusName)
+      if (status) {
+        formData.value.shipment_status_id = status.id
+      }
+    }
   } catch (e) {
     console.error('Failed to load statuses', e)
   } finally {
@@ -502,7 +633,7 @@ const fetchLookupData = async () => {
 }
 
 const initDatePickers = () => {
-  const dateFields = ['purchase_date', 'arrival_date', 'expected_delivery_date', 'date_delivered']
+  const dateFields = ['purchase_date', 'expected_delivery_date']
   dateFields.forEach(field => {
     const el = datePickerRefs.value[field]
     if (el) {
@@ -527,10 +658,11 @@ watch(() => props.isOpen, async (open) => {
   if (open) {
     await nextTick()
     initDatePickers()
-    await fetchUsers()
+    await fetchAllUsers()
     await fetchLookupData()
   } else {
     Object.values(flatpickrInstances).forEach((inst: any) => inst.destroy())
+    showUserDropdown.value = false
   }
 })
 
@@ -545,9 +677,22 @@ watch(() => props.initialData, (newVal) => {
         (cleaned as any)[key] = null
       }
     }
+
+    if (!cleaned.purchase_date) {
+      cleaned.purchase_date = new Date().toISOString().split('T')[0]
+    }
     formData.value = cleaned
 
-    if (formData.value.paid_by === 'By Customer') {
+    // Set user search text if user exists
+    if (newVal.user) {
+      userSearch.value = `${newVal.user.name} (${newVal.user.email})`
+      // Add user to allUsers if not already there
+      if (!allUsers.value.find(u => u.id === newVal.user?.id)) {
+        allUsers.value.push(newVal.user)
+      }
+    }
+
+    if (formData.value.bought_by === 'By Customer') {
       formData.value.item_value_pkr = 0
     }
 
@@ -562,18 +707,6 @@ watch(() => props.initialData, (newVal) => {
     resetForm()
   }
 }, { immediate: true })
-
-watch(() => formData.value.user_id, async (newUserId) => {
-  if (!newUserId) return
-  try {
-    const res = await api.get('/admin/shipments/generate-shipment-code', {
-      params: { user_id: newUserId }
-    })
-    formData.value.shipment_code = res.data.shipment_code
-  } catch (e) {
-    console.error('Failed to generate shipment code', e)
-  }
-})
 
 const removeExistingImage = (imageId: number) => {
   imagesToDelete.value.push(imageId)
@@ -600,19 +733,6 @@ const removeNewImage = (index: number) => {
   newImagePreviews.value.splice(index, 1)
 }
 
-const fetchUsers = async () => {
-  if (users.value.length) return
-  usersLoading.value = true
-  try {
-    const res = await api.get('/admin/users?per_page=1000')
-    users.value = res.data.data || res.data
-  } catch (e) {
-    console.error('Failed to fetch users', e)
-  } finally {
-    usersLoading.value = false
-  }
-}
-
 const close = () => {
   if (saving.value) return
   emit('close')
@@ -620,6 +740,12 @@ const close = () => {
 
 const save = async () => {
   if (saving.value) return
+
+  // Validate required fields
+  if (!formData.value.user_id) {
+    alert('Please select a user')
+    return
+  }
 
   const cleanData: Partial<Shipment> = {
     user_id: formData.value.user_id,
@@ -632,11 +758,9 @@ const save = async () => {
     site_id: formData.value.site_id,
     purchase_date: formData.value.purchase_date,
     shipment_status_id: formData.value.shipment_status_id,
-    arrival_date: formData.value.arrival_date,
     expected_delivery_date: formData.value.expected_delivery_date,
-    date_delivered: formData.value.date_delivered,
     payment_method_id: formData.value.payment_method_id,
-    paid_by: formData.value.paid_by,
+    bought_by: formData.value.bought_by,
     item_value_pkr: formData.value.item_value_pkr,
     company_charges: formData.value.company_charges,
     received_amount: formData.value.received_amount,
@@ -644,7 +768,7 @@ const save = async () => {
     delivery_charges: formData.value.delivery_charges,
   }
 
-  const requiredFields = ['user_id', 'weight', 'weight_unit', 'item_value_pkr', 'company_charges', 'paid_by']
+  const requiredFields = ['user_id', 'weight', 'weight_unit', 'item_value_pkr', 'company_charges', 'bought_by']
   const missing = requiredFields.filter(field => {
     const val = cleanData[field as keyof typeof cleanData]
     return val === undefined || val === null || val === ''
@@ -690,4 +814,16 @@ const save = async () => {
     saving.value = false
   }
 }
+
+// Lifecycle hooks
+onMounted(() => {
+  document.addEventListener('click', closeUserDropdown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeUserDropdown)
+  if (userSearchTimeout.value) {
+    clearTimeout(userSearchTimeout.value)
+  }
+})
 </script>

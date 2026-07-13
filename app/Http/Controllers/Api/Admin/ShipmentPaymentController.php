@@ -6,9 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Shipment;
 use App\Models\ShipmentPayment;
 use App\Models\Debtor;
-use App\Models\Invoice;
 use App\Models\Voucher;
-use App\Models\VoucherDetail;
 use App\Models\Account;
 use Illuminate\Http\Request;
 use App\ShipmentPaymentHelper;
@@ -49,15 +47,11 @@ class ShipmentPaymentController extends Controller
                 $debtor->applyPayment($validated['amount']);
             }
 
-            // ✅ Check if this is a COD payment
-            // Use receivable_cod from shipment instead of invoice->cod
             $voucherService = new VoucherService();
             $receivableCod = $shipment->receivable_cod ?? 0;
 
-            // Check if this payment is for COD (amount >= receivable_cod)
-            // AND the shipment has delivery charges
+            // Check if this is a COD payment
             if ($receivableCod > 0 && $validated['amount'] >= $receivableCod && $shipment->delivery_charges > 0) {
-                // ✅ This is a COD payment - Generate COD voucher with courier charges
                 Log::info('Generating COD voucher', [
                     'shipment' => $shipment->shipment_code,
                     'receivable_cod' => $receivableCod,
@@ -71,15 +65,12 @@ class ShipmentPaymentController extends Controller
                 $totalPayable = ($shipment->item_value_pkr ?? 0) + ($shipment->company_charges ?? 0);
                 $remainingBalance = $totalPayable - $shipment->received_amount;
                 if ($remainingBalance <= 0) {
-                    // Shipment is fully paid - generate settlement voucher
                     $voucherService->generateSettlementVoucher($shipment, 0, $validated['payment_date']);
                 }
             } else {
-                // ✅ Regular payment - generate payment voucher
+                // Regular payment - generate payment voucher
                 Log::info('Generating regular payment voucher', [
                     'shipment' => $shipment->shipment_code,
-                    'receivable_cod' => $receivableCod,
-                    'delivery_charges' => $shipment->delivery_charges,
                     'amount' => $validated['amount']
                 ]);
                 $this->createPaymentVoucher($shipment, $payment);
@@ -130,7 +121,7 @@ class ShipmentPaymentController extends Controller
                 }
             }
 
-            // ✅ Update voucher for this payment
+            // Update voucher for this payment
             $this->updatePaymentVoucher($shipment, $payment);
 
             DB::commit();
@@ -156,7 +147,7 @@ class ShipmentPaymentController extends Controller
 
             $this->updateShipmentReceivedAmount($shipment);
 
-            // Update debtor balance (subtract the deleted payment)
+            // Update debtor balance
             $debtor = Debtor::where('shipment_id', $shipment->id)->first();
             if ($debtor) {
                 $debtor->amount_due -= $amount;

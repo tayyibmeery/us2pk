@@ -47,7 +47,7 @@ return new class extends Migration
                 ->nullOnDelete();
 
             // Paid by – can remain ENUM, or also become a foreign key to a lookup table
-            $table->enum('paid_by', ['By Company', 'By Customer'])->default('By Customer');
+            $table->enum('bought_by', ['By Company', 'By Customer'])->default('By Customer');
 
             // Dates
             $table->date('arrival_date')->nullable();

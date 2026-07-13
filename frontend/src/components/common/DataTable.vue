@@ -55,6 +55,9 @@
       <table class="min-w-full">
         <thead>
           <tr class="bg-gray-50 dark:bg-white/[0.02]">
+            <!-- Slot for custom header columns (e.g., checkbox) -->
+            <slot name="header-start"></slot>
+
             <th v-for="col in columns" :key="col.key"
               class="border-b border-gray-100 px-5 py-3 text-left dark:border-white/[0.06]"
               :class="col.sortable !== false ? 'cursor-pointer select-none group' : ''"
@@ -103,7 +106,7 @@
           </template>
 
           <tr v-else-if="!store.items || !store.items.length">
-            <td :colspan="columns.length + 1" class="px-5 py-16 text-center">
+            <td :colspan="columns.length + 2" class="px-5 py-16 text-center">
               <div class="flex flex-col items-center gap-3">
                 <div class="flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 dark:bg-white/[0.04]">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="text-gray-400">
@@ -123,6 +126,10 @@
 
           <tr v-else v-for="item in store.items" :key="item.id"
             class="group border-b border-gray-50 last:border-0 transition-colors hover:bg-gray-50/70 dark:border-white/[0.04] dark:hover:bg-white/[0.02]">
+
+            <!-- Slot for custom row columns (e.g., checkbox) -->
+            <slot name="row-start" :item="item"></slot>
+
             <td v-for="col in columns" :key="col.key" class="px-5 py-3.5">
               <slot :name="'cell-' + col.key" :item="item" :column="col">
                 <span class="text-sm text-gray-700 dark:text-gray-300">

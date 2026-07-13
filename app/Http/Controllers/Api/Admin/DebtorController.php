@@ -10,108 +10,94 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+
+
+
+
 class DebtorController extends Controller
 {
+
     public function index(Request $request)
     {
         try {
-            $query = Debtor::with(['shipment.user', 'shipment']);
+            $query = Debtor::with(['user', 'shipment']);
 
-            // Search
-            if ($request->has('search') && $request->search) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('invoice_no', 'LIKE', "%{$search}%")
-                        ->orWhereHas('shipment.user', function ($uq) use ($search) {
-                            $uq->where('name', 'LIKE', "%{$search}%");
-                        })
-                        ->orWhereHas('shipment', function ($sq) use ($search) {
-                            $sq->where('pcode', 'LIKE', "%{$search}%");
-                        });
-                });
+            // Apply filters
+            if ($request->status === 'unpaid') {
+                $query->where('balance', '>', 0);
+            } elseif ($request->status === 'paid') {
+                $query->where('balance', '<=', 0);
             }
 
-            // Status filter - through shipment
-            if ($request->has('status') && $request->status) {
-                $query->whereHas('shipment', function ($q) use ($request) {
-                    $q->where('status', $request->status);
-                });
+            if ($request->user_id) {
+                $query->where('user_id', $request->user_id);
             }
 
-            // Date range
-            if ($request->has('date_from') && $request->date_from) {
-                $query->whereDate('created_at', '>=', $request->date_from);
-            }
-            if ($request->has('date_to') && $request->date_to) {
-                $query->whereDate('created_at', '<=', $request->date_to);
-            }
+            $debtors = $query->latest()->paginate(20);
 
-            $debtors = $query->orderBy('created_at', 'desc')
-                ->paginate($request->per_page ?? 20);
-
-            // Transform data for debtors view
-            $transformed = $debtors->getCollection()->map(function ($debtor) {
-                // Get payment methods breakdown from the shipment's payments
-                $payments = $debtor->shipment->payments ?? collect();
-                $paymentsByMethod = $payments->groupBy('method');
-
-                // Get COD from the related invoice
-                $invoice = Invoice::where('shipment_id', $debtor->shipment_id)->first();
-                $cod = $invoice->cod ?? 0;
-                $codDate = $invoice->cod_date ?? null;
+            // Map and calculate totals safely
+            $debtors->getCollection()->transform(function ($debtor) {
+                $payments = $debtor->shipment?->payments()?->sum('amount') ?? 0;
 
                 return [
                     'id' => $debtor->id,
-                    'invoice_no' => $debtor->invoice_no ?? 'N/A',
-                    'status' => $debtor->shipment->status ?? 'N/A',
-                    'customer_name' => $debtor->shipment->user->name ?? 'N/A',
-                    'pcode' => $debtor->shipment->pcode ?? 'N/A',
-                    'amount_due' => (float) ($debtor->amount_due ?? 0),
-                    'abl' => (float) ($paymentsByMethod->get('ABL')->sum('amount') ?? 0),
-                    'scb' => (float) ($paymentsByMethod->get('SCB')->sum('amount') ?? 0),
-                    'bafl' => (float) ($paymentsByMethod->get('BAFL')->sum('amount') ?? 0),
-                    'faisal' => (float) ($paymentsByMethod->get('FAISAL')->sum('amount') ?? 0),
-                    'cash' => (float) ($paymentsByMethod->get('CASH')->sum('amount') ?? 0),
-                    'jazzcash' => (float) ($paymentsByMethod->get('JAZZCASH')->sum('amount') ?? 0),
-                    'easypaisa' => (float) ($paymentsByMethod->get('EASYPAISA')->sum('amount') ?? 0),
-                    'cod' => (float) ($cod ?? 0),
-                    'cod_date' => $codDate,
-                    'due_cod' => (float) (($cod ?? 0) - ($paymentsByMethod->get('COD')->sum('amount') ?? 0)),
-                    'balance' => (float) ($debtor->balance ?? 0)
+                    'invoice_no' => $debtor->invoice_no,
+                    'user' => $debtor->user,
+                    'shipment' => $debtor->shipment,
+                    'total_payable' => $debtor->total_payable ?? 0,
+                    'receivable_cod' => $debtor->receivable_cod ?? 0,
+                    'balance' => $debtor->balance ?? 0,
+                    'amount_received' => $debtor->amount_received ?? 0,
+                    'courier_deduction' => $debtor->courier_deduction ?? 0,
+                    'net_receivable' => $debtor->net_receivable ?? 0,
+                    'cod' => $debtor->cod ?? 0,
+                    'last_payment_date' => $debtor->last_payment_date,
+                    'created_at' => $debtor->created_at,
+                    'payments_total' => $payments,
                 ];
             });
 
-            $debtors->setCollection($transformed);
-
             return response()->json($debtors);
         } catch (\Exception $e) {
-            Log::error('Debtor index error: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
-
+            Log::error('DebtorController error: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Failed to fetch debtors',
+                'message' => 'Failed to load debtors',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    public function show($id)
+    public function show(Debtor $debtor)
     {
         try {
-            $debtor = Debtor::with(['shipment.user', 'shipment.payments'])->findOrFail($id);
-
-            $invoice = Invoice::where('shipment_id', $debtor->shipment_id)->first();
+            $payments = $debtor->shipment?->payments()?->sum('amount') ?? 0;
 
             return response()->json([
-                'debtor' => $debtor,
-                'invoice' => $invoice,
-                'payments' => $debtor->shipment->payments ?? []
+                'id' => $debtor->id,
+                'invoice_no' => $debtor->invoice_no,
+                'user' => $debtor->user,
+                'shipment' => $debtor->shipment,
+                'total_payable' => $debtor->total_payable ?? 0,
+                'receivable_cod' => $debtor->receivable_cod ?? 0,
+                'balance' => $debtor->balance ?? 0,
+                'amount_received' => $debtor->amount_received ?? 0,
+                'courier_deduction' => $debtor->courier_deduction ?? 0,
+                'net_receivable' => $debtor->net_receivable ?? 0,
+                'cod' => $debtor->cod ?? 0,
+                'last_payment_date' => $debtor->last_payment_date,
+                'created_at' => $debtor->created_at,
+                'updated_at' => $debtor->updated_at,
+                'payments_total' => $payments,
             ]);
         } catch (\Exception $e) {
-            Log::error('Debtor show error: ' . $e->getMessage());
-            return response()->json(['message' => 'Debtor not found'], 404);
+            Log::error('DebtorController show error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Failed to load debtor',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
+
 
     public function store(Request $request)
     {

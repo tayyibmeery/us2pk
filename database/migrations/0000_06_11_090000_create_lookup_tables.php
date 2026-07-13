@@ -20,6 +20,11 @@ return new class extends Migration
         Schema::create('payment_methods', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
+            $table->foreignId('account_id')
+                ->nullable()
+
+                ->constrained('accounts')
+                ->nullOnDelete();
             $table->boolean('status')->default(true);
             $table->timestamps();
         });

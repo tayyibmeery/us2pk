@@ -52,7 +52,7 @@ class RevenueController extends Controller
             'pcode'          => 'required|string|max:50',
             'revenue'        => 'required|numeric|min:0',
             'output_tax'     => 'nullable|numeric|min:0',
-            'paid_by'        => 'nullable|string|max:100',
+            'bought_by'        => 'nullable|string|max:100',
             'vendor_payment' => 'nullable|numeric|min:0',
             'type'           => 'nullable|string|max:50',
         ]);
@@ -74,7 +74,7 @@ class RevenueController extends Controller
             'pcode'          => 'sometimes|string|max:50',
             'revenue'        => 'sometimes|numeric|min:0',
             'output_tax'     => 'nullable|numeric|min:0',
-            'paid_by'        => 'nullable|string|max:100',
+            'bought_by'        => 'nullable|string|max:100',
             'vendor_payment' => 'nullable|numeric|min:0',
             'type'           => 'nullable|string|max:50',
         ]);

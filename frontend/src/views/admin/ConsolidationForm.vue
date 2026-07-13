@@ -120,8 +120,8 @@
                   <th class="px-3 py-2 text-left">City</th>
                   <th class="px-3 py-2 text-right">KGs</th>
                   <th class="px-3 py-2 text-right">US2PK Charges</th>
-                  <th class="px-3 py-2 text-right">Amount Due</th>
-                  <!-- <th class="px-3 py-2 text-right">COD</th> -->
+                  <!-- <th class="px-3 py-2 text-right">Amount Due</th> -->
+                  <th class="px-3 py-2 text-right">COD</th>
                   <th class="px-3 py-2 text-center">Action</th>
                 </tr>
               </thead>
@@ -132,8 +132,8 @@
                   <td class="px-3 py-2">{{ s.user?.city?.city_name ?? 'N/A' }}</td>
                   <td class="px-3 py-2 text-right">{{ (s.weight_kgs ?? 0).toFixed(2) }}</td>
                   <td class="px-3 py-2 text-right">{{ (s.company_charges ?? 0).toFixed(2) }}</td>
-                  <td class="px-3 py-2 text-right">{{ (s.amount_due ?? 0).toFixed(2) }}</td>
-                  <!-- <td class="px-3 py-2 text-right">{{ (s.receivable_cod ?? 0).toFixed(2) }}</td> -->
+                  <!-- <td class="px-3 py-2 text-right">{{ (s.amount_due ?? 0).toFixed(2) }}</td> -->
+                  <td class="px-3 py-2 text-right">{{ (s.receivable_cod ?? 0).toFixed(2) }}</td>
                   <td class="px-3 py-2 text-center">
                     <button type="button" @click="removeShipment(index)"
                       class="text-red-500 hover:underline">Remove</button>

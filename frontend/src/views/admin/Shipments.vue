@@ -19,8 +19,52 @@
       </button>
     </div>
 
+    <!-- Bulk Actions Bar -->
+    <div v-if="selectedIds.length > 0"
+      class="flex flex-wrap items-center gap-3 p-4 bg-brand-50 dark:bg-brand-900/20 rounded-xl border border-brand-200 dark:border-brand-800">
+      <span class="text-sm font-medium text-brand-700 dark:text-brand-300">
+        {{ selectedIds.length }} shipment(s) selected
+      </span>
+      <div class="flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Change Status:</label>
+        <select v-model="bulkStatusId"
+          class="h-9 rounded-lg border border-gray-300 bg-white px-3 py-1 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+          <option value="">Select status</option>
+          <option v-for="status in statusOptions" :key="status.id" :value="status.id">
+            {{ status.name }}
+          </option>
+        </select>
+        <button @click="applyBulkStatus" :disabled="!bulkStatusId || bulkUpdating"
+          class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+          <span v-if="bulkUpdating" class="inline-block animate-spin mr-1">⟳</span>
+          Apply
+        </button>
+        <button @click="clearSelection"
+          class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          Clear Selection
+        </button>
+      </div>
+    </div>
+
     <DataTable :store="shipmentStore" :columns="columns" title="All Shipments" addButtonLabel="New Shipment"
       :modalComponent="ShipmentFormModal" :selfSaving="true" @saved="handleSaved">
+
+      <!-- Custom header with checkbox -->
+      <template #header-start>
+        <th class="border-b border-gray-100 px-5 py-3 text-left dark:border-white/[0.06]">
+          <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll"
+            class="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700" />
+        </th>
+      </template>
+
+      <!-- Custom row with checkbox -->
+      <template #row-start="{ item }">
+        <td class="px-5 py-3.5">
+          <input type="checkbox" :checked="isSelected(item.id)" @change="toggleSelect(item.id)"
+            class="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-700" />
+        </td>
+      </template>
+
       <template #actions="{ item, edit, delete: deleteFn }">
         <div class="flex items-center justify-end gap-0.5">
           <router-link :to="`/admin/shipments/${item.id}`"
@@ -83,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import ShipmentFormModal from '@/components/admin/ShipmentFormModal.vue'
@@ -96,6 +140,12 @@ const statusStore = useShipmentStatusStore()
 const statusOptions = ref<{ id: number; name: string }[]>([])
 const statusFilter = ref('')
 
+// Selection state
+const selectedIds = ref<number[]>([])
+const bulkStatusId = ref<number | string>('')
+const bulkUpdating = ref(false)
+
+// Column definitions with checkbox column
 const columns: ColumnDefinition[] = [
   { key: 'user', label: 'User' },
   { key: 'shipment_code', label: 'Sh-Code' },
@@ -113,11 +163,6 @@ const columns: ColumnDefinition[] = [
     label: 'Status',
     format: (value: any) => value?.name || 'Unknown',
   },
-  // {
-  //   key: 'arrival_date',
-  //   label: 'Arrival',
-  //   format: (v: string) => (v ? new Date(v).toLocaleDateString() : '-'),
-  // },
   {
     key: 'total',
     label: 'Total',
@@ -128,26 +173,68 @@ const columns: ColumnDefinition[] = [
     label: 'COD ',
     format: (v: any) => formatCurrency(v),
   },
-  // {
-  //   key: 'amount_due',
-  //   label: 'Amo. Due',
-  //   format: (v: any) => formatCurrency(v),
-  // },
-  // {
-  //   key: 'delivery_charges',
-  //   label: 'Del. Chg',
-  //   format: (v: any) => {
-  //     if (v === undefined || v === null || v === '') return '0.00'
-  //     const num = typeof v === 'string' ? parseFloat(v) : v
-  //     return isNaN(num) ? '0.00' : num.toFixed(2)
-  //   },
-  // },
-  // {
-  //   key: 'created_at',
-  //   label: 'Created',
-  //   format: (v: string) => (v ? new Date(v).toLocaleDateString() : '-'),
-  // },
 ]
+
+// Computed properties for selection
+const isAllSelected = computed(() => {
+  if (!shipmentStore.items || shipmentStore.items.length === 0) return false
+  return shipmentStore.items.every((item: any) => selectedIds.value.includes(item.id))
+})
+
+const isSelected = (id: number) => selectedIds.value.includes(id)
+
+// Selection functions
+const toggleSelect = (id: number) => {
+  const index = selectedIds.value.indexOf(id)
+  if (index > -1) {
+    selectedIds.value.splice(index, 1)
+  } else {
+    selectedIds.value.push(id)
+  }
+}
+
+const toggleSelectAll = () => {
+  if (isAllSelected.value) {
+    selectedIds.value = []
+  } else {
+    selectedIds.value = shipmentStore.items.map((item: any) => item.id)
+  }
+}
+
+const clearSelection = () => {
+  selectedIds.value = []
+  bulkStatusId.value = ''
+}
+
+// Bulk status update
+const applyBulkStatus = async () => {
+  if (!bulkStatusId.value || selectedIds.value.length === 0 || bulkUpdating.value) return
+
+  if (!confirm(`Change status for ${selectedIds.value.length} shipment(s)?`)) return
+
+  bulkUpdating.value = true
+  try {
+    // Update each selected shipment
+    const promises = selectedIds.value.map(id =>
+      shipmentStore.updateStatus(id, Number(bulkStatusId.value))
+    )
+    await Promise.all(promises)
+
+    // Refresh the table
+    await shipmentStore.fetchItems(shipmentStore.pagination?.current_page || 1)
+
+    // Clear selection
+    clearSelection()
+
+    // Show success message
+    alert('Status updated successfully for all selected shipments!')
+  } catch (error) {
+    console.error('Bulk status update failed:', error)
+    alert('Failed to update status for some shipments. Please try again.')
+  } finally {
+    bulkUpdating.value = false
+  }
+}
 
 const statusBadgeClass = (status: string) => {
   const map: Record<string, string> = {
@@ -191,22 +278,29 @@ const fetchStatuses = async () => {
 const updateStatus = async (id: number, statusId: number) => {
   try {
     await shipmentStore.updateStatus(id, statusId)
+    // Refresh the table
+    await shipmentStore.fetchItems(shipmentStore.pagination?.current_page || 1)
   } catch (error) {
     console.error('Status update failed:', error)
+    alert('Failed to update status. Please try again.')
   }
 }
 
 const onStatusChange = () => {
   shipmentStore.setStatusFilter(String(statusFilter.value))
+  // Clear selection when filter changes
+  clearSelection()
 }
 
 const clearFilters = () => {
   statusFilter.value = ''
   shipmentStore.setStatusFilter('')
+  clearSelection()
 }
 
 const handleSaved = async () => {
   await shipmentStore.fetchItems(shipmentStore.pagination?.current_page || 1)
+  clearSelection()
 }
 
 onMounted(() => {

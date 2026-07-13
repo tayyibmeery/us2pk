@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('revenue', 12, 2);
             $table->decimal('output_tax', 12, 2)->default(0);
             $table->decimal('net_revenue', 12, 2)->storedAs('revenue - output_tax');
-            $table->string('paid_by')->nullable(); // PkShip, Customer
+            $table->string('bought_by')->nullable(); // PkShip, Customer
             $table->decimal('vendor_payment', 12, 2)->nullable();
             $table->timestamps();
         });

@@ -178,7 +178,7 @@
             <!-- Paid By -->
             <div>
               <label class="block text-sm font-medium">Paid By</label>
-              <select v-model="form.paid_by" class="w-full rounded-lg border p-2 dark:bg-gray-800" required>
+              <select v-model="form.bought_by" class="w-full rounded-lg border p-2 dark:bg-gray-800" required>
                 <option value="By Company">By Company</option>
                 <option value="By Customer">By Customer</option>
               </select>
@@ -331,7 +331,7 @@ const form = reactive({
   item_value_pkr: 0,
   company_charges: 0,
   received_amount: 0,
-  paid_by: 'By Customer',
+  bought_by: 'By Customer',
   payment_method_id: null as number | null,
   receivable_cod: 0,
   local_courier_id: null as number | null,

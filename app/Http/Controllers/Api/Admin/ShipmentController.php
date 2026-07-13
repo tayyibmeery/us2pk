@@ -9,6 +9,7 @@ use App\Models\PaymentMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\ShipmentPaymentHelper;
+
 use App\Services\VoucherService;
 
 class ShipmentController extends Controller
@@ -66,13 +67,13 @@ class ShipmentController extends Controller
             'purchase_date'          => 'nullable|date',
             'comments'               => 'nullable|string',
             'shipment_status_id'     => 'nullable|exists:shipment_statuses,id',
-            'arrival_date'           => 'nullable|date',
+            // 'arrival_date'           => 'nullable|date',
             'expected_delivery_date' => 'nullable|date',
-            'date_delivered'         => 'nullable|date',
+            // 'date_delivered'         => 'nullable|date',
             'item_value_pkr'         => 'required|numeric',
             'company_charges'        => 'required|numeric',
             'received_amount'        => 'nullable|numeric|min:0',
-            'paid_by'                => 'required|in:By Company,By Customer',
+            'bought_by'                => 'required|in:By Company,By Customer',
             'payment_method_id'      => 'nullable|exists:payment_methods,id',
             'local_courier_id'       => 'nullable|exists:local_couriers,id',
             'delivery_charges'       => 'nullable|numeric',
@@ -137,13 +138,13 @@ class ShipmentController extends Controller
             'purchase_date'          => 'sometimes|date',
             'comments'               => 'sometimes|string',
             'shipment_status_id'     => 'sometimes|exists:shipment_statuses,id',
-            'arrival_date'           => 'sometimes|date',
+            // 'arrival_date'           => 'sometimes|date',
             'expected_delivery_date' => 'sometimes|date',
-            'date_delivered'         => 'sometimes|date',
+            // 'date_delivered'         => 'sometimes|date',
             'item_value_pkr'         => 'sometimes|numeric',
             'company_charges'        => 'sometimes|numeric',
             'received_amount'        => 'sometimes|numeric|min:0',
-            'paid_by'                => 'sometimes|in:By Company,By Customer',
+            'bought_by'                => 'sometimes|in:By Company,By Customer',
             'payment_method_id'      => 'sometimes|exists:payment_methods,id',
             'local_courier_id'       => 'sometimes|exists:local_couriers,id',
             'delivery_charges'       => 'sometimes|numeric',
@@ -256,7 +257,7 @@ class ShipmentController extends Controller
         $nextId = $last ? $last->id + 1 : 1;
 
         return response()->json([
-            'shipment_code' => 'SH-' . $userPcode . '-' . $nextId
+            'shipment_code' => 'SH-' . $nextId
         ]);
     }
 
@@ -275,5 +276,52 @@ class ShipmentController extends Controller
     {
         $voucherService = new VoucherService();
         return $voucherService->syncShipmentVouchers($shipment);
+    }
+
+    public function searchUsers(Request $request)
+    {
+        $request->validate([
+            'search' => 'nullable|string|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100'
+        ]);
+
+        $query = User::query();
+
+        if ($request->search) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('pcode', 'like', "%{$search}%");
+            });
+        }
+
+        $perPage = $request->per_page ?? 20;
+        $users = $query->orderBy('name')->paginate($perPage);
+
+        return response()->json($users);
+    }
+    public function updateBulkStatus(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'required|exists:shipments,id',
+            'shipment_status_id' => 'required|exists:shipment_statuses,id'
+        ]);
+
+        $data = ['shipment_status_id' => $request->shipment_status_id];
+
+        if ($request->shipment_status_id == 8) {
+            $data['date_delivered'] = now()->toDateString();
+        } else {
+            $data['date_delivered'] = null;
+        }
+
+        $updated = Shipment::whereIn('id', $request->ids)->update($data);
+
+        return response()->json([
+            'message' => "{$updated} shipment(s) updated successfully",
+            'updated_count' => $updated
+        ]);
     }
 }

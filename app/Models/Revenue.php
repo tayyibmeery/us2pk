@@ -13,7 +13,7 @@ class Revenue extends Model
         'pcode',
         'revenue',
         'output_tax',
-        'paid_by',
+        'bought_by',
         'vendor_payment'
     ];
 

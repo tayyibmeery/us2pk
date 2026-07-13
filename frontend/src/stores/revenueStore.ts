@@ -12,7 +12,7 @@ export interface Revenue {
   revenue: number;
   output_tax: number;
   net_revenue: number;
-  paid_by: string | null;
+  bought_by: string | null;
   vendor_payment: number | null;
 }
 

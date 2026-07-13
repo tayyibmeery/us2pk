@@ -156,7 +156,7 @@
               </div>
               <div>
                 <span class="text-gray-500">Paid By:</span>
-                <span class="font-medium ml-2">{{ selectedShipment.paid_by || 'N/A' }}</span>
+                <span class="font-medium ml-2">{{ selectedShipment.bought_by || 'N/A' }}</span>
               </div>
             </div>
           </div>

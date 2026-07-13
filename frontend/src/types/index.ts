@@ -86,7 +86,7 @@ export interface Shipment {
   company_charges: number
   total: number
   received_amount?: number
-  paid_by: string
+  bought_by: string
   amount_due?: number
   receivable_cod?: number
   delivery_charges?: number

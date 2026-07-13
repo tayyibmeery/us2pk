@@ -86,7 +86,8 @@
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Weight</dt>
                 <dd class="text-gray-800 dark:text-white/90">{{ Number(shipment.weight || 0).toFixed(2) }}
-                  {{ shipment.weight_unit || 'kg' }}</dd>
+                  {{ shipment.weight_unit || 'kg' }}
+                </dd>
               </div>
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Weight (KGs)</dt>
@@ -94,7 +95,7 @@
               </div>
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Seller Tracker ID</dt>
-                <dd class="text-gray-800 dark:text-white/90">{{ formatDate(shipment.seller_tracker_id) || '—' }}</dd>
+                <dd class="text-gray-800 dark:text-white/90">{{ (shipment.seller_tracker_id) || '—' }}</dd>
               </div>
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Purchase Date</dt>
@@ -120,12 +121,13 @@
             </h3>
             <dl class="grid grid-cols-1 gap-3 text-sm">
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
-                <dt class="font-medium text-gray-500 dark:text-gray-400">Arrival Date</dt>
-                <dd class="text-gray-800 dark:text-white/90">{{ formatDate(shipment.arrival_date) || '—' }}</dd>
+                <!-- <dt class="font-medium text-gray-500 dark:text-gray-400">Arrival Date</dt>
+                <dd class="text-gray-800 dark:text-white/90">{{ formatDate(shipment.arrival_date) || '—' }}</dd> -->
               </div>
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Expected Delivery</dt>
-                <dd class="text-gray-800 dark:text-white/90">{{ formatDate(shipment.expected_delivery_date )|| '—' }}</dd>
+                <dd class="text-gray-800 dark:text-white/90">{{ formatDate(shipment.expected_delivery_date) || '—' }}
+                </dd>
               </div>
               <div class="flex justify-between py-1">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Date Delivered</dt>
@@ -174,16 +176,16 @@
                 <dd class="text-gray-800 dark:text-white/90">{{ Number(shipment.receivable_cod || 0).toFixed(2) }} PKR
                 </dd>
               </div>
-              <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
+              <!-- <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Amount Due</dt>
                 <dd class="font-semibold"
                   :class="Number(shipment.amount_due || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
                   {{ Number(shipment.amount_due || 0).toFixed(2) }} PKR
                 </dd>
-              </div>
+              </div> -->
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Paid By</dt>
-                <dd class="text-gray-800 dark:text-white/90">{{ shipment.paid_by || '—' }}</dd>
+                <dd class="text-gray-800 dark:text-white/90">{{ shipment.bought_by || '—' }}</dd>
               </div>
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Payment Method</dt>

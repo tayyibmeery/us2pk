@@ -195,6 +195,22 @@ export const useShipmentStore = defineStore('shipment', {
       }
     },
 
+    async updateBulkStatus(ids: number[], statusId: number): Promise<void> {
+      this.loading = true
+      this.error = null
+      try {
+        await api.post('/admin/shipments/bulk-status', {
+          ids,
+          shipment_status_id: statusId
+        })
+      } catch (e: any) {
+        this.error = e.message || 'Failed to update statuses'
+        throw e
+      } finally {
+        this.loading = false
+      }
+    },
+
     reset() {
       this.items = []
       this.pagination = null
