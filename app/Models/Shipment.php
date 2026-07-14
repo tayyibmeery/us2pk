@@ -55,7 +55,7 @@ class Shipment extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     public function consolidation()
@@ -85,7 +85,7 @@ class Shipment extends Model
 
     public function localCourier()
     {
-        return $this->belongsTo(LocalCourier::class);
+        return $this->belongsTo(LocalCourier::class, 'local_courier_id');
     }
 
     public function payments()

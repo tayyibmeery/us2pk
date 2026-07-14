@@ -8,7 +8,7 @@
         <!-- Account Select -->
         <div class="flex-1 min-w-[200px]">
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Account</label>
-          <select v-model="filters.account_id"
+          <select v-model="filters.account_id" @change="onAccountChange"
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
             <option value="">All Accounts</option>
             <option v-for="account in accounts" :key="account.id" :value="account.id">
@@ -80,29 +80,6 @@
       </form>
     </div>
 
-    <!-- Stats Summary -->
-    <div v-if="ledgerData.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Entries</p>
-        <p class="text-xl font-bold text-gray-800 dark:text-white/90">{{ pagination?.total || 0 }}</p>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Debit</p>
-        <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">{{ formatCurrency(totalDebit) }}</p>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Credit</p>
-        <p class="text-xl font-bold text-rose-600 dark:text-rose-400">{{ formatCurrency(totalCredit) }}</p>
-      </div>
-      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Net Balance</p>
-        <p class="text-xl font-bold"
-          :class="totalBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
-          {{ formatCurrency(totalBalance) }}
-        </p>
-      </div>
-    </div>
-
     <!-- Loading -->
     <div v-if="loading" class="flex justify-center py-16">
       <div
@@ -111,7 +88,7 @@
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="!ledgerData.length"
+    <div v-else-if="!ledgerData.length && !selectedAccount"
       class="flex flex-col items-center justify-center py-16 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
       <svg class="w-12 h-12 text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
         stroke-width="1.5">
@@ -119,142 +96,197 @@
           d="M9 12h6m-6 4h6m-6 4h6M5 3.75h14A1.25 1.25 0 0 1 20.25 5v14A1.25 1.25 0 0 1 19 20.25H5A1.25 1.25 0 0 1 3.75 19V5A1.25 1.25 0 0 1 5 3.75Z" />
       </svg>
       <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">No Entries Found</h3>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Try adjusting your search filters or creating new
-        transactions.</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Try adjusting your search filters.</p>
     </div>
 
-    <!-- Ledger Table -->
-    <div v-else
-      class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-      <!-- Account Header -->
-      <div
-        class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex justify-between items-center">
-        <div>
-          <h2 class="text-xl font-semibold text-gray-800 dark:text-white/90">
-            {{ selectedAccountName || 'All Accounts' }}
-          </h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            {{ filters.from_date || 'Start' }} to {{ filters.to_date || 'End' }}
-          </p>
+    <!-- Ledger Display -->
+    <div v-else>
+      <!-- When a specific account is selected -->
+      <div v-if="selectedAccount"
+        class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+        <!-- Account Header -->
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+          <div class="flex justify-between items-center">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-800 dark:text-white/90">
+                {{ selectedAccount.name }}
+              </h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ filters.from_date || 'Start' }} to {{ filters.to_date || 'End' }}
+              </p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-500 dark:text-gray-400">Closing Balance</p>
+              <p class="text-lg font-bold"
+                :class="selectedAccount.closing_balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
+                {{ formatCurrency(selectedAccount.closing_balance) }}
+                {{ selectedAccount.closing_balance >= 0 ? (selectedAccount.nature === 'Debit' ? 'Dr' : 'Cr') : (selectedAccount.nature === 'Debit' ? 'Cr' : 'Dr') }}
+              </p>
+            </div>
+          </div>
         </div>
-        <div class="text-right">
-          <p class="text-sm text-gray-500 dark:text-gray-400">Balance</p>
-          <p class="text-lg font-bold"
-            :class="totalBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
-            {{ formatCurrency(totalBalance) }}
-          </p>
+
+        <!-- Transactions Table -->
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-800/70">
+              <tr>
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Date</th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Voucher #</th>
+                <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Particular</th>
+                <th
+                  class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Debit</th>
+                <th
+                  class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Credit</th>
+                <th
+                  class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Balance</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+              <tr v-for="(txn, index) in transactions" :key="index"
+                class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-200">{{ formatDate(txn.date) }}</td>
+                <td class="px-6 py-3 text-sm">
+                  <router-link :to="`/admin/vouchers/${txn.voucher_no}`"
+                    class="text-brand-600 dark:text-brand-400 hover:underline font-medium">
+                    {{ txn.voucher_no }}
+                  </router-link>
+                </td>
+                <td class="px-6 py-3 text-sm text-gray-600 dark:text-gray-300">
+                  {{ txn.particular || '—' }}
+                  <span v-if="txn.shipment_code" class="text-xs text-gray-400 ml-2">({{ txn.shipment_code }})</span>
+                </td>
+                <td class="px-6 py-3 text-sm font-mono tabular-nums text-right text-emerald-600 dark:text-emerald-400">
+                  {{ txn.debit > 0 ? Number(txn.debit).toFixed(2) : '—' }}
+                </td>
+                <td class="px-6 py-3 text-sm font-mono tabular-nums text-right text-rose-600 dark:text-rose-400">
+                  {{ txn.credit > 0 ? Number(txn.credit).toFixed(2) : '—' }}
+                </td>
+                <td class="px-6 py-3 text-sm font-mono tabular-nums text-right font-semibold"
+                  :class="txn.balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'">
+                  {{ Number(txn.balance).toFixed(2) }} {{ txn.balance_type }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-gray-50 dark:bg-gray-800/70 border-t-2 border-gray-200 dark:border-gray-700">
+              <tr>
+                <td colspan="3" class="px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Totals</td>
+                <td class="px-6 py-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {{ selectedAccount.total_debit?.toFixed(2) || '0.00' }}
+                </td>
+                <td class="px-6 py-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
+                  {{ selectedAccount.total_credit?.toFixed(2) || '0.00' }}
+                </td>
+                <td class="px-6 py-3 text-right font-mono font-bold text-gray-800 dark:text-white/90">
+                  {{ formatCurrency(selectedAccount.closing_balance) }}
+                  {{ selectedAccount.closing_balance >= 0 ? (selectedAccount.nature === 'Debit' ? 'Dr' : 'Cr') : (selectedAccount.nature === 'Debit' ? 'Cr' : 'Dr') }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
 
-      <!-- Table -->
-      <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead class="bg-gray-50 dark:bg-gray-800/70">
-            <tr>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Date</th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Voucher #</th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Shipment</th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Source</th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Status</th>
-              <th
-                class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Account</th>
-              <th
-                class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Debit</th>
-              <th
-                class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Credit</th>
-              <th
-                class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Balance</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-            <tr v-for="(entry, index) in ledgerData" :key="index"
-              class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-              <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-200">{{ formatDate(entry.date) }}</td>
-              <td class="px-6 py-3 text-sm">
-                <router-link :to="`/admin/vouchers/${entry.voucher_no}`"
-                  class="text-brand-600 dark:text-brand-400 hover:underline font-medium">
-                  {{ entry.voucher_no }}
-                </router-link>
-              </td>
-              <td class="px-6 py-3 text-sm">
-                <span v-if="entry.shipment_code" class="text-gray-700 dark:text-gray-200">
-                  {{ entry.shipment_code }}
-                </span>
-                <span v-else class="text-gray-400 dark:text-gray-500">—</span>
-              </td>
-              <td class="px-6 py-3 text-sm text-gray-600 dark:text-gray-300 capitalize">{{ entry.source }}</td>
-              <td class="px-6 py-3 text-sm">
-                <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium"
-                  :class="entry.approved ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'">
-                  {{ entry.approved ? 'Approved' : 'Not Approved' }}
-                </span>
-              </td>
-              <td class="px-6 py-3 text-sm text-gray-600 dark:text-gray-300 max-w-xs" :title="entry.description">
-                {{ entry.account_name || '—' }}
-              </td>
-              <td class="px-6 py-3 text-sm font-mono tabular-nums text-right text-emerald-600 dark:text-emerald-400">
-                {{ entry.debit > 0 ? Number(entry.debit).toFixed(2) : '—' }}
-              </td>
-              <td class="px-6 py-3 text-sm font-mono tabular-nums text-right text-rose-600 dark:text-rose-400">
-                {{ entry.credit > 0 ? Number(entry.credit).toFixed(2) : '—' }}
-              </td>
-              <td
-                class="px-6 py-3 text-sm font-mono tabular-nums text-right font-semibold text-gray-800 dark:text-white/90">
-                {{ Number(entry.balance).toFixed(2) }}
-              </td>
-            </tr>
-          </tbody>
-          <tfoot class="bg-gray-50 dark:bg-gray-800/70 border-t-2 border-gray-200 dark:border-gray-700">
-            <tr>
-              <td colspan="6" class="px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Totals</td>
-              <td class="px-6 py-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                {{ totalDebit.toFixed(2) }}
-              </td>
-              <td class="px-6 py-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
-                {{ totalCredit.toFixed(2) }}
-              </td>
-              <td class="px-6 py-3 text-right font-mono font-bold text-gray-800 dark:text-white/90">
-                {{ totalBalance.toFixed(2) }}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+      <!-- When "All Accounts" is selected - Show all account ledgers -->
+      <div v-else class="space-y-8">
+        <div v-for="account in ledgerData" :key="account.account_id"
+          class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
 
-      <!-- Pagination -->
-      <div v-if="pagination && pagination.last_page > 1"
-        class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          Showing <span class="font-medium">{{ pagination.from || 0 }}</span> to
-          <span class="font-medium">{{ pagination.to || 0 }}</span> of
-          <span class="font-medium">{{ pagination.total || 0 }}</span> entries
-        </p>
-        <div class="flex gap-1">
-          <button @click="changePage(pagination.current_page - 1)" :disabled="!pagination.prev_page_url"
-            class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-            Previous
-          </button>
-          <span class="px-3 py-1 text-sm text-gray-600 dark:text-gray-300">
-            Page {{ pagination.current_page || 1 }} of {{ pagination.last_page || 1 }}
-          </span>
-          <button @click="changePage(pagination.current_page + 1)" :disabled="!pagination.next_page_url"
-            class="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-            Next
-          </button>
+          <!-- Account Header -->
+          <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <div class="flex justify-between items-center">
+              <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">
+                {{ account.account_name }}
+              </h3>
+              <div class="text-right">
+                <p class="text-sm text-gray-500 dark:text-gray-400">Closing Balance</p>
+                <p class="text-lg font-bold"
+                  :class="account.closing_balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
+                  {{ formatCurrency(account.closing_balance) }}
+                  {{ account.closing_balance >= 0 ? (account.account_nature === 'Debit' ? 'Dr' : 'Cr') : (account.account_nature === 'Debit' ? 'Cr' : 'Dr') }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transactions Table -->
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead class="bg-gray-50 dark:bg-gray-800/70">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Date</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Voucher #</th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Particular</th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Debit</th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Credit</th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Balance</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+                <tr v-for="(txn, index) in account.transactions" :key="index"
+                  class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td class="px-6 py-3 text-sm text-gray-700 dark:text-gray-200">{{ formatDate(txn.date) }}</td>
+                  <td class="px-6 py-3 text-sm">
+                    <router-link :to="`/admin/vouchers/${txn.voucher_no}`"
+                      class="text-brand-600 dark:text-brand-400 hover:underline font-medium">
+                      {{ txn.voucher_no }}
+                    </router-link>
+                  </td>
+                  <td class="px-6 py-3 text-sm text-gray-600 dark:text-gray-300">
+                    {{ txn.particular || '—' }}
+                    <span v-if="txn.shipment_code" class="text-xs text-gray-400 ml-2">({{ txn.shipment_code }})</span>
+                  </td>
+                  <td
+                    class="px-6 py-3 text-sm font-mono tabular-nums text-right text-emerald-600 dark:text-emerald-400">
+                    {{ txn.debit > 0 ? Number(txn.debit).toFixed(2) : '—' }}
+                  </td>
+                  <td class="px-6 py-3 text-sm font-mono tabular-nums text-right text-rose-600 dark:text-rose-400">
+                    {{ txn.credit > 0 ? Number(txn.credit).toFixed(2) : '—' }}
+                  </td>
+                  <td class="px-6 py-3 text-sm font-mono tabular-nums text-right font-semibold"
+                    :class="txn.balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'">
+                    {{ Number(txn.balance).toFixed(2) }} {{ txn.balance_type }}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot class="bg-gray-50 dark:bg-gray-800/70 border-t-2 border-gray-200 dark:border-gray-700">
+                <tr>
+                  <td colspan="3" class="px-6 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Totals</td>
+                  <td class="px-6 py-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {{ account.total_debit?.toFixed(2) || '0.00' }}
+                  </td>
+                  <td class="px-6 py-3 text-right font-mono font-bold text-rose-600 dark:text-rose-400">
+                    {{ account.total_credit?.toFixed(2) || '0.00' }}
+                  </td>
+                  <td class="px-6 py-3 text-right font-mono font-bold text-gray-800 dark:text-white/90">
+                    {{ formatCurrency(account.closing_balance) }}
+                    {{ account.closing_balance >= 0 ? (account.account_nature === 'Debit' ? 'Dr' : 'Cr') : (account.account_nature === 'Debit' ? 'Cr' : 'Dr') }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -275,8 +307,8 @@ const router = useRouter()
 const loading = ref(false)
 const accounts = ref<any[]>([])
 const ledgerData = ref<any[]>([])
-const pagination = ref<any>(null)
-const selectedAccountName = ref('All Accounts')
+const selectedAccount = ref<any>(null)
+const transactions = ref<any[]>([])
 
 const datePickerRefs = ref<Record<string, any>>({})
 const flatpickrInstances: Record<string, any> = {}
@@ -286,21 +318,6 @@ const filters = ref({
   from_date: '',
   to_date: '',
   source: '',
-})
-
-// ✅ درست شدہ حساب: Total Debit
-const totalDebit = computed(() => {
-  return ledgerData.value.reduce((sum, entry) => sum + (Number(entry.debit) || 0), 0)
-})
-
-// ✅ درست شدہ حساب: Total Credit
-const totalCredit = computed(() => {
-  return ledgerData.value.reduce((sum, entry) => sum + (Number(entry.credit) || 0), 0)
-})
-
-// ✅ درست شدہ حساب: Net Balance = Total Debit - Total Credit
-const totalBalance = computed(() => {
-  return totalDebit.value - totalCredit.value
 })
 
 const formatCurrency = (value: number) => {
@@ -329,38 +346,37 @@ const fetchAccounts = async () => {
   }
 }
 
-const fetchLedger = async (page = 1) => {
+const onAccountChange = () => {
+  fetchLedger()
+}
+
+const fetchLedger = async () => {
   loading.value = true
   try {
-    const params: any = {
-      page,
-      per_page: 20,
-    }
+    const params: any = {}
     if (filters.value.account_id) params.account_id = filters.value.account_id
     if (filters.value.from_date) params.from_date = filters.value.from_date
     if (filters.value.to_date) params.to_date = filters.value.to_date
     if (filters.value.source) params.source = filters.value.source
 
     const res = await api.get('/admin/ledger', { params })
-    ledgerData.value = res.data.data || []
-    pagination.value = res.data.pagination || null
 
     if (filters.value.account_id) {
-      const account = accounts.value.find(a => a.id === Number(filters.value.account_id))
-      selectedAccountName.value = account?.name || ''
+      // Single account selected
+      selectedAccount.value = res.data.account || null
+      transactions.value = res.data.transactions || []
+      ledgerData.value = []
     } else {
-      selectedAccountName.value = 'All Accounts'
+      // All accounts
+      selectedAccount.value = null
+      transactions.value = []
+      ledgerData.value = res.data.accounts || []
     }
   } catch (e) {
     console.error('Failed to fetch ledger', e)
   } finally {
     loading.value = false
   }
-}
-
-const changePage = (page: number) => {
-  if (page < 1 || page > pagination.value?.last_page) return
-  fetchLedger(page)
 }
 
 const clearFilters = () => {
@@ -396,7 +412,6 @@ const initDatePickers = () => {
   })
 }
 
-// Watch for URL query params
 watch(() => route.query, (newQuery) => {
   const accountId = newQuery.account_id as string
   const fromDate = newQuery.from_date as string

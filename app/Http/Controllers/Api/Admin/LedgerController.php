@@ -46,14 +46,16 @@ class LedgerController extends Controller
             $query->where('account_id', $accountId);
         }
 
-        // ✅ Order by date ASC (oldest first) for correct running balance
-        $details = $query->orderBy('voucher_id', 'asc')
+        // ✅ Get all details ordered by account, then by date
+        $details = $query->orderBy('account_id')
+            ->orderBy('voucher_id', 'asc')
             ->orderBy('id', 'asc')
-            ->paginate($perPage);
+            ->get();
 
-        // Calculate running balance for the selected account only
-        $runningBalance = 0;
-        $results = [];
+        // ✅ Group by account and calculate running balance per account
+        $groupedResults = [];
+        $accountBalances = [];
+        $accountTotals = [];
 
         foreach ($details as $detail) {
             $voucher = $detail->voucher;
@@ -61,6 +63,9 @@ class LedgerController extends Controller
 
             $debit = (float) $detail->debit;
             $credit = (float) $detail->credit;
+            $accountIdKey = $detail->account_id;
+            $accountName = $detail->account->name ?? 'N/A';
+            $accountNature = $detail->account->nature ?? 'Debit';
 
             // Get shipment code if reference is shipment
             $shipmentCode = null;
@@ -71,64 +76,89 @@ class LedgerController extends Controller
                 }
             }
 
-            // ✅ Calculate balance based on account nature
-            if ($account && $account->nature === 'Debit') {
-                // For Debit nature accounts: Balance increases on Debit, decreases on Credit
-                $runningBalance += ($debit - $credit);
-            } else if ($account && $account->nature === 'Credit') {
-                // For Credit nature accounts: Balance increases on Credit, decreases on Debit
-                $runningBalance += ($credit - $debit);
-            } else {
-                // If no account selected, show individual entry balance
-                $runningBalance = ($debit - $credit);
+            // Initialize account group if not exists
+            if (!isset($groupedResults[$accountIdKey])) {
+                $groupedResults[$accountIdKey] = [
+                    'account_id' => $accountIdKey,
+                    'account_name' => $accountName,
+                    'account_nature' => $accountNature,
+                    'transactions' => [],
+                    'total_debit' => 0,
+                    'total_credit' => 0,
+                    'closing_balance' => 0,
+                ];
+                $accountBalances[$accountIdKey] = 0;
             }
 
-            $results[] = [
+            // Calculate running balance based on account nature
+            if ($accountNature === 'Debit') {
+                $accountBalances[$accountIdKey] += $debit;
+                $accountBalances[$accountIdKey] -= $credit;
+            } else {
+                $accountBalances[$accountIdKey] += $credit;
+                $accountBalances[$accountIdKey] -= $debit;
+            }
+
+            // Add transaction to account group
+            $groupedResults[$accountIdKey]['transactions'][] = [
                 'date' => $voucher->date,
                 'voucher_no' => $voucher->voucher_no,
-                'source' => $voucher->source,
-                'approved' => $voucher->approved,
-                'description' => $voucher->description,
-                'account_name' => $detail->account->name ?? 'N/A',
-                'account_id' => $detail->account_id,
+                'particular' => $voucher->description,
+                'shipment_code' => $shipmentCode,
                 'debit' => $debit,
                 'credit' => $credit,
-                'balance' => round($runningBalance, 2),
-                'shipment_code' => $shipmentCode,
-                'reference_type' => $voucher->reference_type,
-                'reference_id' => $voucher->reference_id,
+                'balance' => round($accountBalances[$accountIdKey], 2),
+                'balance_type' => $accountBalances[$accountIdKey] >= 0 ? ($accountNature === 'Debit' ? 'Dr' : 'Cr') : ($accountNature === 'Debit' ? 'Cr' : 'Dr'),
             ];
+
+            // Update totals
+            $groupedResults[$accountIdKey]['total_debit'] += $debit;
+            $groupedResults[$accountIdKey]['total_credit'] += $credit;
+            $groupedResults[$accountIdKey]['closing_balance'] = round($accountBalances[$accountIdKey], 2);
         }
 
-        // ✅ If no account selected, reset balance to show individual entry balance
-        if (!$account) {
-            foreach ($results as &$result) {
-                $result['balance'] = $result['debit'] - $result['credit'];
-            }
+        // Convert to array and sort by account name
+        $accountsData = array_values($groupedResults);
+        usort($accountsData, function ($a, $b) {
+            return strcmp($a['account_name'], $b['account_name']);
+        });
+
+        // ✅ If a specific account is selected, return only that account's transactions
+        if ($accountId) {
+            $accountData = $groupedResults[$accountId] ?? null;
+            return response()->json([
+                'account' => $accountData ? [
+                    'id' => $accountData['account_id'],
+                    'name' => $accountData['account_name'],
+                    'nature' => $accountData['account_nature'],
+                    'total_debit' => $accountData['total_debit'],
+                    'total_credit' => $accountData['total_credit'],
+                    'closing_balance' => $accountData['closing_balance'],
+                ] : null,
+                'transactions' => $accountData ? $accountData['transactions'] : [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => 100,
+                    'total' => count($accountData ? $accountData['transactions'] : []),
+                ],
+            ]);
         }
 
+        // ✅ Return all accounts with their transactions
         return response()->json([
-            'data' => $results,
+            'accounts' => $accountsData,
             'pagination' => [
-                'current_page' => $details->currentPage(),
-                'last_page' => $details->lastPage(),
-                'per_page' => $details->perPage(),
-                'total' => $details->total(),
-                'from' => $details->firstItem(),
-                'to' => $details->lastItem(),
-                'prev_page_url' => $details->previousPageUrl(),
-                'next_page_url' => $details->nextPageUrl(),
+                'current_page' => 1,
+                'last_page' => 1,
+                'per_page' => 100,
+                'total' => count($accountsData),
             ],
-            'account' => $account ? [
-                'id' => $account->id,
-                'name' => $account->name,
-                'nature' => $account->nature,
-            ] : null,
         ]);
     }
 
     /**
-     * Get all accounts with their balances (for the sidebar or summary)
+     * Get all accounts with their balances (for dropdown)
      */
     public function getAccountBalances(Request $request)
     {
@@ -164,10 +194,13 @@ class LedgerController extends Controller
             }
 
             $balance = 0;
+            $balanceType = '';
             if ($account->nature === 'Debit') {
                 $balance = $totalDebit - $totalCredit;
+                $balanceType = $balance >= 0 ? 'Dr' : 'Cr';
             } else {
                 $balance = $totalCredit - $totalDebit;
+                $balanceType = $balance >= 0 ? 'Cr' : 'Dr';
             }
 
             $result[] = [
@@ -178,7 +211,8 @@ class LedgerController extends Controller
                 'nature' => $account->nature,
                 'total_debit' => $totalDebit,
                 'total_credit' => $totalCredit,
-                'balance' => round($balance, 2),
+                'balance' => round(abs($balance), 2),
+                'balance_type' => $balanceType,
             ];
         }
 

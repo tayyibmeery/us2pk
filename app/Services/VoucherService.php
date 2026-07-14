@@ -11,13 +11,21 @@ use Illuminate\Support\Facades\Log;
 
 class VoucherService
 {
+    // public function generateVoucherNumber()
+    // {
+    //     $last = Voucher::orderBy('id', 'desc')->first();
+    //     $next = $last ? intval(substr($last->voucher_no, 4)) + 1 : 1;
+    //     return 'VR-' . str_pad($next, 2, '0', STR_PAD_LEFT);
+    // }
     public function generateVoucherNumber()
     {
+        // ✅ Get the last voucher to find the next ID
         $last = Voucher::orderBy('id', 'desc')->first();
-        $next = $last ? intval(substr($last->voucher_no, 4)) + 1 : 1;
-        return 'USV-' . str_pad($next, 5, '0', STR_PAD_LEFT);
-    }
+        $nextId = $last ? $last->id + 1 : 1;
 
+        // ✅ Return VR-{ID}
+        return 'VR-' . $nextId;
+    }
     public function generateVoucher($source, $referenceType, $referenceId, $date, $description, array $entries, $approved = true)
     {
         foreach ($entries as $index => $entry) {

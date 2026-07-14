@@ -16,8 +16,13 @@ class ConsolidationController extends Controller
     {
         $query = Consolidation::with([
             'warehouse',
-            'shipments.user',        // ✅ Correct: user (singular)
-            'shipments.user.city',   // ✅ Correct: user (singular)
+            'shipments' => function ($query) {
+                $query->with([
+                    'user',
+                    'user.city',
+                    'localCourier'
+                ]);
+            },
             'internationalCourier'
         ]);
 
@@ -77,11 +82,19 @@ class ConsolidationController extends Controller
         $voucherService = new VoucherService();
         $voucherService->generateConsolidationCostVoucher($consolidation);
 
-        // ✅ Load relationships including user (singular)
+        // ✅ Load relationships including user for ALL shipments
         $consolidation->load([
             'warehouse',
-            'shipments.user',        // ✅ Correct: user (singular)
-            'shipments.user.city',   // ✅ Correct: user (singular)
+            'shipments' => function ($query) {
+                $query->with([
+                    'user',
+                    'user.city',
+                    'localCourier',
+                    'site',
+                    'shipmentStatus',
+                    'paymentMethod'
+                ]);
+            },
             'internationalCourier'
         ]);
 
@@ -90,18 +103,18 @@ class ConsolidationController extends Controller
 
     public function show(Consolidation $consolidation)
     {
-        // ✅ Load ALL relationships with user data
+        // ✅ Load ALL relationships with user data for ALL shipments
         $consolidation->load([
             'warehouse',
             'internationalCourier',
             'shipments' => function ($query) {
                 $query->with([
-                    'user',           // ✅ First load the user
-                    'user.city',      // ✅ Then load the user's city
-                    'localCourier',
-                    'site',
-                    'shipmentStatus',
-                    'paymentMethod'
+                    'user',                    // Load user
+                    'user.city',               // Load user's city
+                    'localCourier',            // Load local courier
+                    'site',                    // Load site
+                    'shipmentStatus',          // Load status
+                    'paymentMethod'            // Load payment method
                 ]);
             }
         ]);
@@ -112,13 +125,24 @@ class ConsolidationController extends Controller
         // Refresh to get stored columns
         $consolidation->refresh();
 
-        // ✅ Log for debugging
-        Log::info('Consolidation show', [
+        // ✅ Log for debugging - check ALL shipments
+        $shipmentData = [];
+        foreach ($consolidation->shipments as $index => $shipment) {
+            $shipmentData[] = [
+                'index' => $index,
+                'shipment_code' => $shipment->shipment_code,
+                'user_id' => $shipment->user_id,
+                'has_user' => $shipment->user ? 'Yes' : 'No',
+                'user_name' => $shipment->user?->name ?? 'No user',
+                'user_city' => $shipment->user?->city?->city_name ?? 'No city',
+                'local_courier' => $shipment->localCourier?->name ?? 'No courier'
+            ];
+        }
+
+        Log::info('Consolidation show - All Shipments', [
             'consolidation_id' => $consolidation->id,
             'shipments_count' => $consolidation->shipments->count(),
-            'first_shipment_has_user' => $consolidation->shipments->first()?->user ? 'Yes' : 'No',
-            'first_shipment_user_name' => $consolidation->shipments->first()?->user?->name ?? 'No user',
-            'first_shipment_user_city' => $consolidation->shipments->first()?->user?->city?->city_name ?? 'No city'
+            'shipments' => $shipmentData
         ]);
 
         return response()->json($consolidation);
@@ -180,11 +204,19 @@ class ConsolidationController extends Controller
         // Create new voucher
         $voucherService->generateConsolidationCostVoucher($consolidation);
 
-        // ✅ Load relationships including user (singular)
+        // ✅ Load relationships including user for ALL shipments
         $consolidation->load([
             'warehouse',
-            'shipments.user',        // ✅ Correct: user (singular)
-            'shipments.user.city',   // ✅ Correct: user (singular)
+            'shipments' => function ($query) {
+                $query->with([
+                    'user',
+                    'user.city',
+                    'localCourier',
+                    'site',
+                    'shipmentStatus',
+                    'paymentMethod'
+                ]);
+            },
             'internationalCourier'
         ]);
 
@@ -236,7 +268,7 @@ class ConsolidationController extends Controller
     public function shipmentDetails(Request $request)
     {
         $shipmentCode = $request->input('shipment_tracker_id');
-        $shipment = Shipment::with('user.city')
+        $shipment = Shipment::with(['user', 'user.city', 'localCourier'])
             ->where('shipment_code', $shipmentCode)
             ->first();
 

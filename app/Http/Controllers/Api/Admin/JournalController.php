@@ -13,7 +13,7 @@ class JournalController extends Controller
         $query = Voucher::with('details.account')
             ->where('is_deleted', false)
             ->where('approved', true)
-            ->orderBy('date', 'desc');
+            ->orderBy('id', 'desc');
 
         if ($request->id) $query->where('voucher_no', 'like', "%{$request->id}%");
         if ($request->description) $query->where('description', 'like', "%{$request->description}%");

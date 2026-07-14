@@ -3,16 +3,17 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Models\Account;
-use App\Models\Voucher;
+use App\Models\VoucherDetail;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ProfitLossController extends Controller
 {
     protected function getAccountBalance($account, $start, $end)
     {
-        $query = $account->voucherDetails()
+        $query = VoucherDetail::where('account_id', $account->id)
             ->whereHas('voucher', function ($q) use ($start, $end) {
                 $q->where('approved', true)
                     ->where('is_deleted', false);
@@ -20,22 +21,29 @@ class ProfitLossController extends Controller
                 if ($end) $q->whereDate('date', '<=', $end);
             });
 
-        $debit = $query->sum('debit');
-        $credit = $query->sum('credit');
-        $balance = $debit - $credit;
+        $debit = $query->sum('debit') ?? 0;
+        $credit = $query->sum('credit') ?? 0;
 
-        if ($account->nature === 'Credit') {
-            $balance = $credit - $debit;
+        if ($account->nature === 'Debit') {
+            return $debit - $credit;
+        } else {
+            return $credit - $debit;
         }
-        return $balance;
     }
 
     protected function buildPL($accounts, $start, $end)
     {
-        $groups = ['Revenue', 'Cost of Sales', 'Operating Expenses', 'Other Project Expenses'];
-        $result = [];
+        $groups = [
+            'Revenue' => ['icon' => '📈', 'color' => 'text-emerald-600'],
+            'Cost of Sales' => ['icon' => '📦', 'color' => 'text-orange-600'],
+            'Operating Expenses' => ['icon' => '💼', 'color' => 'text-blue-600'],
+            'Other Project Expenses' => ['icon' => '📋', 'color' => 'text-purple-600'],
+        ];
 
-        foreach ($groups as $group) {
+        $result = [];
+        $grandTotal = 0;
+
+        foreach ($groups as $group => $info) {
             $groupAccounts = $accounts->filter(function ($account) use ($group) {
                 return $account->pandlcategory === $group;
             });
@@ -44,15 +52,25 @@ class ProfitLossController extends Controller
             $details = [];
             foreach ($groupAccounts as $account) {
                 $balance = $this->getAccountBalance($account, $start, $end);
-                if ($balance != 0) {
-                    $details[$account->name] = $balance;
+                if (abs($balance) > 0.01) {
+                    $details[$account->name] = [
+                        'amount' => $balance,
+                        'code' => $account->code,
+                    ];
                     $total += $balance;
                 }
             }
-            $result[$group] = ['total' => $total, 'details' => $details];
+
+            $result[$group] = [
+                'total' => $total,
+                'details' => $details,
+                'icon' => $info['icon'],
+                'color' => $info['color'],
+            ];
+            $grandTotal += $total;
         }
 
-        // Calculate Gross Profit, Operating Profit, Net Profit
+        // Calculate Profit Metrics
         $revenue = $result['Revenue']['total'] ?? 0;
         $costOfSales = $result['Cost of Sales']['total'] ?? 0;
         $operatingExpenses = $result['Operating Expenses']['total'] ?? 0;
@@ -62,24 +80,34 @@ class ProfitLossController extends Controller
         $operatingProfit = $grossProfit - $operatingExpenses;
         $netProfit = $operatingProfit - $otherExpenses;
 
-        // Allocations (5%, 15%, 80%) – we can compute based on gross or net
+        // Profitability Ratios
+        $grossProfitMargin = $revenue != 0 ? ($grossProfit / $revenue) * 100 : 0;
+        $netProfitMargin = $revenue != 0 ? ($netProfit / $revenue) * 100 : 0;
+
+        // Allocations
         $allocations = [];
         if ($netProfit != 0) {
-            $allocations['5%'] = $netProfit * 0.05;
-            $allocations['15%'] = $netProfit * 0.15;
-            $allocations['80%'] = $netProfit * 0.80;
+            $allocations[] = ['name' => '5% Allocation', 'amount' => $netProfit * 0.05, 'percentage' => '5%'];
+            $allocations[] = ['name' => '15% Allocation', 'amount' => $netProfit * 0.15, 'percentage' => '15%'];
+            $allocations[] = ['name' => '80% Allocation', 'amount' => $netProfit * 0.80, 'percentage' => '80%'];
         }
 
         return [
             'revenue' => $revenue,
             'cost_of_sales' => $costOfSales,
             'gross_profit' => $grossProfit,
+            'gross_profit_margin' => $grossProfitMargin,
             'operating_expenses' => $operatingExpenses,
             'operating_profit' => $operatingProfit,
             'other_expenses' => $otherExpenses,
             'net_profit' => $netProfit,
+            'net_profit_margin' => $netProfitMargin,
             'allocations' => $allocations,
             'details' => $result,
+            'period' => [
+                'start' => $start ? $start->format('Y-m-d') : 'Inception',
+                'end' => $end ? $end->format('Y-m-d') : 'Present',
+            ],
         ];
     }
 
@@ -93,10 +121,11 @@ class ProfitLossController extends Controller
     public function yearly(Request $request)
     {
         $year = $request->year ?? now()->year;
-        $start = Carbon::create($year, 1, 1);
-        $end = Carbon::create($year, 12, 31);
+        $start = Carbon::create($year, 1, 1)->startOfDay();
+        $end = Carbon::create($year, 12, 31)->endOfDay();
         $accounts = Account::where('is_active', true)->get();
         $data = $this->buildPL($accounts, $start, $end);
+        $data['period']['year'] = $year;
         return response()->json($data);
     }
 
@@ -104,10 +133,12 @@ class ProfitLossController extends Controller
     {
         $year = $request->year ?? now()->year;
         $quarter = $request->quarter ?? ceil(now()->month / 3);
-        $start = Carbon::create($year, ($quarter - 1) * 3 + 1, 1);
-        $end = Carbon::create($year, $quarter * 3, 1)->endOfMonth();
+        $start = Carbon::create($year, ($quarter - 1) * 3 + 1, 1)->startOfDay();
+        $end = Carbon::create($year, $quarter * 3, 1)->endOfMonth()->endOfDay();
         $accounts = Account::where('is_active', true)->get();
         $data = $this->buildPL($accounts, $start, $end);
+        $data['period']['year'] = $year;
+        $data['period']['quarter'] = $quarter;
         return response()->json($data);
     }
 
@@ -115,69 +146,70 @@ class ProfitLossController extends Controller
     {
         $year = $request->year ?? now()->year;
         $month = $request->month ?? now()->month;
-        $start = Carbon::create($year, $month, 1);
-        $end = Carbon::create($year, $month, 1)->endOfMonth();
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end = Carbon::create($year, $month, 1)->endOfMonth()->endOfDay();
         $accounts = Account::where('is_active', true)->get();
         $data = $this->buildPL($accounts, $start, $end);
+        $data['period']['year'] = $year;
+        $data['period']['month'] = $month;
+        $data['period']['month_name'] = Carbon::create($year, $month, 1)->format('F');
         return response()->json($data);
     }
 
-    /**
-     * Generate Balance Sheet
-     */
     public function balanceSheet(Request $request)
     {
         $year = $request->year ?? now()->year;
         $month = $request->month ?? now()->month;
         $day = $request->day ?? now()->day;
 
-        // For balance sheet, we want data up to a specific date
         $endDate = Carbon::create($year, $month, $day)->endOfDay();
-        $startDate = Carbon::create(2000, 1, 1); // From the beginning or any cutoff
+        $startDate = Carbon::create(2000, 1, 1)->startOfDay();
 
-        // Get all active accounts
         $accounts = Account::where('is_active', true)->get();
 
-        // Classify accounts by type
+        // Classify accounts by ACC class
         $assetAccounts = $accounts->filter(function ($account) {
-            return $account->type === 'Asset';
+            return strtolower($account->acc_class) === 'assets';
         });
 
         $liabilityAccounts = $accounts->filter(function ($account) {
-            return $account->type === 'Liability';
+            return strtolower($account->acc_class) === 'liabilities';
         });
 
         $equityAccounts = $accounts->filter(function ($account) {
-            return $account->type === 'Equity';
+            return strtolower($account->acc_class) === 'equity';
         });
 
-        // Calculate balances
         $assets = $this->calculateBalances($assetAccounts, $startDate, $endDate);
         $liabilities = $this->calculateBalances($liabilityAccounts, $startDate, $endDate);
         $equity = $this->calculateBalances($equityAccounts, $startDate, $endDate);
 
-        // Calculate totals
         $totalAssets = array_sum(array_column($assets, 'balance'));
         $totalLiabilities = array_sum(array_column($liabilities, 'balance'));
         $totalEquity = array_sum(array_column($equity, 'balance'));
 
-        // Add net profit/loss to equity if we have P&L for the period
+        // Add net profit/loss to equity
         $netProfit = $this->getNetProfit($startDate, $endDate);
-
-        // If net profit is positive, add to retained earnings
-        // If negative, subtract from retained earnings
-        $equity['Net Profit/Loss'] = [
+        $equity[] = [
+            'id' => null,
             'name' => 'Net Profit/Loss',
             'balance' => $netProfit,
-            'type' => 'Equity'
+            'nature' => 'Credit',
+            'category' => 'Equity'
         ];
         $totalEquity += $netProfit;
 
-        // The accounting equation should balance: Assets = Liabilities + Equity
         $liabilitiesAndEquity = $totalLiabilities + $totalEquity;
+        $difference = $totalAssets - $liabilitiesAndEquity;
 
         return response()->json([
             'date' => $endDate->format('Y-m-d'),
+            'period' => [
+                'year' => $year,
+                'month' => $month,
+                'day' => $day,
+                'formatted' => $endDate->format('F d, Y'),
+            ],
             'assets' => [
                 'items' => $assets,
                 'total' => $totalAssets
@@ -191,14 +223,17 @@ class ProfitLossController extends Controller
                 'total' => $totalEquity
             ],
             'total_liabilities_equity' => $liabilitiesAndEquity,
-            'difference' => $totalAssets - $liabilitiesAndEquity, // Should be 0
-            'equation_balanced' => ($totalAssets - $liabilitiesAndEquity) == 0
+            'difference' => $difference,
+            'equation_balanced' => abs($difference) < 0.01,
+            'summary' => [
+                'assets' => $totalAssets,
+                'liabilities' => $totalLiabilities,
+                'equity' => $totalEquity,
+                'total' => $liabilitiesAndEquity,
+            ]
         ]);
     }
 
-    /**
-     * Calculate balances for a collection of accounts
-     */
     protected function calculateBalances($accounts, $start, $end)
     {
         $result = [];
@@ -206,40 +241,32 @@ class ProfitLossController extends Controller
         foreach ($accounts as $account) {
             $balance = $this->getAccountBalance($account, $start, $end);
 
-            // Only include accounts with non-zero balance
-            if ($balance != 0) {
+            if (abs($balance) > 0.01) {
                 $result[] = [
                     'id' => $account->id,
                     'name' => $account->name,
+                    'code' => $account->code,
                     'balance' => $balance,
-                    'type' => $account->type,
                     'nature' => $account->nature,
                     'category' => $account->pandlcategory ?? 'General'
                 ];
             }
         }
 
+        usort($result, function ($a, $b) {
+            return strcmp($a['name'], $b['name']);
+        });
+
         return $result;
     }
 
-    /**
-     * Get net profit/loss for a specific period
-     */
     protected function getNetProfit($start, $end)
     {
-        // Get all active accounts
         $accounts = Account::where('is_active', true)->get();
-
-        // Build P&L for the period
         $plData = $this->buildPL($accounts, $start, $end);
-
-        // Return the net profit
         return $plData['net_profit'] ?? 0;
     }
 
-    /**
-     * Balance Sheet as of today (convenience method)
-     */
     public function balanceSheetToday()
     {
         return $this->balanceSheet(new Request([
@@ -249,19 +276,13 @@ class ProfitLossController extends Controller
         ]));
     }
 
-    /**
-     * Balance Sheet with year/month selection
-     */
     public function balanceSheetYearly(Request $request)
     {
         $year = $request->year ?? now()->year;
-        $month = $request->month ?? 12;
-        $day = $request->day ?? 31;
-
         return $this->balanceSheet(new Request([
             'year' => $year,
-            'month' => $month,
-            'day' => $day
+            'month' => 12,
+            'day' => 31
         ]));
     }
 }
