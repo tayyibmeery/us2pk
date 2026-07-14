@@ -4,7 +4,13 @@ import api from '@/services/api';
 export interface PaymentMethod {
   id: number;
   name: string;
+  account_id: number | null;  // ← ADD THIS
   status: boolean;
+  account?: {                 // ← ADD THIS for nested relation
+    id: number;
+    name: string;
+    code: string;
+  };
   created_at?: string;
   updated_at?: string;
 }
@@ -27,7 +33,9 @@ export const usePaymentMethodStore = defineStore('paymentMethod', {
       this.loading = true;
       this.error = null;
       try {
-        const res = await api.get('/admin/payment-methods', { params: { page, ...params } });
+        const res = await api.get('/admin/payment-methods', {
+          params: { page, ...params }
+        });
         this.items = res.data.data;
         this.pagination = {
           current_page: res.data.current_page,

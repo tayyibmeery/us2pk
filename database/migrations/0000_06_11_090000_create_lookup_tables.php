@@ -17,17 +17,12 @@ return new class extends Migration
         });
 
         // 2. Payment Methods
-        Schema::create('payment_methods', function (Blueprint $table) {
-            $table->id();
-            $table->string('name')->unique();
-            $table->foreignId('account_id')
-                ->nullable()
-
-                ->constrained('accounts')
-                ->nullOnDelete();
-            $table->boolean('status')->default(true);
-            $table->timestamps();
-        });
+        // Schema::create('payment_methods', function (Blueprint $table) {
+        //     $table->id();
+        //     $table->string('name')->unique();
+        //     $table->boolean('status')->default(true);
+        //     $table->timestamps();
+        // });
 
         // 3. Local Couriers (renamed from delivery_services)
         Schema::create('local_couriers', function (Blueprint $table) {

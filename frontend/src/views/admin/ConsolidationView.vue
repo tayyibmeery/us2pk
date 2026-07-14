@@ -47,8 +47,9 @@
         </div>
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
           <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Net Receivable from Courier</p>
-          <p class="text-xl font-bold text-green-600 dark:text-green-400">PKR
-            {{ (Number(consolidation.receivable_from_courier) || 0).toLocaleString() }}
+          <p class="text-xl font-bold"
+            :class="(Number(consolidation.receivable_from_courier) || 0) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+            PKR {{ (Number(consolidation.receivable_from_courier) || 0).toLocaleString() }}
           </p>
         </div>
       </div>
@@ -92,17 +93,21 @@
             <div class="flex justify-between text-sm border-b border-blue-200 dark:border-blue-800/30 py-1">
               <span class="font-medium text-gray-600 dark:text-gray-400">Gross COD Collected</span>
               <span class="text-gray-800 dark:text-white/90">PKR
-                {{consolidation.shipments?.reduce((sum, s) => sum + (Number(s.receivable_cod) || 0), 0).toLocaleString()}}</span>
+                {{consolidation.shipments?.reduce((sum, s) => sum + (Number(s.receivable_cod) || 0), 0).toLocaleString() || '0'}}
+              </span>
             </div>
             <div class="flex justify-between text-sm border-b border-blue-200 dark:border-blue-800/30 py-1">
               <span class="font-medium text-gray-600 dark:text-gray-400">Less: Local Delivery Charges</span>
               <span class="text-red-600 dark:text-red-400">- PKR
-                {{ (Number(consolidation.courier_charges) || 0).toLocaleString() }}</span>
+                {{ (Number(consolidation.courier_charges) || 0).toLocaleString() }}
+              </span>
             </div>
             <div class="flex justify-between text-sm font-bold pt-2">
               <span class="text-gray-800 dark:text-white/90">Net Receivable</span>
-              <span class="text-green-700 dark:text-green-400">PKR
-                {{ (Number(consolidation.receivable_from_courier) || 0).toLocaleString() }}</span>
+              <span
+                :class="(Number(consolidation.receivable_from_courier) || 0) >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                PKR {{ (Number(consolidation.receivable_from_courier) || 0).toLocaleString() }}
+              </span>
             </div>
           </div>
         </div>
@@ -117,11 +122,6 @@
               <span class="font-medium text-gray-500 dark:text-gray-400">Total US2PK Revenue</span>
               <span class="font-bold text-gray-800 dark:text-white/90">PKR
                 {{ (Number(consolidation.total_us2pk_charges) || 0).toLocaleString() }}</span>
-            </div>
-            <div class="flex justify-between border-b border-gray-100 py-1 dark:border-gray-700/50">
-              <span class="font-medium text-gray-500 dark:text-gray-400">Local Delivery Charges</span>
-              <span class="text-gray-800 dark:text-white/90">PKR
-                {{ (Number(consolidation.courier_charges) || 0).toLocaleString() }}</span>
             </div>
             <div class="flex justify-between border-b border-gray-100 py-1 dark:border-gray-700/50">
               <span class="font-medium text-gray-500 dark:text-gray-400">Warehouse Charges</span>
@@ -185,27 +185,6 @@
             </div>
           </div>
         </div>
-        <!-- <div class="rounded-xl border border-gray-200 p-5 dark:border-gray-700">
-          <h3 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-            🧾 Sales Tax Liability
-          </h3>
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between border-b border-gray-100 py-1 dark:border-gray-700/50">
-              <span class="font-medium text-gray-500 dark:text-gray-400">Output Sales Tax</span>
-              <span>PKR {{ (Number(consolidation.output_sales_tax) || 0).toLocaleString() }}</span>
-            </div>
-            <div class="flex justify-between border-b border-gray-100 py-1 dark:border-gray-700/50">
-              <span class="font-medium text-gray-500 dark:text-gray-400">Less: Input Tax</span>
-              <span>PKR {{ (Number(consolidation.sales_tax) || 0).toLocaleString() }}</span>
-            </div>
-            <div class="flex justify-between font-bold pt-2 border-t border-gray-200 dark:border-gray-600">
-              <span>Net ST Payable</span>
-              <span :class="(Number(consolidation.net_st_payable) || 0) >= 0 ? 'text-red-600' : 'text-green-600'">
-                PKR {{ (Number(consolidation.net_st_payable) || 0).toLocaleString() }}
-              </span>
-            </div>
-          </div>
-        </div> -->
       </div>
 
       <!-- Shipments Table -->
@@ -239,9 +218,6 @@
                 <th
                   class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   US2PK</th>
-                <!-- <th
-                  class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Amount Due</th> -->
                 <th
                   class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Receivable COD</th>
@@ -256,6 +232,7 @@
                   Output Tax</th>
               </tr>
             </thead>
+
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900/50">
               <tr v-for="s in consolidation.shipments" :key="s.id"
                 class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
@@ -264,14 +241,11 @@
                 <td class="px-3 py-2 text-sm">{{ s.user?.city?.city_name || '—' }}</td>
                 <td class="px-3 py-2 text-sm">{{ formatDate(s.arrival_date) || '—' }}</td>
                 <td class="px-3 py-2 text-sm max-w-xs truncate" :title="s.description">
-                  {{ truncateWords(s.description, 10) || '—' }}
-                </td>
+                  {{ truncateWords(s.description, 10) || '—' }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.weight_kgs) || 0).toFixed(2) }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.company_charges) || 0).toLocaleString() }}</td>
-                <!-- <td class="px-3 py-2 text-right text-sm">{{ (Number(s.amount_due) || 0).toLocaleString() }}</td> -->
                 <td class="px-3 py-2 text-right text-sm font-medium">
-                  {{ (Number(s.receivable_cod) || 0).toLocaleString() }}
-                </td>
+                  {{ (Number(s.receivable_cod) || 0).toLocaleString() }}</td>
                 <td class="px-3 py-2 text-sm">{{ s.local_courier?.name || '—' }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.delivery_charges) || 0).toFixed(2) }}</td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(s.output_tax) || 0).toFixed(2) }}</td>
@@ -285,12 +259,9 @@
                   {{consolidation.shipments?.reduce((sum, s) => sum + (Number(s.company_charges) || 0), 0).toLocaleString()}}
                 </td>
                 <td class="px-3 py-2 text-right text-sm">
-                  {{consolidation.shipments?.reduce((sum, s) => sum + (Number(s.amount_due) || 0), 0).toLocaleString()}}
-                </td>
-                <td class="px-3 py-2 text-right text-sm">
                   {{consolidation.shipments?.reduce((sum, s) => sum + (Number(s.receivable_cod) || 0), 0).toLocaleString()}}
                 </td>
-                <td class="px-3 py-2 text-sm"></td> <!-- Local Courier placeholder -->
+                <td class="px-3 py-2 text-sm"></td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(consolidation.courier_charges) || 0).toFixed(2) }}
                 </td>
                 <td class="px-3 py-2 text-right text-sm">{{ (Number(consolidation.output_sales_tax) || 0).toFixed(2) }}
@@ -321,6 +292,8 @@ async function fetchConsolidation() {
   try {
     const res = await api.get(`/admin/consolidations/${route.params.id}`)
     consolidation.value = res.data
+    console.log(consolidation.value);
+
     pageTitle.value = `${consolidation.value.consol_id} - Details`
   } catch (err) {
     console.error(err)

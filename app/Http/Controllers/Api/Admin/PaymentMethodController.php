@@ -19,13 +19,16 @@ class PaymentMethodController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'   => 'required|string|max:255|unique:payment_methods,name',
+            'name' => 'required|string|unique:payment_methods',
+            'account_id' => 'nullable|exists:accounts,id',
             'status' => 'boolean',
         ]);
 
-        $method = PaymentMethod::create($validated);
-        return response()->json($method, 201);
+        $paymentMethod = PaymentMethod::create($validated);
+        return response()->json($paymentMethod, 201);
     }
+
+
 
     public function show(PaymentMethod $paymentMethod)
     {
@@ -35,7 +38,8 @@ class PaymentMethodController extends Controller
     public function update(Request $request, PaymentMethod $paymentMethod)
     {
         $validated = $request->validate([
-            'name'   => ['sometimes', 'string', 'max:255', Rule::unique('payment_methods')->ignore($paymentMethod->id)],
+            'name' => 'sometimes|string|unique:payment_methods,name,' . $paymentMethod->id,
+            'account_id' => 'nullable|exists:accounts,id',
             'status' => 'boolean',
         ]);
 

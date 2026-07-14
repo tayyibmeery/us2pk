@@ -88,9 +88,43 @@ class VoucherService
         return Account::where('name', $name)->value('id');
     }
 
-    private function getAccountForPaymentMethod($paymentMethodName)
+    // private function getAccountForPaymentMethod($paymentMethodName)
+    // {
+    //     $accountMap = [
+    //         'Bank Transfer' => 'Cash Account',
+    //         'Cash' => 'Cash Account',
+    //         'JazzCash' => 'Cash Account',
+    //         'EasyPaisa' => 'Cash Account',
+    //         'Credit Card' => 'Cash Account',
+    //         'Bank Transfer (IBFT)' => 'Cash Account',
+    //         'Cheque' => 'Cash Account',
+    //     ];
+    //     return $accountMap[$paymentMethodName] ?? 'Cash Account';
+    // }
+    /**
+     * Get account ID for a payment method
+     * First tries to get from payment_method->account_id mapping
+     * If not found, falls back to Cash Account
+     */
+    private function getAccountForPaymentMethod($paymentMethodId, $paymentMethodName = null)
     {
-        $accountMap = [
+        // If payment_method_id is provided, try to get the mapped account
+        if ($paymentMethodId) {
+            $paymentMethod = \App\Models\PaymentMethod::with('account')
+                ->where('id', $paymentMethodId)
+                ->first();
+
+            if ($paymentMethod && $paymentMethod->account_id) {
+                Log::info('Using mapped account for payment method', [
+                    'payment_method' => $paymentMethod->name,
+                    'account' => $paymentMethod->account?->name ?? 'Not found'
+                ]);
+                return $paymentMethod->account_id;
+            }
+        }
+
+        // Fallback: Use the hardcoded mapping
+        $fallbackMap = [
             'Bank Transfer' => 'Cash Account',
             'Cash' => 'Cash Account',
             'JazzCash' => 'Cash Account',
@@ -98,9 +132,191 @@ class VoucherService
             'Credit Card' => 'Cash Account',
             'Bank Transfer (IBFT)' => 'Cash Account',
             'Cheque' => 'Cash Account',
+            'Cash on Delivery' => 'Cash Account',
         ];
-        return $accountMap[$paymentMethodName] ?? 'Cash Account';
+
+        $accountName = $fallbackMap[$paymentMethodName] ?? 'Cash Account';
+        return $this->getAccountId($accountName);
     }
+
+    // public function generateShipmentVouchers($shipment)
+    // {
+    //     $total = ($shipment->item_value_pkr ?? 0) + ($shipment->company_charges ?? 0);
+    //     $received = $shipment->received_amount ?? 0;
+    //     $courierCharges = $shipment->delivery_charges ?? 0;
+
+    //     $grossCod = max(0, $total - $received);
+    //     $netReceivable = max(0, $grossCod - $courierCharges);
+
+    //     $date = $shipment->created_at->toDateString();
+
+    //     $debtorAccountId = $this->getAccountId('Debtors');
+    //     $revenueShippingAccountId = $this->getAccountId('Revenue - Shipping');
+    //     $costOfSalesAccountId = $this->getAccountId('Cost of Sales - Items');
+    //     $inventoryAccountId = $this->getAccountId('Inventory');
+    //     $courierExpenseAccountId = $this->getAccountId('Courier Charges Expense');
+
+    //     $paymentMethodName = $shipment->paymentMethod?->name ?? 'Cash';
+    //     $paymentAccountName = $this->getAccountForPaymentMethod($paymentMethodName);
+    //     // $paymentAccountId = $this->getAccountId($paymentAccountName);
+    //     $paymentAccountId = $this->getAccountForPaymentMethod($shipment->payment_method_id, $paymentMethodName);
+
+    //     $vouchers = [];
+
+    //     // ============================================================
+    //     // 1. REVENUE RECOGNITION VOUCHER - SIMPLE AND CLEAN
+    //     // ============================================================
+    //     if ($total > 0 && $debtorAccountId && $revenueShippingAccountId) {
+    //         Log::info('Generating Revenue Recognition', [
+    //             'shipment' => $shipment->shipment_code,
+    //             'bought_by' => $shipment->bought_by,
+    //             'total' => $total,
+    //             'received' => $received,
+    //             'gross_cod' => $grossCod,
+    //             'courier_charges' => $courierCharges,
+    //             'net_receivable' => $netReceivable
+    //         ]);
+
+    //         // SIMPLE APPROACH: Recognize revenue at gross amount
+    //         // Dr: Debtors = Total amount
+    //         // Cr: Revenue - Shipping = Total amount
+    //         $entries1 = [
+    //             [
+    //                 'account_id' => $debtorAccountId,
+    //                 'debit' => $total,
+    //                 'credit' => 0,
+    //                 'description' => "Revenue from shipment {$shipment->shipment_code}"
+    //             ],
+    //             [
+    //                 'account_id' => $revenueShippingAccountId,
+    //                 'debit' => 0,
+    //                 'credit' => $total,
+    //                 'description' => "Revenue from shipment {$shipment->shipment_code}"
+    //             ]
+    //         ];
+
+    //         $vouchers[] = $this->generateVoucher(
+    //             'system',
+    //             'shipment_revenue',
+    //             $shipment->id,
+    //             $date,
+    //             "Shipment Created - Revenue Recognition for {$shipment->shipment_code}",
+    //             $entries1
+    //         );
+    //     }
+
+    //     // ============================================================
+    //     // 2. COURIER CHARGES VOUCHER (ONLY if courier charges exist)
+    //     // ============================================================
+    //     // This reduces the Debtors by the courier charges
+    //     if ($courierCharges > 0 && $courierExpenseAccountId && $debtorAccountId) {
+    //         Log::info('Creating courier charges voucher', [
+    //             'shipment' => $shipment->shipment_code,
+    //             'courier_charges' => $courierCharges
+    //         ]);
+
+    //         // Dr: Courier Charges Expense = 200
+    //         // Cr: Debtors = 200 (Reduce the receivable)
+    //         $entriesCourier = [
+    //             [
+    //                 'account_id' => $courierExpenseAccountId,
+    //                 'debit' => $courierCharges,
+    //                 'credit' => 0,
+    //                 'description' => "Courier charges for {$shipment->shipment_code}"
+    //             ],
+    //             [
+    //                 'account_id' => $debtorAccountId,
+    //                 'debit' => 0,
+    //                 'credit' => $courierCharges,
+    //                 'description' => "Courier charges reducing debtor for {$shipment->shipment_code}"
+    //             ]
+    //         ];
+
+    //         $vouchers[] = $this->generateVoucher(
+    //             'system',
+    //             'shipment_courier',
+    //             $shipment->id,
+    //             $date,
+    //             "Courier Charges Deduction for {$shipment->shipment_code}",
+    //             $entriesCourier
+    //         );
+    //     }
+
+    //     // ============================================================
+    //     // 3. ADVANCE PAYMENT VOUCHER
+    //     // ============================================================
+    //     if ($received > 0 && $paymentAccountId && $debtorAccountId) {
+    //         Log::info('Creating advance payment voucher', [
+    //             'shipment' => $shipment->shipment_code,
+    //             'amount' => $received,
+    //             'payment_account' => $paymentAccountName,
+    //         ]);
+
+    //         $entries2 = [
+    //             [
+    //                 'account_id' => $paymentAccountId,
+    //                 'debit' => $received,
+    //                 'credit' => 0,
+    //                 'description' => "Customer advance for shipment {$shipment->shipment_code}"
+    //             ],
+    //             [
+    //                 'account_id' => $debtorAccountId,
+    //                 'debit' => 0,
+    //                 'credit' => $received,
+    //                 'description' => "Customer advance for shipment {$shipment->shipment_code}"
+    //             ]
+    //         ];
+
+    //         $vouchers[] = $this->generateVoucher(
+    //             'system',
+    //             'shipment_advance',
+    //             $shipment->id,
+    //             $date,
+    //             "Customer Advance Received for {$shipment->shipment_code}",
+    //             $entries2
+    //         );
+    //     }
+
+    //     // ============================================================
+    //     // 4. COST RECOGNITION VOUCHER (ONLY if Bought By Company AND item_value > 0)
+    //     // ============================================================
+    //     $itemValue = $shipment->item_value_pkr ?? 0;
+    //     if ($itemValue > 0 && $costOfSalesAccountId && $inventoryAccountId && $shipment->bought_by === 'By Company') {
+    //         $entries3 = [
+    //             [
+    //                 'account_id' => $costOfSalesAccountId,
+    //                 'debit' => $itemValue,
+    //                 'credit' => 0,
+    //                 'description' => "Cost of items for shipment {$shipment->shipment_code}"
+    //             ],
+    //             [
+    //                 'account_id' => $inventoryAccountId,
+    //                 'debit' => 0,
+    //                 'credit' => $itemValue,
+    //                 'description' => "Inventory reduction for shipment {$shipment->shipment_code}"
+    //             ]
+    //         ];
+
+    //         $vouchers[] = $this->generateVoucher(
+    //             'system',
+    //             'shipment_cost',
+    //             $shipment->id,
+    //             $date,
+    //             "Company Purchased Items - Cost Recognition for {$shipment->shipment_code}",
+    //             $entries3
+    //         );
+    //     }
+
+    //     Log::info('Shipment vouchers generated', [
+    //         'shipment' => $shipment->shipment_code,
+    //         'bought_by' => $shipment->bought_by,
+    //         'voucher_count' => count($vouchers),
+    //         'received_amount' => $received,
+    //         'courier_charges' => $courierCharges
+    //     ]);
+
+    //     return $vouchers;
+    // }
 
     public function generateShipmentVouchers($shipment)
     {
@@ -120,14 +336,16 @@ class VoucherService
         $courierExpenseAccountId = $this->getAccountId('Courier Charges Expense');
 
         $paymentMethodName = $shipment->paymentMethod?->name ?? 'Cash';
-        $paymentAccountName = $this->getAccountForPaymentMethod($paymentMethodName);
-        $paymentAccountId = $this->getAccountId($paymentAccountName);
+
+        // Get the payment account ID using the new method
+        $paymentAccountId = $this->getAccountForPaymentMethod(
+            $shipment->payment_method_id,
+            $paymentMethodName
+        );
 
         $vouchers = [];
 
-        // ============================================================
-        // 1. REVENUE RECOGNITION VOUCHER - SIMPLE AND CLEAN
-        // ============================================================
+        // 1. REVENUE RECOGNITION
         if ($total > 0 && $debtorAccountId && $revenueShippingAccountId) {
             Log::info('Generating Revenue Recognition', [
                 'shipment' => $shipment->shipment_code,
@@ -139,9 +357,6 @@ class VoucherService
                 'net_receivable' => $netReceivable
             ]);
 
-            // SIMPLE APPROACH: Recognize revenue at gross amount
-            // Dr: Debtors = Total amount
-            // Cr: Revenue - Shipping = Total amount
             $entries1 = [
                 [
                     'account_id' => $debtorAccountId,
@@ -167,18 +382,13 @@ class VoucherService
             );
         }
 
-        // ============================================================
-        // 2. COURIER CHARGES VOUCHER (ONLY if courier charges exist)
-        // ============================================================
-        // This reduces the Debtors by the courier charges
+        // 2. COURIER CHARGES VOUCHER
         if ($courierCharges > 0 && $courierExpenseAccountId && $debtorAccountId) {
             Log::info('Creating courier charges voucher', [
                 'shipment' => $shipment->shipment_code,
                 'courier_charges' => $courierCharges
             ]);
 
-            // Dr: Courier Charges Expense = 200
-            // Cr: Debtors = 200 (Reduce the receivable)
             $entriesCourier = [
                 [
                     'account_id' => $courierExpenseAccountId,
@@ -204,19 +414,18 @@ class VoucherService
             );
         }
 
-        // ============================================================
-        // 3. ADVANCE PAYMENT VOUCHER
-        // ============================================================
+        // 3. ADVANCE PAYMENT VOUCHER - USING MAPPED ACCOUNT
         if ($received > 0 && $paymentAccountId && $debtorAccountId) {
             Log::info('Creating advance payment voucher', [
                 'shipment' => $shipment->shipment_code,
                 'amount' => $received,
-                'payment_account' => $paymentAccountName,
+                'payment_account_id' => $paymentAccountId,
+                'payment_method' => $paymentMethodName
             ]);
 
             $entries2 = [
                 [
-                    'account_id' => $paymentAccountId,
+                    'account_id' => $paymentAccountId,  // Now using mapped account
                     'debit' => $received,
                     'credit' => 0,
                     'description' => "Customer advance for shipment {$shipment->shipment_code}"
@@ -239,9 +448,7 @@ class VoucherService
             );
         }
 
-        // ============================================================
-        // 4. COST RECOGNITION VOUCHER (ONLY if Bought By Company AND item_value > 0)
-        // ============================================================
+        // 4. COST RECOGNITION VOUCHER
         $itemValue = $shipment->item_value_pkr ?? 0;
         if ($itemValue > 0 && $costOfSalesAccountId && $inventoryAccountId && $shipment->bought_by === 'By Company') {
             $entries3 = [
@@ -274,7 +481,9 @@ class VoucherService
             'bought_by' => $shipment->bought_by,
             'voucher_count' => count($vouchers),
             'received_amount' => $received,
-            'courier_charges' => $courierCharges
+            'courier_charges' => $courierCharges,
+            'payment_method' => $paymentMethodName,
+            'payment_account_id' => $paymentAccountId
         ]);
 
         return $vouchers;
@@ -471,8 +680,24 @@ class VoucherService
         );
     }
 
+    /**
+     * Generate voucher for consolidation costs
+     * ✅ Creates voucher for Warehouse Charges + Import Taxes only
+     * ❌ Excludes courier charges (they are recorded in shipment COD vouchers)
+     */
     public function generateConsolidationCostVoucher($consolidation)
     {
+        // Delete existing voucher if any
+        $existingVoucher = $consolidation->voucher;
+        if ($existingVoucher) {
+            $existingVoucher->details()->delete();
+            $existingVoucher->delete();
+            Log::info('Deleted existing consolidation voucher', [
+                'consolidation' => $consolidation->consol_id,
+                'voucher_no' => $existingVoucher->voucher_no
+            ]);
+        }
+
         $mapping = TransactionTypeAccount::where('transaction_type', 'consolidation_cost')->first();
         if (!$mapping) {
             throw new \Exception('No mapping for consolidation_cost');
@@ -482,24 +707,33 @@ class VoucherService
         $expenseAccountId = $mapping->debit_account_id;
         $creditAccountId = $mapping->credit_account_id;
 
-        $totalCost = $consolidation->ware_house_charges
-            + $consolidation->customs_duty
-            + $consolidation->sales_tax
-            + $consolidation->income_tax
-            + $consolidation->caa_charges;
+        // ✅ Only include consolidation costs (Warehouse + Import Taxes)
+        // ❌ EXCLUDING courier charges (they are recorded in shipment COD vouchers)
+        $totalCost = ($consolidation->ware_house_charges ?? 0)
+            + ($consolidation->customs_duty ?? 0)
+            + ($consolidation->sales_tax ?? 0)
+            + ($consolidation->income_tax ?? 0)
+            + ($consolidation->caa_charges ?? 0);
 
         Log::info('Generating consolidation cost voucher', [
             'consolidation' => $consolidation->consol_id,
+            'ware_house_charges' => $consolidation->ware_house_charges ?? 0,
+            'customs_duty' => $consolidation->customs_duty ?? 0,
+            'sales_tax' => $consolidation->sales_tax ?? 0,
+            'income_tax' => $consolidation->income_tax ?? 0,
+            'caa_charges' => $consolidation->caa_charges ?? 0,
             'total_cost' => $totalCost
         ]);
 
         if ($totalCost > 0 && $expenseAccountId && $creditAccountId) {
+            // Debit: Expense account (Customs Duty, etc.)
             $entries[] = [
                 'account_id' => $expenseAccountId,
                 'debit' => $totalCost,
                 'credit' => 0,
                 'description' => "Consolidation costs for {$consolidation->consol_id}"
             ];
+            // Credit: Creditors
             $entries[] = [
                 'account_id' => $creditAccountId,
                 'debit' => 0,
@@ -522,7 +756,6 @@ class VoucherService
             $entries
         );
     }
-
     public function generateExpenseVoucher($expense)
     {
         $category = $expense->category;

@@ -11,13 +11,17 @@ class PaymentMethod extends Model
 
     protected $fillable = [
         'name',
+        'account_id',
         'status',
     ];
 
     protected $casts = [
         'status' => 'boolean',
     ];
-
+    public function account()
+    {
+        return $this->belongsTo(Account::class);
+    }
     public function shipments()
     {
         return $this->hasMany(Shipment::class);

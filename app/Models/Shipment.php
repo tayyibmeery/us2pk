@@ -152,6 +152,35 @@ class Shipment extends Model
     }
 
     /**
+     * Recalculate receivable_cod and amount_due based on current payments
+     * This should be called whenever payments change
+     */
+    public function recalculateReceivable(): void
+    {
+        $total = ($this->item_value_pkr ?? 0) + ($this->company_charges ?? 0);
+        $received = $this->received_amount ?? 0;
+
+        // Receivable COD = Total - Received Amount (but not less than 0)
+        $this->receivable_cod = max(0, $total - $received);
+
+        // Amount due = Total - Received Amount (for By Customer)
+        $this->amount_due = $this->bought_by === 'By Customer' ? $this->receivable_cod : 0;
+
+        $this->saveQuietly();
+
+        Log::info('Shipment receivable recalculated', [
+            'shipment' => $this->shipment_code,
+            'total' => $total,
+            'received' => $received,
+            'receivable_cod' => $this->receivable_cod,
+            'amount_due' => $this->amount_due
+        ]);
+
+        // Update debtor
+        $this->syncDebtor();
+    }
+
+    /**
      * Sync the debtor record for this shipment
      */
     public function syncDebtor(): void
@@ -159,50 +188,47 @@ class Shipment extends Model
         $totalPayable = ($this->item_value_pkr ?? 0) + ($this->company_charges ?? 0);
         $received = $this->received_amount ?? 0;
         $courierCharges = $this->delivery_charges ?? 0;
+        $receivableCod = $this->receivable_cod ?? 0;
 
         // Calculate gross COD (amount customer owes)
         $grossCod = max(0, $totalPayable - $received);
 
         // Calculate net receivable (after courier deduction)
-        // This is what the company actually gets from the courier
-        $netReceivable = max(0, $grossCod - $courierCharges);
+        $netReceivable = max(0, $receivableCod - $courierCharges);
 
         // Only create debtor if bought_by is 'By Customer' and grossCod > 0
         if ($this->bought_by === 'By Customer' && $grossCod > 0) {
             $invoiceNo = 'INV-' . $this->shipment_code;
 
-            // Check if debtor already exists
             $debtor = Debtor::where('shipment_id', $this->id)->first();
 
             if ($debtor) {
-                // Update existing debtor with NET amount
                 $debtor->update([
                     'invoice_no' => $invoiceNo,
                     'user_id' => $this->user_id,
                     'total_payable' => $totalPayable,
                     'cod' => $grossCod,
-                    'receivable_cod' => $netReceivable, // ← NET amount after courier
+                    'receivable_cod' => $netReceivable,
                     'amount_due' => $netReceivable,
                     'amount_received' => $received,
                     'courier_deduction' => $courierCharges,
                     'net_receivable' => $netReceivable,
-                    'balance' => $netReceivable, // ← Should show 4800 not 5000
+                    'balance' => $netReceivable,
                     'last_payment_date' => now(),
                 ]);
             } else {
-                // Create new debtor with NET amount
                 Debtor::create([
                     'invoice_no' => $invoiceNo,
                     'shipment_id' => $this->id,
                     'user_id' => $this->user_id,
                     'total_payable' => $totalPayable,
                     'cod' => $grossCod,
-                    'receivable_cod' => $netReceivable, // ← NET amount after courier
+                    'receivable_cod' => $netReceivable,
                     'amount_due' => $netReceivable,
                     'amount_received' => $received,
                     'courier_deduction' => $courierCharges,
                     'net_receivable' => $netReceivable,
-                    'balance' => $netReceivable, // ← Should show 4800 not 5000
+                    'balance' => $netReceivable,
                     'last_payment_date' => now(),
                 ]);
             }
@@ -224,9 +250,12 @@ class Shipment extends Model
     {
         $this->received_amount = $this->payments()->sum('amount') ?? 0;
         $this->saveQuietly();
+
+        // Recalculate receivable_cod and amount_due
+        $this->recalculateReceivable();
+
         if ($this->consolidation_id) {
             $this->consolidation->recalculateTotals();
         }
-        $this->syncDebtor();
     }
 }

@@ -20,6 +20,11 @@ const columns: ColumnDefinition[] = [
   { key: 'id', label: 'ID' },
   { key: 'name', label: 'Name' },
   {
+    key: 'account',
+    label: 'Linked Account',
+    format: (value: any) => value?.name || 'Default (Cash Account)'
+  },
+  {
     key: 'status',
     label: 'Status',
     format: (value: boolean) => value ? 'Active' : 'Inactive',
