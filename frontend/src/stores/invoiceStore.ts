@@ -7,7 +7,7 @@ export interface Invoice {
   shipment_id: number;
   shipment?: {
     id: number;
-    pcode: string;
+    shipment_code: string;
     description?: string;
     user?: any;
     consolidation?: any;
@@ -17,6 +17,10 @@ export interface Invoice {
   cod: number;
   cod_date: string | null;
   output_tax: number;
+  status: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  paid_date: string | null;
+  payment_method: string | null;
+  notes: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -26,6 +30,16 @@ interface PaginationData {
   last_page: number;
   per_page: number;
   total: number;
+  from: number;
+  to: number;
+}
+
+interface SummaryData {
+  total_amount: number;
+  total_cod: number;
+  total_tax: number;
+  total_paid: number;
+  total_pending: number;
 }
 
 export const useInvoiceStore = defineStore('invoice', {
@@ -35,8 +49,17 @@ export const useInvoiceStore = defineStore('invoice', {
       current_page: 1,
       last_page: 1,
       per_page: 20,
-      total: 0
+      total: 0,
+      from: 0,
+      to: 0,
     } as PaginationData,
+    summary: {
+      total_amount: 0,
+      total_cod: 0,
+      total_tax: 0,
+      total_paid: 0,
+      total_pending: 0,
+    } as SummaryData,
     loading: false,
     error: null as string | null,
     selected: null as Invoice | null,
@@ -53,6 +76,15 @@ export const useInvoiceStore = defineStore('invoice', {
     totalTax: (state) => {
       return state.items.reduce((sum, invoice) => sum + invoice.output_tax, 0);
     },
+    totalWithTax: (state) => {
+      return state.items.reduce((sum, invoice) => sum + invoice.amount_due + invoice.output_tax, 0);
+    },
+    pendingCount: (state) => {
+      return state.items.filter(invoice => invoice.status === 'pending').length;
+    },
+    paidCount: (state) => {
+      return state.items.filter(invoice => invoice.status === 'paid').length;
+    },
   },
 
   actions: {
@@ -66,11 +98,14 @@ export const useInvoiceStore = defineStore('invoice', {
 
         this.items = res.data.data || [];
         this.pagination = {
-          current_page: res.data.current_page || 1,
-          last_page: res.data.last_page || 1,
-          per_page: res.data.per_page || 20,
-          total: res.data.total || 0,
+          current_page: res.data.pagination?.current_page || 1,
+          last_page: res.data.pagination?.last_page || 1,
+          per_page: res.data.pagination?.per_page || 20,
+          total: res.data.pagination?.total || 0,
+          from: res.data.pagination?.from || 0,
+          to: res.data.pagination?.to || 0,
         };
+        this.summary = res.data.summary || this.summary;
 
         return this.items;
       } catch (err: any) {
@@ -157,13 +192,36 @@ export const useInvoiceStore = defineStore('invoice', {
       }
     },
 
+    async markAsPaid(id: number, data: { payment_method?: string; notes?: string }) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const res = await api.post(`/admin/invoices/${id}/mark-as-paid`, data);
+        const idx = this.items.findIndex(i => i.id === id);
+        if (idx !== -1) {
+          this.items[idx] = res.data;
+        }
+        if (this.selected?.id === id) {
+          this.selected = res.data;
+        }
+        return res.data;
+      } catch (err: any) {
+        this.error = err.response?.data?.message || 'Failed to mark as paid';
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
     setFilters(filters: Record<string, any>) {
       this.filters = filters;
     },
 
     reset() {
       this.items = [];
-      this.pagination = { current_page: 1, last_page: 1, per_page: 20, total: 0 };
+      this.pagination = { current_page: 1, last_page: 1, per_page: 20, total: 0, from: 0, to: 0 };
+      this.summary = { total_amount: 0, total_cod: 0, total_tax: 0, total_paid: 0, total_pending: 0 };
       this.loading = false;
       this.error = null;
       this.selected = null;

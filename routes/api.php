@@ -134,9 +134,19 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('statistics/delivery-time', [StatisticsController::class, 'deliveryTime']);
     Route::get('statistics/debtors-balance', [StatisticsController::class, 'debtorsBalance']);
 
+    // ✅ INVOICES - IMPORTANT: Must be before apiResource
+    Route::prefix('invoices')->group(function () {
+        Route::get('/', [InvoiceController::class, 'index']);
+        Route::get('/stats', [InvoiceController::class, 'stats']);
+        Route::get('/{invoice}', [InvoiceController::class, 'show']);
+        Route::get('/{invoice}/download', [InvoiceController::class, 'download']);  // ✅ Download PDF
+        Route::get('/{invoice}/print', [InvoiceController::class, 'print']);        // ✅ Print data
+        Route::post('/', [InvoiceController::class, 'store']);
+        Route::put('/{invoice}', [InvoiceController::class, 'update']);
+        Route::delete('/{invoice}', [InvoiceController::class, 'destroy']);
+        Route::post('/{invoice}/mark-as-paid', [InvoiceController::class, 'markAsPaid']);
+    });
 
-    Route::apiResource('invoices', InvoiceController::class);
-    Route::get('invoices/stats', [InvoiceController::class, 'stats']);
     Route::apiResource('revenues', RevenueController::class);
     Route::get('revenues/total', [RevenueController::class, 'total']);
     // Debtors
