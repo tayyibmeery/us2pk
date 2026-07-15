@@ -85,7 +85,7 @@ const router = createRouter({
 
         { path: 'pages', name: 'AdminPages', component: () => import('@/views/admin/Pages.vue'), meta: { title: 'Pages' } },
         { path: 'invoices', name: 'AdminInvoices', component: () => import('@/views/admin/Invoices.vue'), meta: { title: 'Invoices' } },
-        { path: 'revenues', name: 'AdminRevenues', component: () => import('@/views/admin/Revenues.vue'), meta: { title: 'Revenues' } },
+       
         { path: 'debtors', name: 'AdminDebtors', component: () => import('@/views/admin/Debtors.vue'), meta: { title: 'Debtors' } },
         // Consolidations
         { path: 'consolidations', name: 'AdminConsolidations', component: () => import('@/views/admin/Consolidations.vue'), meta: { title: 'Consolidations' } },

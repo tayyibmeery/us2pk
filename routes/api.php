@@ -14,7 +14,7 @@ use App\Http\Controllers\Api\Admin\{
 
     StatisticsController,
     InvoiceController,
-    RevenueController,
+
     DebtorController,
     CityController,
     EmployeeController,
@@ -147,21 +147,24 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
         Route::post('/{invoice}/mark-as-paid', [InvoiceController::class, 'markAsPaid']);
     });
 
-    Route::apiResource('revenues', RevenueController::class);
-    Route::get('revenues/total', [RevenueController::class, 'total']);
+
+    // // Debtors
+    // Route::get('debtors', [DebtorController::class, 'index']);
+    // Route::get('debtors/{id}', [DebtorController::class, 'show']);
+    // Route::post('debtors', [DebtorController::class, 'store']);
+    // Route::put('debtors/{id}', [DebtorController::class, 'update']);
+    // Route::delete('debtors/{id}', [DebtorController::class, 'destroy']);
+    // Route::post('debtors/{id}/payment', [DebtorController::class, 'recordPayment']);
+    // Route::get('debtors/stats', [DebtorController::class, 'stats']);
+    // Route::get('debtors/export', [DebtorController::class, 'export']);
+    // Route::post('debtors/sync', [DebtorController::class, 'syncFromInvoices']);
     // Debtors
     Route::get('debtors', [DebtorController::class, 'index']);
     Route::get('debtors/{id}', [DebtorController::class, 'show']);
-    Route::post('debtors', [DebtorController::class, 'store']);
-    Route::put('debtors/{id}', [DebtorController::class, 'update']);
-    Route::delete('debtors/{id}', [DebtorController::class, 'destroy']);
     Route::post('debtors/{id}/payment', [DebtorController::class, 'recordPayment']);
     Route::get('debtors/stats', [DebtorController::class, 'stats']);
     Route::get('debtors/export', [DebtorController::class, 'export']);
     Route::post('debtors/sync', [DebtorController::class, 'syncFromInvoices']);
-
-    Route::get('financial/pl', [FinancialController::class, 'profitAndLoss']);
-    Route::get('financial/trial-balance', [FinancialController::class, 'trialBalance']);
 
 
 

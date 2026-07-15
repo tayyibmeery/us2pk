@@ -11,6 +11,12 @@ export interface Debtor {
   amount_due: number
   receivable_cod: number
   balance: number
+  amount_received: number
+  courier_deduction: number
+  net_receivable: number
+  cod: number
+  total_payable: number
+  last_payment_date: string | null
   created_at?: string
   updated_at?: string
 }
@@ -30,6 +36,19 @@ export const useDebtorStore = defineStore('debtor', {
     error: null as string | null,
     selected: null as Debtor | null,
   }),
+
+  getters: {
+    totalBalance: (state) => {
+      return state.items.reduce((sum, d) => sum + (d.balance || 0), 0)
+    },
+    totalAmountDue: (state) => {
+      return state.items.reduce((sum, d) => sum + (d.amount_due || 0), 0)
+    },
+    unpaidCount: (state) => {
+      return state.items.filter(d => (d.balance || 0) > 0).length
+    },
+  },
+
   actions: {
     async fetchItems(page = 1, params = {}) {
       this.loading = true
@@ -45,6 +64,7 @@ export const useDebtorStore = defineStore('debtor', {
           from: res.data.from || 0,
           to: res.data.to || 0,
         }
+        return this.items
       } catch (err: any) {
         this.error = err.response?.data?.message || 'Failed to fetch debtors'
         throw err
@@ -52,36 +72,41 @@ export const useDebtorStore = defineStore('debtor', {
         this.loading = false
       }
     },
-    // ❌ REMOVED: create() - debtors are auto-generated
-    async update(id: number, data: Partial<Debtor>) {
+
+    async getDebtor(id: number) {
       this.loading = true
       this.error = null
       try {
-        const res = await api.put(`/admin/debtors/${id}`, data)
-        const idx = this.items.findIndex(i => i.id === id)
-        if (idx !== -1) this.items[idx] = res.data
+        const res = await api.get(`/admin/debtors/${id}`)
+        this.selected = res.data
         return res.data
       } catch (err: any) {
-        this.error = err.response?.data?.message || 'Update failed'
+        this.error = err.response?.data?.message || 'Failed to fetch debtor'
         throw err
       } finally {
         this.loading = false
       }
     },
-    async delete(id: number) {
+
+    async recordPayment(id: number, data: any) {
       this.loading = true
       this.error = null
       try {
-        await api.delete(`/admin/debtors/${id}`)
-        this.items = this.items.filter(i => i.id !== id)
-        this.pagination.total -= 1
+        const res = await api.post(`/admin/debtors/${id}/payment`, data)
+        // Update local items
+        const idx = this.items.findIndex(i => i.id === id)
+        if (idx !== -1 && res.data.debtor) {
+          this.items[idx] = { ...this.items[idx], ...res.data.debtor }
+        }
+        return res.data
       } catch (err: any) {
-        this.error = err.response?.data?.message || 'Delete failed'
+        this.error = err.response?.data?.message || 'Failed to record payment'
         throw err
       } finally {
         this.loading = false
       }
     },
+
     reset() {
       this.items = []
       this.pagination = { current_page: 1, last_page: 1, per_page: 20, total: 0, from: 0, to: 0 }

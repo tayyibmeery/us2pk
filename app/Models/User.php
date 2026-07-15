@@ -99,13 +99,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Shipment::class);
     }
 
-    /**
-     * Get all revenue records for the user.
-     */
-    public function revenues()
-    {
-        return $this->hasMany(Revenue::class);
-    }
+   
 
     /**
      * Get all debtor records for the user.

@@ -23,7 +23,7 @@ class VoucherController extends Controller
     }
     public function index(Request $request)
     {
-        $query = Voucher::with('details.account')->orderBy('created_at', 'desc');
+        $query = Voucher::with('details.account')->orderBy('id', 'desc');
 
         if ($request->id) {
             $query->where('voucher_no', 'like', "%{$request->id}%");

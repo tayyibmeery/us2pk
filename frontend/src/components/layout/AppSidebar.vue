@@ -245,12 +245,7 @@ const menuGroups = [
         path: "/admin/invoices",
         adminOnly: true,
       },
-      {
-        icon: BarChartIcon,
-        name: "Revenues",
-        path: "/admin/revenues",
-        adminOnly: true,
-      },
+    
       {
         icon: UserCircleIcon,
         name: "Debtors",

@@ -3,57 +3,108 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Models\Debtor;
-use App\Models\Invoice;
-use App\Models\Shipment;
+use App\Models\ShipmentPayment;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-
-
-
-
 class DebtorController extends Controller
 {
-
     public function index(Request $request)
     {
         try {
-            $query = Debtor::with(['user', 'shipment']);
+            $query = Debtor::with(['user', 'shipment.payments', 'shipment.paymentMethod']);
 
-            // Apply filters
-            if ($request->status === 'unpaid') {
-                $query->where('balance', '>', 0);
-            } elseif ($request->status === 'paid') {
-                $query->where('balance', '<=', 0);
+            // Search filter
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('invoice_no', 'LIKE', "%{$search}%")
+                        ->orWhereHas('user', function ($uq) use ($search) {
+                            $uq->where('name', 'LIKE', "%{$search}%")
+                                ->orWhere('pcode', 'LIKE', "%{$search}%");
+                        });
+                });
             }
 
-            if ($request->user_id) {
-                $query->where('user_id', $request->user_id);
+            // Status filter
+            if ($request->has('status')) {
+                if ($request->status === 'unpaid') {
+                    $query->where('balance', '>', 0);
+                } elseif ($request->status === 'paid') {
+                    $query->where('balance', '<=', 0);
+                }
             }
 
-            $debtors = $query->latest()->paginate(20);
+            // Date filters
+            if ($request->has('date_from') && $request->date_from) {
+                $query->whereDate('created_at', '>=', $request->date_from);
+            }
+            if ($request->has('date_to') && $request->date_to) {
+                $query->whereDate('created_at', '<=', $request->date_to);
+            }
 
-            // Map and calculate totals safely
+            $debtors = $query->orderBy('created_at', 'desc')->paginate($request->per_page ?? 20);
+
+            // Transform data for frontend
             $debtors->getCollection()->transform(function ($debtor) {
-                $payments = $debtor->shipment?->payments()?->sum('amount') ?? 0;
+                $shipment = $debtor->shipment;
+                $payments = $shipment?->payments ?? collect();
+                $totalPaid = $payments->sum('amount');
+
+                // Group payments by payment method
+                $paymentMethods = [
+                    'abl' => 0,
+                    'scb' => 0,
+                    'bafl' => 0,
+                    'faisal' => 0,
+                    'cash' => 0,
+                    'jazzcash' => 0,
+                    'easypaisa' => 0,
+                ];
+
+                foreach ($payments as $payment) {
+                    $method = strtolower($payment->payment_method ?? '');
+                    if (isset($paymentMethods[$method])) {
+                        $paymentMethods[$method] += $payment->amount;
+                    } elseif (strpos($method, 'abl') !== false) {
+                        $paymentMethods['abl'] += $payment->amount;
+                    } elseif (strpos($method, 'scb') !== false) {
+                        $paymentMethods['scb'] += $payment->amount;
+                    } elseif (strpos($method, 'bafl') !== false) {
+                        $paymentMethods['bafl'] += $payment->amount;
+                    } elseif (strpos($method, 'faisal') !== false) {
+                        $paymentMethods['faisal'] += $payment->amount;
+                    } elseif (strpos($method, 'jazz') !== false) {
+                        $paymentMethods['jazzcash'] += $payment->amount;
+                    } elseif (strpos($method, 'easy') !== false) {
+                        $paymentMethods['easypaisa'] += $payment->amount;
+                    } else {
+                        $paymentMethods['cash'] += $payment->amount;
+                    }
+                }
 
                 return [
                     'id' => $debtor->id,
                     'invoice_no' => $debtor->invoice_no,
-                    'user' => $debtor->user,
-                    'shipment' => $debtor->shipment,
-                    'total_payable' => $debtor->total_payable ?? 0,
-                    'receivable_cod' => $debtor->receivable_cod ?? 0,
-                    'balance' => $debtor->balance ?? 0,
-                    'amount_received' => $debtor->amount_received ?? 0,
-                    'courier_deduction' => $debtor->courier_deduction ?? 0,
-                    'net_receivable' => $debtor->net_receivable ?? 0,
-                    'cod' => $debtor->cod ?? 0,
-                    'last_payment_date' => $debtor->last_payment_date,
-                    'created_at' => $debtor->created_at,
-                    'payments_total' => $payments,
+                    'status' => $shipment?->shipmentStatus?->name ?? 'N/A',
+                    'customer_name' => $debtor->user?->name ?? 'N/A',
+                    'pcode' => $debtor->user?->pcode ?? 'N/A',
+                    'amount_due' => (float) ($debtor->amount_due ?? 0),
+                    'abl' => $paymentMethods['abl'] > 0 ? number_format($paymentMethods['abl'], 0) : '-',
+                    'scb' => $paymentMethods['scb'] > 0 ? number_format($paymentMethods['scb'], 0) : '-',
+                    'bafl' => $paymentMethods['bafl'] > 0 ? number_format($paymentMethods['bafl'], 0) : '-',
+                    'faisal' => $paymentMethods['faisal'] > 0 ? number_format($paymentMethods['faisal'], 0) : '-',
+                    'cash' => $paymentMethods['cash'] > 0 ? number_format($paymentMethods['cash'], 0) : '-',
+                    'jazzcash' => $paymentMethods['jazzcash'] > 0 ? number_format($paymentMethods['jazzcash'], 0) : '-',
+                    'easypaisa' => $paymentMethods['easypaisa'] > 0 ? number_format($paymentMethods['easypaisa'], 0) : '-',
+                    'cod' => (float) ($debtor->cod ?? 0),
+                    'cod_date' => $shipment?->cod_date ?? null,
+                    'due_cod' => (float) ($debtor->receivable_cod ?? 0),
+                    'balance' => (float) ($debtor->balance ?? 0),
+                    'shipment_id' => $shipment?->id,
+                    'user_id' => $debtor->user_id,
                 ];
             });
 
@@ -70,7 +121,8 @@ class DebtorController extends Controller
     public function show(Debtor $debtor)
     {
         try {
-            $payments = $debtor->shipment?->payments()?->sum('amount') ?? 0;
+            $debtor->load(['user', 'shipment.payments', 'shipment.paymentMethod']);
+            $payments = $debtor->shipment?->payments ?? collect();
 
             return response()->json([
                 'id' => $debtor->id,
@@ -85,9 +137,8 @@ class DebtorController extends Controller
                 'net_receivable' => $debtor->net_receivable ?? 0,
                 'cod' => $debtor->cod ?? 0,
                 'last_payment_date' => $debtor->last_payment_date,
-                'created_at' => $debtor->created_at,
-                'updated_at' => $debtor->updated_at,
-                'payments_total' => $payments,
+                'payments' => $payments,
+                'payment_status' => $debtor->payment_status,
             ]);
         } catch (\Exception $e) {
             Log::error('DebtorController show error: ' . $e->getMessage());
@@ -98,117 +149,65 @@ class DebtorController extends Controller
         }
     }
 
-
-    public function store(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'invoice_no' => 'required|unique:debtors',
-                'shipment_id' => 'required|exists:shipments,id',
-                'user_id' => 'required|exists:users,id',
-                'amount_due' => 'required|numeric|min:0',
-                'receivable_cod' => 'required|numeric|min:0',
-                'balance' => 'required|numeric'
-            ]);
-
-            $debtor = Debtor::create($validated);
-
-            return response()->json([
-                'message' => 'Debtor created successfully',
-                'debtor' => $debtor
-            ], 201);
-        } catch (\Exception $e) {
-            Log::error('Debtor store error: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Failed to create debtor',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function update(Request $request, $id)
-    {
-        try {
-            $debtor = Debtor::findOrFail($id);
-
-            $validated = $request->validate([
-                'amount_due' => 'sometimes|numeric|min:0',
-                'receivable_cod' => 'sometimes|numeric|min:0',
-                'balance' => 'sometimes|numeric'
-            ]);
-
-            $debtor->update($validated);
-
-            return response()->json([
-                'message' => 'Debtor updated successfully',
-                'debtor' => $debtor
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Debtor update error: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Failed to update debtor',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function destroy($id)
-    {
-        try {
-            $debtor = Debtor::findOrFail($id);
-            $debtor->delete();
-
-            return response()->json([
-                'message' => 'Debtor deleted successfully'
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Debtor delete error: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Failed to delete debtor',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
     public function recordPayment(Request $request, $id)
     {
         try {
             $validated = $request->validate([
                 'amount' => 'required|numeric|min:0.01',
-                'date' => 'required|date',
-                'method' => 'required|string',
-                'reference' => 'nullable|string',
-                'notes' => 'nullable|string'
+                'payment_date' => 'required|date',
+                'payment_method' => 'required|string|max:100',
+                'reference_number' => 'nullable|string|max:100',
+                'notes' => 'nullable|string',
             ]);
 
             $debtor = Debtor::with('shipment')->findOrFail($id);
+            $shipment = $debtor->shipment;
 
-            // Create payment record if you have payments table
-            // If not, you can just update the debtor balance
+            if (!$shipment) {
+                return response()->json(['message' => 'Shipment not found for this debtor'], 404);
+            }
 
-            // Update debtor balance
-            $newBalance = $debtor->balance - $validated['amount'];
-            $debtor->update(['balance' => max(0, $newBalance)]);
-
-            // If you have a payments table, create the record
-            // Payment::create([...]);
-
-            return response()->json([
-                'message' => 'Payment recorded successfully',
-                'debtor' => $debtor,
-                'payment' => [
+            DB::beginTransaction();
+            try {
+                // Create payment record
+                $payment = ShipmentPayment::create([
+                    'shipment_id' => $shipment->id,
                     'amount' => $validated['amount'],
-                    'date' => $validated['date'],
-                    'method' => $validated['method'],
-                    'reference' => $validated['reference'] ?? null,
-                    'notes' => $validated['notes'] ?? null
-                ]
-            ]);
+                    'payment_date' => $validated['payment_date'],
+                    'payment_method' => $validated['payment_method'],
+                    'reference_number' => $validated['reference_number'] ?? null,
+                    'notes' => $validated['notes'] ?? null,
+                ]);
+
+                // Update debtor balance
+                $debtor->applyPayment($validated['amount']);
+
+                // Update shipment received amount
+                $shipment->recalcReceivedAmount();
+
+                DB::commit();
+
+                Log::info('Payment recorded for debtor', [
+                    'debtor_id' => $debtor->id,
+                    'invoice_no' => $debtor->invoice_no,
+                    'amount' => $validated['amount'],
+                    'method' => $validated['payment_method']
+                ]);
+
+                return response()->json([
+                    'message' => 'Payment recorded successfully',
+                    'payment' => $payment,
+                    'debtor' => $debtor,
+                    'new_balance' => $debtor->balance,
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
         } catch (\Exception $e) {
             Log::error('Payment record error: ' . $e->getMessage());
-
             return response()->json([
-                'message' => 'Failed to record payment',
+                'message' => 'Failed to record payment: ' . $e->getMessage(),
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -232,11 +231,12 @@ class DebtorController extends Controller
                 'total_debtors' => $debtors->count(),
                 'total_amount_due' => (float) $debtors->sum('amount_due'),
                 'total_receivable_cod' => (float) $debtors->sum('receivable_cod'),
-                'total_balance' => (float) $debtors->sum('balance')
+                'total_balance' => (float) $debtors->sum('balance'),
+                'total_cod' => (float) $debtors->sum('cod'),
+                'total_paid' => (float) $debtors->sum('amount_received'),
             ]);
         } catch (\Exception $e) {
             Log::error('Debtor stats error: ' . $e->getMessage());
-
             return response()->json([
                 'message' => 'Failed to fetch stats',
                 'error' => $e->getMessage()
@@ -247,78 +247,40 @@ class DebtorController extends Controller
     public function export(Request $request)
     {
         try {
-            $query = Debtor::with(['shipment.user', 'shipment']);
+            $query = Debtor::with(['user', 'shipment']);
 
             if ($request->has('search') && $request->search) {
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('invoice_no', 'LIKE', "%{$search}%")
-                        ->orWhereHas('shipment.user', function ($uq) use ($search) {
-                            $uq->where('name', 'LIKE', "%{$search}%");
+                        ->orWhereHas('user', function ($uq) use ($search) {
+                            $uq->where('name', 'LIKE', "%{$search}%")
+                                ->orWhere('pcode', 'LIKE', "%{$search}%");
                         });
                 });
             }
 
             $debtors = $query->get();
 
-            // Return as JSON for now
+            // Return JSON for now (can be extended for CSV/Excel)
             return response()->json([
-                'message' => 'Export functionality coming soon',
+                'message' => 'Export data retrieved successfully',
                 'count' => $debtors->count(),
-                'data' => $debtors
+                'data' => $debtors->map(function ($debtor) {
+                    return [
+                        'invoice_no' => $debtor->invoice_no,
+                        'customer' => $debtor->user?->name ?? 'N/A',
+                        'pcode' => $debtor->user?->pcode ?? 'N/A',
+                        'amount_due' => $debtor->amount_due,
+                        'balance' => $debtor->balance,
+                        'receivable_cod' => $debtor->receivable_cod,
+                    ];
+                })
             ]);
         } catch (\Exception $e) {
             Log::error('Debtor export error: ' . $e->getMessage());
-
             return response()->json([
                 'message' => 'Failed to export',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    /**
-     * Sync debtors from invoices
-     * This can be run as a scheduled job or manually
-     */
-    public function syncFromInvoices()
-    {
-        try {
-            $invoices = Invoice::with('shipment.user')->get();
-            $created = 0;
-            $updated = 0;
-
-            foreach ($invoices as $invoice) {
-                $totalPaid = $invoice->shipment->payments->sum('amount') ?? 0;
-                $balance = ($invoice->amount_due + $invoice->cod) - $totalPaid;
-
-                $debtor = Debtor::updateOrCreate(
-                    ['invoice_no' => $invoice->invoice_no],
-                    [
-                        'shipment_id' => $invoice->shipment_id,
-                        'user_id' => $invoice->shipment->user_id,
-                        'amount_due' => $invoice->amount_due,
-                        'receivable_cod' => $invoice->cod,
-                        'balance' => max(0, $balance)
-                    ]
-                );
-
-                if ($debtor->wasRecentlyCreated) {
-                    $created++;
-                } else {
-                    $updated++;
-                }
-            }
-
-            return response()->json([
-                'message' => 'Debtors synced successfully',
-                'created' => $created,
-                'updated' => $updated
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Debtor sync error: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Failed to sync debtors',
                 'error' => $e->getMessage()
             ], 500);
         }
