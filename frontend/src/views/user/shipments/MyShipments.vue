@@ -1,85 +1,81 @@
 <template>
-  <UserLayout>
-    <div class="space-y-6">
-      <!-- Header -->
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-800 dark:text-white">My Shipments</h1>
-          <p class="text-sm text-gray-500 dark:text-gray-400">Track and manage all your shipments</p>
-        </div>
-        <router-link to="/new-shipment"
-          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          New Shipment
-        </router-link>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">My Shipments</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Track and manage all your shipments</p>
       </div>
-
-      <!-- Filters -->
-      <div
-        class="flex flex-wrap items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <div class="flex-1 min-w-[200px]">
-          <input v-model="search" type="text" placeholder="Search shipments..."
-            class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
-        </div>
-        <select v-model="statusFilter"
-          class="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent">
-          <option value="">All Statuses</option>
-          <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
-        </select>
-        <button @click="clearFilters"
-          class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">Clear</button>
-      </div>
-
-      <!-- Shipments Grid -->
-      <div v-if="loading" class="flex justify-center py-12">
-        <div class="w-8 h-8 border-4 border-gray-200 dark:border-gray-700 border-t-brand-500 rounded-full animate-spin">
-        </div>
-      </div>
-
-      <div v-else-if="shipments.length === 0"
-        class="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        <svg class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor"
-          viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      <router-link to="/user/new-shipment"
+        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
-        <h3 class="mt-4 text-lg font-semibold text-gray-800 dark:text-white">No Shipments Found</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400">You haven't created any shipments yet.</p>
-        <router-link to="/new-shipment"
-          class="inline-block mt-4 text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400">Create your first
-          shipment →</router-link>
-      </div>
+        New Shipment
+      </router-link>
+    </div>
 
-      <div v-else class="grid grid-cols-1 gap-4">
-        <ShipmentCard v-for="shipment in shipments" :key="shipment.id" :shipment="shipment" />
+    <!-- Filters -->
+    <div
+      class="flex flex-wrap items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+      <div class="flex-1 min-w-[200px]">
+        <input v-model="search" type="text" placeholder="Search shipments..."
+          class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
       </div>
+      <select v-model="statusFilter"
+        class="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent">
+        <option value="">All Statuses</option>
+        <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
+      </select>
+      <button @click="clearFilters"
+        class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">Clear</button>
+    </div>
 
-      <!-- Pagination -->
-      <div v-if="pagination.total > pagination.per_page" class="flex items-center justify-between py-4">
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          Showing {{ pagination.from || 0 }} - {{ pagination.to || 0 }} of {{ pagination.total || 0 }}
-        </p>
-        <div class="flex gap-2">
-          <button @click="prevPage" :disabled="pagination.current_page <= 1"
-            class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition">Previous</button>
-          <button @click="nextPage" :disabled="pagination.current_page >= pagination.last_page"
-            class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition">Next</button>
-        </div>
+    <!-- Shipments Grid -->
+    <div v-if="loading" class="flex justify-center py-12">
+      <div class="w-8 h-8 border-4 border-gray-200 dark:border-gray-700 border-t-brand-500 rounded-full animate-spin">
       </div>
     </div>
-  </UserLayout>
+
+    <div v-else-if="shipments.length === 0"
+      class="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+      <svg class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor"
+        viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+      <h3 class="mt-4 text-lg font-semibold text-gray-800 dark:text-white">No Shipments Found</h3>
+      <p class="text-sm text-gray-500 dark:text-gray-400">You haven't created any shipments yet.</p>
+      <router-link to="/user/new-shipment"
+        class="inline-block mt-4 text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400">Create your first
+        shipment →</router-link>
+    </div>
+
+    <div v-else class="grid grid-cols-1 gap-4">
+      <ShipmentCard v-for="shipment in shipments" :key="shipment.id" :shipment="shipment" />
+    </div>
+
+    <!-- Pagination -->
+    <div v-if="pagination.total > pagination.per_page" class="flex items-center justify-between py-4">
+      <p class="text-sm text-gray-500 dark:text-gray-400">Showing {{ pagination.from || 0 }} - {{ pagination.to || 0 }}
+        of {{ pagination.total || 0 }}</p>
+      <div class="flex gap-2">
+        <button @click="prevPage" :disabled="pagination.current_page <= 1"
+          class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition">Previous</button>
+        <button @click="nextPage" :disabled="pagination.current_page >= pagination.last_page"
+          class="px-3 py-1 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition">Next</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import api from '@/services/api'
-import UserLayout from '@/views/user/layouts/UserLayout.vue'
 import ShipmentCard from '@/components/user/ShipmentCard.vue'
 
-const router = useRouter()
+console.log('📦 MyShipments component loaded!')
+
 const loading = ref(false)
 const search = ref('')
 const statusFilter = ref('')

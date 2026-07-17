@@ -1,13 +1,21 @@
 <template>
   <div class="space-y-6">
+    <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Settings</h1>
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Admin Settings</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400">Manage your account settings and preferences</p>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <!-- Loading State -->
+    <div v-if="loading" class="flex justify-center py-12">
+      <div class="w-8 h-8 border-4 border-gray-200 dark:border-gray-700 border-t-brand-500 rounded-full animate-spin">
+      </div>
+    </div>
+
+    <!-- Settings Content -->
+    <div v-else class="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <!-- Change Password -->
       <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
         <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Change Password</h3>
@@ -25,7 +33,8 @@
               placeholder="Enter new password" required />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New
+              Password</label>
             <input v-model="passwordForm.new_password_confirmation" type="password"
               class="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 text-sm text-gray-800 dark:text-white focus:ring-2 focus:ring-brand-500 focus:border-transparent"
               placeholder="Confirm new password" required />
@@ -80,8 +89,9 @@
             </label>
           </div>
           <button @click="savePreferences"
-            class="w-full mt-4 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition">Save
-            Preferences</button>
+            class="w-full mt-4 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition">
+            Save Preferences
+          </button>
         </div>
       </div>
 
@@ -113,11 +123,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import api from '@/services/api'
+import { ref, reactive, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/authStore'
 
-console.log('⚙️ ProfileSettings component loaded!')
-
+const authStore = useAuthStore()
+const loading = ref(false)
 const submitting = ref(false)
 
 const passwordForm = reactive({
@@ -151,7 +161,11 @@ const updatePassword = async () => {
 
   submitting.value = true
   try {
-    await api.post('/user/change-password', passwordForm)
+    await authStore.changePassword(
+      passwordForm.current_password,
+      passwordForm.new_password,
+      passwordForm.new_password_confirmation
+    )
     passwordSuccess.value = 'Password updated successfully!'
     passwordForm.current_password = ''
     passwordForm.new_password = ''
@@ -176,4 +190,13 @@ const deleteAccount = () => {
     alert('Account deletion functionality coming soon!')
   }
 }
+
+onMounted(async () => {
+  loading.value = true
+  try {
+    await authStore.fetchUser()
+  } finally {
+    loading.value = false
+  }
+})
 </script>

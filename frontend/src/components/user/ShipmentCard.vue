@@ -5,7 +5,7 @@
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-3">
           <h3 class="font-semibold text-gray-800 dark:text-white">{{ shipment.shipment_code }}</h3>
-          <ShipmentStatusBadge :status="shipment.status" />
+          <ShipmentStatusBadge :status="shipment.shipment_status?.name" />
         </div>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ shipment.description || 'No description' }}</p>
         <div class="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -15,7 +15,7 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <router-link :to="`/my-shipments/${shipment.id}`"
+        <router-link :to="`/user/my-shipments/${shipment.id}`"
           class="px-3 py-1.5 text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 font-medium">View
           Details</router-link>
         <button @click="trackShipment(shipment)"
@@ -45,6 +45,6 @@ const formatDate = (date: string) => {
 }
 
 const trackShipment = (shipment: any) => {
-  router.push(`/track-shipment/${shipment.id}`)
+  router.push(`/user/track-shipment/${shipment.id}`)
 }
 </script>

@@ -13,11 +13,9 @@ use App\Http\Controllers\Api\Admin\{
     InvoiceController,
     DebtorController,
     CityController,
-    EmployeeController,
     InternationalCourierController,
     LocalCourierController,
     PageController,
-    FinancialController,
     JournalController,
     LedgerController,
     PaymentMethodController,
@@ -48,6 +46,8 @@ Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 });
+
+
 
 // ============================================================
 // USER ROUTES (Requires authentication & email verification)
@@ -91,11 +91,6 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/users/{user}/status', [UserController::class, 'updateStatus']);
     Route::get('/users/search', [ShipmentController::class, 'searchUsers']);
 
-    // ============================================================
-    // EMPLOYEES
-    // ============================================================
-    Route::apiResource('employees', EmployeeController::class)->only(['index', 'store', 'update', 'destroy']);
-    Route::get('employees/{employee}', [EmployeeController::class, 'show']);
 
     // ============================================================
     // SHIPMENTS

@@ -2,8 +2,8 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import AdminLayout from '@/components/layout/AdminLayout.vue';
-// ✅ Fix: Import UserLayout from correct path
 import UserLayout from '@/views/user/layouts/UserLayout.vue';
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -14,9 +14,7 @@ const router = createRouter({
     // ---- Public routes ----
     {
       path: '/',
-      name: 'Home',
-      component: () => import('@/views/HomePage.vue'),
-      meta: { title: 'Home' },
+      redirect: '/user/dashboard',
     },
     {
       path: '/landing',
@@ -44,10 +42,29 @@ const router = createRouter({
     },
 
     // ============================================================
+    // REDIRECTS for /profile and /settings (from admin navbar)
+    // ============================================================
+    {
+      path: '/profile',
+      redirect: () => {
+        const auth = useAuthStore();
+        return auth.isAdmin ? '/admin/profile' : '/user/profile';
+      }
+    },
+    {
+      path: '/settings',
+      redirect: () => {
+        const auth = useAuthStore();
+        return auth.isAdmin ? '/admin/settings' : '/user/settings';
+      }
+    },
+
+    
+    // ============================================================
     // USER ROUTES (requires authentication, user role)
     // ============================================================
     {
-      path: '/',
+      path: '/user',
       component: UserLayout,
       meta: { requiresAuth: true, role: 'user' },
       children: [
@@ -70,7 +87,7 @@ const router = createRouter({
           meta: { title: 'Shipment Details' },
         },
         {
-          path: 'track-shipment/:id',
+          path: 'track-shipment',
           name: 'TrackShipment',
           component: () => import('@/views/user/shipments/ShipmentTracker.vue'),
           meta: { title: 'Track Shipment' },
@@ -79,8 +96,10 @@ const router = createRouter({
           path: 'profile',
           name: 'UserProfile',
           component: () => import('@/views/user/profile/UserProfile.vue'),
+
           meta: { title: 'Profile' },
         },
+
         {
           path: 'settings',
           name: 'UserSettings',
@@ -104,6 +123,19 @@ const router = createRouter({
           name: 'AdminDashboard',
           component: () => import('@/views/admin/AdminDashboard.vue'),
           meta: { title: 'Admin Dashboard' },
+        },
+        // Profile & Settings (Admin)
+        {
+          path: 'profile',
+          name: 'AdminProfile',
+          component: () => import('@/views/admin/AdminProfile.vue'),
+          meta: { title: 'Profile' },
+        },
+        {
+          path: 'settings',
+          name: 'AdminSettings',
+          component: () => import('@/views/admin/AdminSettings.vue'),
+          meta: { title: 'Settings' },
         },
         // Users
         {
@@ -334,7 +366,7 @@ router.beforeEach(async (to, from, next) => {
       if (auth.isAdmin) {
         next('/admin/dashboard');
       } else {
-        next('/dashboard');
+        next('/user/dashboard');
       }
       return;
     }
@@ -344,13 +376,13 @@ router.beforeEach(async (to, from, next) => {
     if (auth.isAdmin) {
       next('/admin/dashboard');
     } else {
-      next('/dashboard');
+      next('/user/dashboard');
     }
     return;
   }
 
   if (to.path.startsWith('/admin') && auth.isAuthenticated && !auth.isAdmin) {
-    next('/dashboard');
+    next('/user/dashboard');
     return;
   }
 
