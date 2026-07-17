@@ -1,9 +1,7 @@
-// router/index.ts
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 import AdminLayout from '@/components/layout/AdminLayout.vue';
 import UserLayout from '@/views/user/layouts/UserLayout.vue';
-
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -11,16 +9,15 @@ const router = createRouter({
     return savedPosition || { left: 0, top: 0 };
   },
   routes: [
-    // ---- Public routes ----
     {
       path: '/',
-      redirect: '/user/dashboard',
+      name: 'Landing',
+      component: () => import('@/views/Landing.vue'),
+      meta: { title: 'US2PK - Shipping & Logistics', public: true },
     },
     {
       path: '/landing',
-      name: 'Landing',
-      component: () => import('@/views/Landing.vue'),
-      meta: { title: 'Home' },
+      redirect: '/', // Redirect /landing to root
     },
     {
       path: '/signin',
@@ -59,7 +56,7 @@ const router = createRouter({
       }
     },
 
-    
+
     // ============================================================
     // USER ROUTES (requires authentication, user role)
     // ============================================================
@@ -341,7 +338,7 @@ const router = createRouter({
 // NAVIGATION GUARD
 // ============================================================
 router.beforeEach(async (to, from, next) => {
-  document.title = `${to.meta.title || 'US2PK'} | US2PK Dashboard`;
+  document.title = `${to.meta.title || 'US2PK'} | US2PK `;
 
   const auth = useAuthStore();
 
@@ -350,18 +347,26 @@ router.beforeEach(async (to, from, next) => {
       await auth.fetchUser();
     } catch {
       await auth.logout();
+      next('/');
+      return;
     }
   }
+  const isPublicRoute = to.path === '/' || to.path === '/landing';
 
+  // Guest only routes (signin, signup)
+  const isGuestOnly = to.meta.guestOnly === true;
+
+  // Check if route requires authentication
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   const requiredRole = to.matched.find(record => record.meta.role)?.meta.role;
-
+  // Case 1: Route requires authentication
   if (requiresAuth) {
     if (!auth.isAuthenticated) {
-      next({ path: '/signin', query: { redirect: to.fullPath } });
+      next({ path: '/', query: { redirect: to.fullPath } });
       return;
     }
 
+    // Check role requirements
     if (requiredRole && auth.user?.role !== requiredRole) {
       if (auth.isAdmin) {
         next('/admin/dashboard');
@@ -372,15 +377,25 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  if (to.meta.guestOnly && auth.isAuthenticated) {
-    if (auth.isAdmin) {
-      next('/admin/dashboard');
-    } else {
-      next('/user/dashboard');
+  // Case 2: Guest-only routes (signin, signup)
+  if (isGuestOnly) {
+    if (auth.isAuthenticated) {
+      next(auth.isAdmin ? '/admin/dashboard' : '/user/dashboard');
+      return;
     }
+    next();
     return;
   }
 
+  // Case 3: Landing page - if user is logged in, redirect to dashboard
+  if (isPublicRoute && auth.isAuthenticated) {
+    if (to.path === '/') {
+      next(auth.isAdmin ? '/admin/dashboard' : '/user/dashboard');
+      return;
+    }
+  }
+
+  // Case 4: Role-based access control
   if (to.path.startsWith('/admin') && auth.isAuthenticated && !auth.isAdmin) {
     next('/user/dashboard');
     return;

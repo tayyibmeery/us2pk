@@ -51,7 +51,8 @@ export const useAuthStore = defineStore('auth', {
       this.token = null;
       this.user = null;
       localStorage.removeItem('token');
-      router.push('/signin');
+      // router.push('/signin');
+      router.push('/');
     },
     async updateProfile(data: Partial<User>) {
       const response = await api.put('/user/profile', data);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\{
     AccountController,
     DashboardController,
     UserController,
+    LandingController,
     ShipmentController,
     ConsolidationController,
     WeightDiscountController,
@@ -40,6 +41,25 @@ Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware(['auth:sanctum', 'signed'])
     ->name('verification.verify');
 
+
+
+Route::prefix('landing')->group(function () {
+    // Get all landing page data
+    Route::get('/', [LandingController::class, 'index']);
+
+    // Get specific sections
+    Route::get('/hero', [LandingController::class, 'getHero']);
+    Route::get('/services', [LandingController::class, 'getServices']);
+    Route::get('/testimonials', [LandingController::class, 'getTestimonials']);
+    Route::get('/team', [LandingController::class, 'getTeam']);
+    Route::get('/pricing', [LandingController::class, 'getPricing']);
+    Route::get('/about', [LandingController::class, 'getAbout']);
+    Route::get('/faq', [LandingController::class, 'getFaq']);
+    Route::get('/stats', [LandingController::class, 'getStats']);
+
+    // Get a specific section by type
+    Route::get('/section/{type}', [LandingController::class, 'getSection']);
+});
 // ============================================================
 // AUTHENTICATED ROUTES (Requires authentication)
 // ============================================================
