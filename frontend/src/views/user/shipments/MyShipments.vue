@@ -6,13 +6,13 @@
         <h1 class="text-2xl font-bold text-gray-800 dark:text-white">My Shipments</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400">Track and manage all your shipments</p>
       </div>
-      <router-link to="/user/new-shipment"
+      <!-- <router-link to="/user/new-shipment"
         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-brand-500 rounded-lg hover:bg-brand-600 transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
         </svg>
         New Shipment
-      </router-link>
+      </router-link> -->
     </div>
 
     <!-- Filters -->
@@ -44,11 +44,13 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
           d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
-      <h3 class="mt-4 text-lg font-semibold text-gray-800 dark:text-white">No Shipments Found</h3>
-      <p class="text-sm text-gray-500 dark:text-gray-400">You haven't created any shipments yet.</p>
-      <router-link to="/user/new-shipment"
-        class="inline-block mt-4 text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400">Create your first
-        shipment →</router-link>
+      <h3 class="mt-4 text-lg font-semibold text-gray-800 dark:text-white">No Shipments Yet</h3>
+      <p class="text-sm text-gray-500 dark:text-gray-400">US2PK hasn't processed any shipments for you at this time.</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Once your first shipment is processed, it will appear
+        here.</p>
+      <router-link to="/"
+        class="inline-block mt-4 text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400">Contact Support
+        →</router-link>
     </div>
 
     <div v-else class="grid grid-cols-1 gap-4">

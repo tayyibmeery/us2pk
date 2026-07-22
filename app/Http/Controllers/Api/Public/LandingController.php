@@ -1,14 +1,14 @@
 <?php
+// app/Http/Controllers/Api/Public/LandingController.php
 
 namespace App\Http\Controllers\Api\Public;
 
 use App\Http\Controllers\Controller;
 use App\Models\Page;
+use App\Models\User;
+use App\Models\Shipment;
 use Illuminate\Http\Request;
-use App\Models\Testimonial;
-use App\Models\Service;
-use App\Models\Team;
-use App\Models\Pricing;
+use Illuminate\Support\Facades\Log;
 
 class LandingController extends Controller
 {
@@ -17,49 +17,94 @@ class LandingController extends Controller
      */
     public function index()
     {
-        // Get all page sections from the pages table
-        $pages = Page::where('status', true)
-            ->whereIn('type', ['hero', 'service', 'testimonial', 'team', 'pricing', 'faq', 'blog', 'about', 'whyus', 'contact'])
-            ->orderBy('order')
-            ->get();
+        try {
+            // Get all page sections
+            $pages = Page::where('status', true)
+                ->whereIn('type', ['hero', 'service', 'testimonial', 'team', 'pricing', 'faq', 'blog', 'about', 'whyus', 'contact'])
+                ->orderBy('order')
+                ->get();
 
-        // Group by type for easier frontend consumption
-        $sections = $pages->groupBy('type');
+            // Group by type
+            $sections = $pages->groupBy('type');
 
-        // Optionally, you can fetch additional data from other tables
-        // Here are some examples if you have separate models:
+            // Get stats
+            $stats = $this->getStats();
 
-        // Get testimonials if you have a dedicated testimonials table
-        // $testimonials = Testimonial::where('is_active', true)->get();
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'sections' => $sections,
+                    'stats' => $stats,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Landing API Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching landing data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
-        // Get services if you have a dedicated services table
-        // $services = Service::where('is_active', true)->get();
+    /**
+     * Get website stats with error handling
+     */
+    public function getStats()
+    {
+        try {
+            $stats = [
+                'happy_clients' => 0,
+                'complete_shipments' => 0,
+                'customer_reviews' => 0,
+                'active_services' => 0,
+            ];
 
-        // Get team members if you have a dedicated team table
-        // $team = Team::where('is_active', true)->get();
+            // Get users count
+            try {
+                $stats['happy_clients'] = User::where('role', 'user')->count();
+            } catch (\Exception $e) {
+                Log::warning('Could not get users count: ' . $e->getMessage());
+                $stats['happy_clients'] = 0;
+            }
 
-        // Get pricing plans if you have a dedicated pricing table
-        // $pricing = Pricing::where('is_active', true)->get();
+            // Get shipments count
+            try {
+                $stats['complete_shipments'] = Shipment::count();
+            } catch (\Exception $e) {
+                Log::warning('Could not get shipments count: ' . $e->getMessage());
+                $stats['complete_shipments'] = 0;
+            }
 
-        // Get stats (example counts)
-        $stats = [
-            'happy_clients' => \App\Models\User::where('role', 'user')->count(),
-            'complete_shipments' => \App\Models\Shipment::count(),
-            'customer_reviews' => \App\Models\Review::count(),
-            // Add more stats as needed
-        ];
+            // Get reviews count - skip if table doesn't exist
+            try {
+                if (\Illuminate\Support\Facades\Schema::hasTable('reviews')) {
+                    $stats['customer_reviews'] = \DB::table('reviews')->count();
+                } else {
+                    $stats['customer_reviews'] = 0;
+                }
+            } catch (\Exception $e) {
+                Log::warning('Reviews table not available: ' . $e->getMessage());
+                $stats['customer_reviews'] = 0;
+            }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'sections' => $sections,      // Page sections from the pages table
-                'stats' => $stats,             // Statistics
-                // 'testimonials' => $testimonials, // Uncomment if you have these tables
-                // 'services' => $services,
-                // 'team' => $team,
-                // 'pricing' => $pricing,
-            ]
-        ]);
+            // Get active services count
+            try {
+                $stats['active_services'] = Page::where('type', 'service')->where('status', true)->count();
+            } catch (\Exception $e) {
+                Log::warning('Could not get services count: ' . $e->getMessage());
+                $stats['active_services'] = 0;
+            }
+
+            return $stats;
+        } catch (\Exception $e) {
+            Log::error('Error getting stats: ' . $e->getMessage());
+            return [
+                'happy_clients' => 0,
+                'complete_shipments' => 0,
+                'customer_reviews' => 0,
+                'active_services' => 0,
+            ];
+        }
     }
 
     /**
@@ -67,38 +112,54 @@ class LandingController extends Controller
      */
     public function getSection($type)
     {
-        $page = Page::where('status', true)
-            ->where('type', $type)
-            ->orderBy('order')
-            ->first();
+        try {
+            $page = Page::where('status', true)
+                ->where('type', $type)
+                ->orderBy('order')
+                ->first();
 
-        if (!$page) {
+            if (!$page) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Section not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $page
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching section: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'Section not found'
-            ], 404);
+                'message' => 'Error fetching section'
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'data' => $page
-        ]);
     }
 
     /**
-     * Get hero sections (for carousel/slider)
+     * Get hero sections
      */
     public function getHero()
     {
-        $heroes = Page::where('status', true)
-            ->where('type', 'hero')
-            ->orderBy('order')
-            ->get();
+        try {
+            $heroes = Page::where('status', true)
+                ->where('type', 'hero')
+                ->orderBy('order')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $heroes
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $heroes
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching hero: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => []
+            ], 500);
+        }
     }
 
     /**
@@ -106,15 +167,23 @@ class LandingController extends Controller
      */
     public function getServices()
     {
-        $services = Page::where('status', true)
-            ->where('type', 'service')
-            ->orderBy('order')
-            ->get();
+        try {
+            $services = Page::where('status', true)
+                ->where('type', 'service')
+                ->orderBy('order')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $services
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $services
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching services: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => []
+            ], 500);
+        }
     }
 
     /**
@@ -122,15 +191,23 @@ class LandingController extends Controller
      */
     public function getTestimonials()
     {
-        $testimonials = Page::where('status', true)
-            ->where('type', 'testimonial')
-            ->orderBy('order')
-            ->get();
+        try {
+            $testimonials = Page::where('status', true)
+                ->where('type', 'testimonial')
+                ->orderBy('order')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $testimonials
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $testimonials
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching testimonials: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => []
+            ], 500);
+        }
     }
 
     /**
@@ -138,15 +215,23 @@ class LandingController extends Controller
      */
     public function getTeam()
     {
-        $team = Page::where('status', true)
-            ->where('type', 'team')
-            ->orderBy('order')
-            ->get();
+        try {
+            $team = Page::where('status', true)
+                ->where('type', 'team')
+                ->orderBy('order')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $team
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $team
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching team: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => []
+            ], 500);
+        }
     }
 
     /**
@@ -154,30 +239,46 @@ class LandingController extends Controller
      */
     public function getPricing()
     {
-        $pricing = Page::where('status', true)
-            ->where('type', 'pricing')
-            ->orderBy('order')
-            ->get();
+        try {
+            $pricing = Page::where('status', true)
+                ->where('type', 'pricing')
+                ->orderBy('order')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $pricing
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $pricing
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching pricing: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => []
+            ], 500);
+        }
     }
 
     /**
-     * Get about us content
+     * Get about content
      */
     public function getAbout()
     {
-        $about = Page::where('status', true)
-            ->where('type', 'about')
-            ->first();
+        try {
+            $about = Page::where('status', true)
+                ->where('type', 'about')
+                ->first();
 
-        return response()->json([
-            'success' => true,
-            'data' => $about
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $about
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching about: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => null
+            ], 500);
+        }
     }
 
     /**
@@ -185,32 +286,143 @@ class LandingController extends Controller
      */
     public function getFaq()
     {
-        $faq = Page::where('status', true)
-            ->where('type', 'faq')
-            ->orderBy('order')
-            ->get();
+        try {
+            $faq = Page::where('status', true)
+                ->where('type', 'faq')
+                ->orderBy('order')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $faq
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $faq
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching faq: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => []
+            ], 500);
+        }
     }
 
     /**
-     * Get website stats
+     * Get Why Us content
      */
-    public function getStats()
+    public function getWhyUs()
     {
-        $stats = [
-            'happy_clients' => \App\Models\User::where('role', 'user')->count(),
-            'complete_shipments' => \App\Models\Shipment::count(),
-            'customer_reviews' => \App\Models\Review::count(),
-            'active_services' => \App\Models\Service::where('is_active', true)->count(),
-        ];
+        try {
+            $whyUs = Page::where('status', true)
+                ->where('type', 'whyus')
+                ->first();
 
-        return response()->json([
-            'success' => true,
-            'data' => $stats
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => $whyUs
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching whyus: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Get blog posts
+     */
+    public function getBlog()
+    {
+        try {
+            $blog = Page::where('status', true)
+                ->where('type', 'blog')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $blog
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching blog: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => []
+            ], 500);
+        }
+    }
+
+    /**
+     * Get contact section
+     */
+    public function getContact()
+    {
+        try {
+            $contact = Page::where('status', true)
+                ->where('type', 'contact')
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'data' => $contact
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching contact: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'data' => null
+            ], 500);
+        }
+    }
+
+    /**
+     * Get website stats (simplified version without Review model)
+     */
+    public function getStatsSimple()
+    {
+        try {
+            $stats = [
+                'happy_clients' => 0,
+                'complete_shipments' => 0,
+                'customer_reviews' => 0,
+                'active_services' => 0,
+            ];
+
+            // Get users count
+            try {
+                $stats['happy_clients'] = \App\Models\User::where('role', 'user')->count();
+            } catch (\Exception $e) {
+                // User table might not exist yet
+                $stats['happy_clients'] = 0;
+            }
+
+            // Get shipments count
+            try {
+                $stats['complete_shipments'] = \App\Models\Shipment::count();
+            } catch (\Exception $e) {
+                // Shipment table might not exist yet
+                $stats['complete_shipments'] = 0;
+            }
+
+            // Reviews - use 0 as default since table doesn't exist
+            $stats['customer_reviews'] = 0;
+
+            // Get active services count
+            try {
+                $stats['active_services'] = \App\Models\Page::where('type', 'service')->where('status', true)->count();
+            } catch (\Exception $e) {
+                $stats['active_services'] = 0;
+            }
+
+            return $stats;
+        } catch (\Exception $e) {
+            Log::error('Error getting stats: ' . $e->getMessage());
+            return [
+                'happy_clients' => 0,
+                'complete_shipments' => 0,
+                'customer_reviews' => 0,
+                'active_services' => 0,
+            ];
+        }
     }
 }

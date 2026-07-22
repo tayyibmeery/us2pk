@@ -1,4 +1,5 @@
 <?php
+// database/migrations/2024_01_01_000000_create_pages_table.php
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,14 +13,20 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->string('slug')->unique();
-            $table->longText('content');
             $table->string('type')->default('page');
-            $table->integer('order')->default(0);
+            $table->longText('content')->nullable();
             $table->string('image')->nullable();
             $table->string('icon')->nullable();
             $table->json('meta')->nullable();
+            $table->integer('order')->default(0);
             $table->boolean('status')->default(true);
+            $table->foreignId('parent_id')->nullable()->constrained('pages')->onDelete('cascade');
             $table->timestamps();
+            $table->softDeletes();
+
+            // Indexes
+            $table->index(['type', 'status']);
+            $table->index('order');
         });
     }
 

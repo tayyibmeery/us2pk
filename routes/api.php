@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\Admin\{
     AccountController,
     DashboardController,
     UserController,
-    LandingController,
+
     ShipmentController,
     ConsolidationController,
     WeightDiscountController,
@@ -28,26 +28,17 @@ use App\Http\Controllers\Api\Admin\{
     VoucherController,
     WarehouseController
 };
+
+use App\Http\Controllers\Api\Public\LandingController;
 use App\Http\Controllers\CityPublicController;
 
+
 // ============================================================
-// PUBLIC ROUTES (No authentication required)
+// PUBLIC ROUTES
 // ============================================================
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::get('/public/cities', [CityPublicController::class, 'index']);
-Route::get('public/landing', [PageController::class, 'publicLanding']);
-Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-    ->middleware(['auth:sanctum', 'signed'])
-    ->name('verification.verify');
-
-
-
 Route::prefix('landing')->group(function () {
-    // Get all landing page data
     Route::get('/', [LandingController::class, 'index']);
-
-    // Get specific sections
+    Route::get('/section/{type}', [LandingController::class, 'getSection']);
     Route::get('/hero', [LandingController::class, 'getHero']);
     Route::get('/services', [LandingController::class, 'getServices']);
     Route::get('/testimonials', [LandingController::class, 'getTestimonials']);
@@ -55,11 +46,43 @@ Route::prefix('landing')->group(function () {
     Route::get('/pricing', [LandingController::class, 'getPricing']);
     Route::get('/about', [LandingController::class, 'getAbout']);
     Route::get('/faq', [LandingController::class, 'getFaq']);
+    Route::get('/whyus', [LandingController::class, 'getWhyUs']);
+    Route::get('/blog', [LandingController::class, 'getBlog']);
+    Route::get('/contact', [LandingController::class, 'getContact']);
     Route::get('/stats', [LandingController::class, 'getStats']);
-
-    // Get a specific section by type
-    Route::get('/section/{type}', [LandingController::class, 'getSection']);
 });
+
+// routes/api.php - Add these to admin routes
+
+Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    // ... existing routes
+
+    // Pages routes
+    Route::prefix('pages')->group(function () {
+        Route::get('/types', [PageController::class, 'getTypes']);
+        Route::post('/upload-image', [PageController::class, 'uploadImage']);
+        Route::post('/reorder', [PageController::class, 'reorder']);
+        Route::post('/bulk-delete', [PageController::class, 'bulkDelete']);
+        Route::post('/bulk-status', [PageController::class, 'bulkStatus']);
+        Route::delete('/{page}/image', [PageController::class, 'deleteImage']);
+    });
+
+    Route::apiResource('pages', PageController::class);
+});
+// ============================================================
+// PUBLIC ROUTES (No authentication required)
+// ============================================================
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+Route::get('/public/cities', [CityPublicController::class, 'index']);
+
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    ->middleware(['auth:sanctum', 'signed'])
+    ->name('verification.verify');
+
+
+
+
 // ============================================================
 // AUTHENTICATED ROUTES (Requires authentication)
 // ============================================================
@@ -222,8 +245,5 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::apiResource('shipment-statuses', ShipmentStatusController::class);
     Route::apiResource('weight-discounts', WeightDiscountController::class);
 
-    // ============================================================
-    // CMS
-    // ============================================================
-    Route::apiResource('pages', PageController::class);
+
 });

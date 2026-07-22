@@ -262,10 +262,11 @@ const fetchDashboardData = async () => {
     // Recent Activities
     recentActivities.value = d.recent_activities || []
 
-    // Profit & Loss - Try to get from financial/pl endpoint
+    // Profit & Loss - Get from correct endpoint
     try {
-      const plRes = await api.get('/admin/financial/pl')
+      const plRes = await api.get('/admin/pandl/since-inception')
       const pl = plRes.data
+
       profitLossData.value = {
         categories: ['Revenue', 'Costs', 'Gross Profit', 'Net Profit'],
         series: [{
@@ -278,7 +279,8 @@ const fetchDashboardData = async () => {
           ]
         }]
       }
-    } catch {
+    } catch (plError) {
+      console.error('P&L fetch error:', plError)
       // Fallback P&L data
       profitLossData.value = {
         categories: ['Revenue', 'Costs', 'Gross Profit', 'Net Profit'],
@@ -297,5 +299,8 @@ const fetchDashboardData = async () => {
   }
 }
 
-onMounted(fetchDashboardData)
+// ✅ FIXED: Proper onMounted call
+onMounted(() => {
+  fetchDashboardData()
+})
 </script>

@@ -4,14 +4,16 @@
     <div class="container py-5">
       <div class="row g-5 align-items-center">
         <div class="col-lg-5 wow fadeInUp">
-          <h6 class="text-secondary text-uppercase mb-3">Get A Quote</h6>
-          <h1 class="mb-5">Request A Free Quote!</h1>
-          <p class="mb-5">Tell us what you need and we'll give you a competitive price – no obligation.</p>
+          <h6 class="text-secondary text-uppercase mb-3">{{ sectionData?.meta?.subtitle || 'Get A Quote' }}</h6>
+          <h1 class="mb-5">{{ sectionData?.title || 'Request A Free Quote!' }}</h1>
+          <p class="mb-5">
+            {{ sectionData?.content || 'Tell us what you need and we\'ll give you a competitive price – no obligation.' }}
+          </p>
           <div class="d-flex align-items-center">
             <i class="fa fa-headphones fa-2x flex-shrink-0 bg-primary p-3 text-white"></i>
             <div class="ps-4">
               <h6>Call for any query!</h6>
-              <h3 class="text-primary m-0">+92 123 4567890</h3>
+              <h3 class="text-primary m-0">{{ sectionData?.meta?.phone || '+92 123 4567890' }}</h3>
             </div>
           </div>
         </div>
@@ -59,7 +61,12 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { reactive, computed, onMounted } from 'vue';
+import { useLandingStore } from '@/stores/landingStore';
+
+const landingStore = useLandingStore();
+
+const sectionData = computed(() => landingStore.getContact);
 
 const form = reactive({
   name: '',
@@ -70,11 +77,12 @@ const form = reactive({
 });
 
 const submitQuote = () => {
-  // Handle form submission
   console.log('Quote Form Submitted:', form);
-  // You can send this to your API
   alert('Thank you for your request! We will contact you soon.');
-  // Reset form
   Object.assign(form, { name: '', email: '', mobile: '', service: '', note: '' });
 };
+
+onMounted(() => {
+  landingStore.fetchLandingData();
+});
 </script>

@@ -26,10 +26,19 @@ class UserController extends Controller
 
     public function updateStatus(Request $request, User $user)
     {
-        $request->validate(['status' => 'required|in:pending,verified,approved']);
+        $request->validate([
+            'status' => 'required|in:pending,verified,approved'
+        ]);
         $user->status = $request->status;
+        if ($request->status === 'approved') {
+            $user->email_verified_at = now();
+        } else {
+            $user->email_verified_at = null;
+        }
         $user->save();
-        return response()->json(['message' => 'Status updated']);
+        return response()->json([
+            'message' => 'Status updated successfully.'
+        ]);
     }
 
     public function show(User $user)

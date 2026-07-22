@@ -8,7 +8,7 @@
         <div class="flex items-center justify-center h-16 border-b border-gray-200 dark:border-gray-700">
           <router-link to="/user/dashboard" class="flex items-center">
             <img src="/images/logo/logo.png" class="h-8 mr-2" alt="US2PK Logo" />
-            <span class="text-xl font-bold text-gray-800 dark:text-white">US2PK</span>
+            <!-- <span class="text-xl font-bold text-gray-800 dark:text-white">US2PK</span> -->
           </router-link>
         </div>
 

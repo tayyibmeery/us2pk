@@ -109,7 +109,7 @@
   </FullScreenLayout>
 </template>
 
-<script setup lang="ts">
+<!-- <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
@@ -133,7 +133,45 @@ async function handleSubmit() {
     await authStore.login(email.value, password.value);
     if (authStore.isAdmin) router.push('/admin/dashboard');
     else router.push('/dashboard');
-  
+
+  } catch (err: any) {
+    error.value = err.response?.data?.message || 'Login failed.';
+  } finally {
+    loading.value = false;
+  }
+}
+</script> -->
+<!-- src/views/Auth/Signin.vue -->
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/authStore';
+import FullScreenLayout from '@/components/layout/FullScreenLayout.vue';
+import CommonGridShape from '@/components/common/CommonGridShape.vue';
+
+const router = useRouter();
+const authStore = useAuthStore();
+const email = ref('');
+const password = ref('');
+const showPassword = ref(false);
+const loading = ref(false);
+const error = ref('');
+
+const togglePasswordVisibility = () => { showPassword.value = !showPassword.value; };
+
+async function handleSubmit() {
+  loading.value = true;
+  error.value = '';
+  try {
+    await authStore.login(email.value, password.value);
+
+    // ✅ FIX: Redirect based on user role
+    if (authStore.isAdmin) {
+      router.push('/admin/dashboard');
+    } else {
+      router.push('/user/dashboard');
+    }
+
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Login failed.';
   } finally {

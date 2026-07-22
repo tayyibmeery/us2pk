@@ -2,7 +2,7 @@ APP_NAME="US2PK Logistic"
 APP_ENV=production
 APP_KEY=base64:JkrBWWbeZXg+LRwCxUz4PASm4uWPssTNlF5C4teDnR8=
 APP_DEBUG=false
-APP_URL=https://us2pk.com
+APP_URL=http://localhost:8000
 
 APP_LOCALE=en
 APP_FALLBACK_LOCALE=en
