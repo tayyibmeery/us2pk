@@ -1,3 +1,4 @@
+// src/main.ts
 import './assets/main.css'
 import 'swiper/css'
 import 'swiper/css/navigation'
@@ -16,13 +17,11 @@ const originalConsoleWarn = console.warn
 console.warn = (...args: any[]) => {
   const message = args[0] || ''
   if (typeof message === 'string') {
-    // Suppress specific warnings from apexcharts
     if (message.includes('Added non-passive event listener') ||
       message.includes('touchstart') ||
       message.includes('scroll-blocking')) {
       return
     }
-    // Suppress vue3-apexcharts warnings
     if (message.includes('vue3-apexcharts')) {
       return
     }
@@ -35,7 +34,6 @@ const originalConsoleError = console.error
 console.error = (...args: any[]) => {
   const message = args[0] || ''
   if (typeof message === 'string') {
-    // Suppress [Violation] warnings
     if (message.includes('[Violation]') && message.includes('touchstart')) {
       return
     }
@@ -50,9 +48,10 @@ const app = createApp(App)
 
 app.config.errorHandler = (err, instance, info) => {
   // Ignore apexcharts related errors
-  if (err && typeof err === 'object' && 'message' in err) {
-    const errorMessage = err.message || ''
-    if (errorMessage.includes('hidden') || errorMessage.includes('apexcharts')) {
+  if (err && typeof err === 'object' && err !== null && 'message' in err) {
+    const errorMessage = (err as any).message || ''
+    if (typeof errorMessage === 'string' &&
+      (errorMessage.includes('hidden') || errorMessage.includes('apexcharts'))) {
       console.debug('Apexcharts error suppressed:', errorMessage)
       return
     }
@@ -60,8 +59,8 @@ app.config.errorHandler = (err, instance, info) => {
   console.error('🔥 GLOBAL ERROR:', err)
   console.error('Component:', instance)
   console.error('Info:', info)
-  if (err && typeof err === 'object' && 'stack' in err) {
-    console.error(err.stack)
+  if (err && typeof err === 'object' && err !== null && 'stack' in err) {
+    console.error((err as any).stack)
   }
 }
 
@@ -88,7 +87,6 @@ app.config.globalProperties.truncateWords = truncateWords;
 // Fix for apexcharts touch events
 app.mixin({
   mounted() {
-    // Fix touch events for all apexcharts instances
     this.$nextTick(() => {
       const canvases = document.querySelectorAll('.apexcharts-canvas')
       canvases.forEach((el: any) => {
@@ -99,7 +97,5 @@ app.mixin({
     })
   }
 })
-
-
 
 app.mount('#app')

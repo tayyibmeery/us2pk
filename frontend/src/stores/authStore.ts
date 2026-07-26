@@ -1,3 +1,4 @@
+// src/stores/authStore.ts
 import { defineStore } from 'pinia';
 import api from '@/services/api';
 import router from '@/router';
@@ -33,7 +34,9 @@ export const useAuthStore = defineStore('auth', {
     async login(email: string, password: string) {
       const response = await api.post('/login', { email, password });
       this.token = response.data.access_token;
-      localStorage.setItem('token', this.token);
+      if (this.token) {
+        localStorage.setItem('token', this.token);
+      }
       await this.fetchUser();
       return response.data;
     },
@@ -43,15 +46,22 @@ export const useAuthStore = defineStore('auth', {
     },
     async fetchUser() {
       if (!this.token) return;
-      const response = await api.get('/user/profile');
-      this.user = response.data;
+      try {
+        const response = await api.get('/user/profile');
+        this.user = response.data;
+      } catch (error) {
+        // If fetching user fails, clear token
+        this.token = null;
+        this.user = null;
+        localStorage.removeItem('token');
+        throw error;
+      }
     },
     async logout() {
       await api.post('/logout').catch(() => { });
       this.token = null;
       this.user = null;
       localStorage.removeItem('token');
-      // router.push('/signin');
       router.push('/');
     },
     async updateProfile(data: Partial<User>) {
@@ -69,8 +79,6 @@ export const useAuthStore = defineStore('auth', {
       await this.fetchUser();
       return response.data;
     },
-
-    // ✅ ADD THIS
     async changePassword(currentPassword: string, newPassword: string, newPasswordConfirmation: string) {
       const response = await api.post('/user/change-password', {
         current_password: currentPassword,

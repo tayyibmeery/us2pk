@@ -1,199 +1,254 @@
-<!-- frontend/src/views/admin/Pages.vue -->
 <template>
   <div class="space-y-6">
-    <PageBreadcrumb :pageTitle="'Pages'" />
+    <div class="flex items-center justify-between">
+      <PageBreadcrumb :pageTitle="'Page Settings'" />
+      <div class="flex gap-2">
+        <button @click="resetSettings"
+          class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">
+          Reset to Defaults
+        </button>
+        <button @click="saveAll" :disabled="saving"
+          class="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand-600 px-4 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-50">
+          <svg v-if="saving" class="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" />
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span v-else>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" class="inline mr-1">
+              <path d="M2 4L6 8L14 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+            Save All
+          </span>
+        </button>
+      </div>
+    </div>
 
-    <DataTable :store="pageStore" :columns="columns" title="Pages" addButtonLabel="Add Page"
-      :modalComponent="PageFormModal">
-      <!-- Custom image column rendering -->
-      <template #cell-image="{ item }">
-        <div class="flex-shrink-0">
-          <img v-if="item.image" :src="getImageUrl(item.image)" :alt="item.title"
-            class="w-10 h-10 rounded-lg object-cover border border-gray-200 dark:border-gray-600 shadow-sm"
-            @error="handleImageError" @load="handleImageLoad" />
-          <div v-else
-            class="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600">
-            <i class="fas fa-image text-gray-400 dark:text-gray-500"></i>
+    <!-- Loading State -->
+    <div v-if="store.loading" class="flex items-center justify-center py-12">
+      <div class="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent"></div>
+    </div>
+
+    <!-- Settings Grid -->
+    <div v-else class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <div v-for="item in store.orderedItems" :key="item.id"
+        class="group rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+        :class="{
+          'opacity-60': !item.enabled,
+          'border-l-4 border-l-green-500': item.enabled
+        }">
+        <!-- Header -->
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-2">
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+              <i :class="item.icon || 'fas fa-cog'"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                {{ item.section_name }}
+              </h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400">
+                Component: {{ item.component_name }}
+              </p>
+            </div>
+          </div>
+          <label class="relative inline-flex cursor-pointer items-center">
+            <input type="checkbox" :checked="item.enabled" @change="toggleItem(item.id, $event)" class="peer sr-only" />
+            <div
+              class="peer h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-brand-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-brand-500/20 dark:bg-gray-700">
+            </div>
+          </label>
+        </div>
+
+        <!-- Order Controls -->
+        <div class="mt-3 flex items-center gap-2">
+          <span class="text-xs text-gray-400">Order: {{ item.order }}</span>
+          <div class="flex gap-0.5">
+            <button @click="moveItem(item.id, -1)" :disabled="item.order <= 1"
+              class="rounded p-0.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-gray-700">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 12L4 8L8 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button @click="moveItem(item.id, 1)" :disabled="item.order >= store.orderedItems.length"
+              class="rounded p-0.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-gray-700">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 4L12 8L8 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
           </div>
         </div>
-      </template>
 
-      <!-- Custom status column rendering -->
-      <template #cell-status="{ item }">
-        <span class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full"
-          :class="item.status ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'">
-          <span class="w-1.5 h-1.5 rounded-full mr-1.5" :class="item.status ? 'bg-green-500' : 'bg-red-500'"></span>
-          {{ item.status ? 'Active' : 'Inactive' }}
-        </span>
-      </template>
+        <!-- Section Title & Subtitle -->
+        <div class="mt-3 space-y-2">
+          <div>
+            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">
+              Section Title
+            </label>
+            <input v-model="item.section_title" type="text" placeholder="Enter section title"
+              class="mt-0.5 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 dark:text-gray-300">
+              Section Subtitle
+            </label>
+            <input v-model="item.section_subtitle" type="text" placeholder="Enter section subtitle"
+              class="mt-0.5 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-700 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200" />
+          </div>
+        </div>
 
-      <!-- Custom type column rendering -->
-      <template #cell-type="{ item }">
-        <span class="px-2.5 py-1 text-xs font-medium rounded-full" :class="getTypeColor(item.type)">
-          {{ getTypeLabel(item.type) }}
-        </span>
-      </template>
-    </DataTable>
+        <!-- Navbar Settings -->
+        <div class="mt-3 border-t border-gray-100 pt-3 dark:border-gray-700">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Navbar</span>
+              <span class="text-xs text-gray-400">({{ item.nav_label || 'Not set' }})</span>
+            </div>
+            <label class="relative inline-flex cursor-pointer items-center">
+              <input type="checkbox" :checked="item.show_in_navbar" @change="toggleNavbar(item.id, $event)"
+                :disabled="!item.enabled" class="peer sr-only" />
+              <div
+                class="peer h-5 w-9 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-brand-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-brand-500/20 peer-disabled:opacity-40 dark:bg-gray-700">
+              </div>
+            </label>
+          </div>
+          <div class="mt-1">
+            <input v-model="item.nav_label" type="text" placeholder="Navbar label" :disabled="!item.enabled"
+              class="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-40 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200" />
+          </div>
+        </div>
+
+        <!-- Footer Settings -->
+        <div class="mt-2 flex items-center justify-between">
+          <span class="text-xs font-medium text-gray-600 dark:text-gray-400">Show in Footer</span>
+          <label class="relative inline-flex cursor-pointer items-center">
+            <input type="checkbox" :checked="item.show_in_footer" @change="toggleFooter(item.id, $event)"
+              :disabled="!item.enabled" class="peer sr-only" />
+            <div
+              class="peer h-5 w-9 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-brand-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-brand-500/20 peer-disabled:opacity-40 dark:bg-gray-700">
+            </div>
+          </label>
+        </div>
+
+        <!-- Route Path -->
+        <div class="mt-2">
+          <input v-model="item.route_path" type="text" placeholder="Route path (e.g. #section-id)"
+            class="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700 placeholder:text-gray-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200" />
+        </div>
+
+        <!-- Status Badge -->
+        <div class="absolute bottom-3 right-3">
+          <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+            :class="item.enabled ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'">
+            {{ item.enabled ? 'Active' : 'Disabled' }}
+          </span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
-import DataTable from '@/components/common/DataTable.vue'
-import PageFormModal from '@/components/admin/PageFormModal.vue'
-import { usePageStore } from '@/stores/pageStore'
-import type { ColumnDefinition } from '@/types/table'
+import { useLandingSettingStore } from '@/stores/landingSettingStore'
+import { useToastStore } from '@/stores/toastStore'
 
-const pageStore = usePageStore()
-
-// ============================================================
-// IMAGE HANDLING - USING VITE_BASE_URL
-// ============================================================
-
-const getImageUrl = (imagePath: string | null | undefined): string => {
-  if (!imagePath) return ''
-
-  // If it's already a full URL, return as is
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath
-  }
-
-  // Get the base URL from environment variable
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:8000'
-
-  // If it starts with /storage/, it's already a storage path
-  if (imagePath.startsWith('/storage/')) {
-    return `${baseUrl}${imagePath}`
-  }
-
-  // If it starts with storage/ (without leading slash), add the slash and base URL
-  if (imagePath.startsWith('storage/')) {
-    return `${baseUrl}/${imagePath}`
-  }
-
-  // If it starts with pages/, it's a storage path
-  if (imagePath.startsWith('pages/')) {
-    return `${baseUrl}/storage/${imagePath}`
-  }
-
-  // If it doesn't have any prefix, assume it's from storage
-  return `${baseUrl}/storage/${imagePath}`
-}
-
-const handleImageError = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  console.warn('Image failed to load:', img.src)
-
-  // Show fallback
-  img.style.display = 'none'
-
-  const parent = img.parentElement
-  if (parent) {
-    // Remove existing fallback if any
-    const existingFallback = parent.querySelector('.image-fallback')
-    if (existingFallback) {
-      existingFallback.remove()
-    }
-
-    const fallback = document.createElement('div')
-    fallback.className = 'w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600 image-fallback'
-    fallback.innerHTML = '<i class="fas fa-image text-gray-400 dark:text-gray-500"></i>'
-    parent.appendChild(fallback)
-  }
-}
-
-const handleImageLoad = (event: Event) => {
-  const img = event.target as HTMLImageElement
-  console.log('Image loaded successfully:', img.src)
-}
-
-// ============================================================
-// TYPE COLOR & LABEL
-// ============================================================
-
-const getTypeColor = (type: string): string => {
-  const colors: Record<string, string> = {
-    hero: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-    about: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-    service: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    testimonial: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    team: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400',
-    pricing: 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400',
-    faq: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-    blog: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400',
-    whyus: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400',
-    contact: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-    page: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
-  }
-  return colors[type] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-}
-
-const getTypeLabel = (type: string): string => {
-  const labels: Record<string, string> = {
-    hero: 'Hero',
-    about: 'About',
-    service: 'Service',
-    testimonial: 'Testimonial',
-    team: 'Team',
-    pricing: 'Pricing',
-    faq: 'FAQ',
-    blog: 'Blog',
-    whyus: 'Why Us',
-    contact: 'Contact',
-    page: 'Page',
-  }
-  return labels[type] || type
-}
-
-// ============================================================
-// COLUMNS DEFINITION
-// ============================================================
-
-const columns: ColumnDefinition[] = [
-  {
-    key: 'id',
-    label: 'ID',
-    sortable: true
-  },
-  {
-    key: 'image',
-    label: 'Image',
-    sortable: false
-  },
-  {
-    key: 'type',
-    label: 'Type',
-    sortable: true
-  },
-  {
-    key: 'title',
-    label: 'Title',
-    sortable: true
-  },
-  {
-    key: 'slug',
-    label: 'Slug',
-    sortable: true
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    sortable: true
-  },
-  {
-    key: 'order',
-    label: 'Order',
-    sortable: true
-  },
-]
-
-// ============================================================
-// LIFECYCLE
-// ============================================================
+const store = useLandingSettingStore()
+const toast = useToastStore()
+const saving = ref(false)
 
 onMounted(() => {
-  pageStore.fetchTypes()
-  pageStore.fetchItems(1)
+  store.fetchItems()
 })
+
+const toggleItem = async (id: number, event: Event) => {
+  const target = event.target as HTMLInputElement
+  try {
+    await store.toggleItem(id, target.checked)
+    toast.success(`Section ${target.checked ? 'enabled' : 'disabled'} successfully`)
+  } catch (error) {
+    target.checked = !target.checked
+    toast.error('Failed to update section status')
+  }
+}
+
+const toggleNavbar = async (id: number, event: Event) => {
+  const target = event.target as HTMLInputElement
+  try {
+    await store.toggleNavbar(id, target.checked)
+    toast.success(`Navbar visibility updated`)
+  } catch (error) {
+    target.checked = !target.checked
+    toast.error('Failed to update navbar visibility')
+  }
+}
+
+const toggleFooter = async (id: number, event: Event) => {
+  const target = event.target as HTMLInputElement
+  try {
+    await store.toggleFooter(id, target.checked)
+    toast.success(`Footer visibility updated`)
+  } catch (error) {
+    target.checked = !target.checked
+    toast.error('Failed to update footer visibility')
+  }
+}
+
+const moveItem = async (id: number, direction: number) => {
+  const current = store.orderedItems.find(item => item.id === id)
+  if (!current) return
+
+  const newOrder = current.order + direction
+  if (newOrder < 1 || newOrder > store.orderedItems.length) return
+
+  const other = store.orderedItems.find(item => item.order === newOrder)
+  if (!other) return
+
+  try {
+    await store.bulkUpdate([
+      { id: current.id, order: newOrder },
+      { id: other.id, order: current.order }
+    ])
+    toast.success('Order updated successfully')
+  } catch (error) {
+    toast.error('Failed to update order')
+  }
+}
+
+const saveAll = async () => {
+  saving.value = true
+  try {
+    const settings = store.orderedItems.map(item => ({
+      id: item.id,
+      enabled: item.enabled,
+      section_title: item.section_title,
+      section_subtitle: item.section_subtitle,
+      nav_label: item.nav_label,
+      route_path: item.route_path,
+      show_in_navbar: item.show_in_navbar,
+      show_in_footer: item.show_in_footer,
+    }))
+    await store.bulkUpdate(settings)
+    toast.success('All settings saved successfully')
+  } catch (error) {
+    toast.error('Failed to save settings')
+  } finally {
+    saving.value = false
+  }
+}
+
+const resetSettings = async () => {
+  if (!confirm('Are you sure you want to reset all landing page settings to defaults? This cannot be undone.')) return
+  try {
+    await store.resetSettings()
+    toast.success('Settings reset to defaults')
+  } catch (error) {
+    toast.error('Failed to reset settings')
+  }
+}
 </script>

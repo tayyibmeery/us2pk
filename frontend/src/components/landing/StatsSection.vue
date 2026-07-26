@@ -1,45 +1,21 @@
-<!-- src/components/landing/StatsSection.vue -->
 <template>
-  <div class="container-xxl py-5">
-    <div class="container py-5">
-      <div class="row g-5">
-        <div class="col-lg-6 wow fadeInUp">
-          <h6 class="text-secondary text-uppercase mb-3">{{ sectionData?.meta?.subtitle || 'Some Facts' }}</h6>
-          <h1 class="mb-5">{{ sectionData?.title || '#1 Place To Manage All Of Your Shipments' }}</h1>
-          <p class="mb-5">
-            {{ sectionData?.content || 'Track your orders, consolidate packages, and save on shipping – all in one platform.' }}
-          </p>
-          <div class="d-flex align-items-center">
-            <i class="fa fa-headphones fa-2x flex-shrink-0 bg-primary p-3 text-white"></i>
-            <div class="ps-4">
-              <h6>Call for any query!</h6>
-              <h3 class="text-primary m-0">{{ sectionData?.meta?.phone || '+92 123 4567890' }}</h3>
-            </div>
-          </div>
-        </div>
-        <div class="col-lg-6">
-          <div class="row g-4 align-items-center">
-            <div class="col-sm-6">
-              <div class="bg-primary p-4 mb-4 wow fadeIn">
-                <i class="fa fa-users fa-2x text-white mb-3"></i>
-                <h2 class="text-white mb-2" data-toggle="counter-up">{{ stats?.happy_clients || 1234 }}</h2>
-                <p class="text-white mb-0">Happy Clients</p>
-              </div>
-              <div class="bg-secondary p-4 wow fadeIn">
-                <i class="fa fa-ship fa-2x text-white mb-3"></i>
-                <h2 class="text-white mb-2" data-toggle="counter-up">{{ stats?.complete_shipments || 5678 }}</h2>
-                <p class="text-white mb-0">Complete Shipments</p>
-              </div>
-            </div>
-            <div class="col-sm-6">
-              <div class="bg-success p-4 wow fadeIn">
-                <i class="fa fa-star fa-2x text-white mb-3"></i>
-                <h2 class="text-white mb-2" data-toggle="counter-up">{{ stats?.customer_reviews || 910 }}</h2>
-                <p class="text-white mb-0">Customer Reviews</p>
-              </div>
-            </div>
-          </div>
-        </div>
+  <div class="stats-strip">
+    <div class="wrap">
+      <div class="stat-item">
+        <div class="num">{{ stats?.happy_clients || '18,400+' }}</div>
+        <div class="label">Happy Clients</div>
+      </div>
+      <div class="stat-item">
+        <div class="num">{{ stats?.complete_shipments || '54,900+' }}</div>
+        <div class="label">Shipments Delivered</div>
+      </div>
+      <div class="stat-item">
+        <div class="num">{{ stats?.customer_reviews || '4.8 / 5' }}</div>
+        <div class="label">Customer Rating</div>
+      </div>
+      <div class="stat-item">
+        <div class="num">{{ stats?.active_services || '12' }}</div>
+        <div class="label">Cities Served in PK</div>
       </div>
     </div>
   </div>
@@ -49,12 +25,77 @@
 import { computed, onMounted } from 'vue';
 import { useLandingStore } from '@/stores/landingStore';
 
-const landingStore = useLandingStore();
-
-const stats = computed(() => landingStore.getStats);
-const sectionData = computed(() => landingStore.getWhyUs);
-
-onMounted(async () => {
-  await landingStore.fetchStats();
+defineProps({
+  sectionTitle: { type: String, default: '' },
+  sectionSubtitle: { type: String, default: '' }
 });
+
+const landingStore = useLandingStore();
+const stats = computed(() => landingStore.getStats);
+
+onMounted(() => { landingStore.fetchLandingData(); });
 </script>
+
+<style scoped>
+.stats-strip {
+  background: #0F1B3D;
+  border-top: 1px solid rgba(255, 255, 255, .14);
+  border-bottom: 1px solid rgba(255, 255, 255, .14);
+}
+
+.stats-strip .wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 36px 32px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.stat-item {
+  text-align: center;
+  border-right: 1px solid rgba(255, 255, 255, .14);
+  padding: 0 12px;
+}
+
+.stat-item:last-child {
+  border-right: none;
+}
+
+.stat-item .num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 32px;
+  font-weight: 600;
+  color: #E0A93A;
+}
+
+.stat-item .label {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, .55);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-top: 6px;
+}
+
+@media(max-width:960px) {
+  .stats-strip .wrap {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .stat-item {
+    border-right: none;
+  }
+}
+
+@media(max-width:640px) {
+  .stats-strip .wrap {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 24px 16px;
+  }
+
+  .stat-item .num {
+    font-size: 24px;
+  }
+}
+</style>

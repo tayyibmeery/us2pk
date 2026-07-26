@@ -3,7 +3,6 @@ import { useAuthStore } from '@/stores/authStore';
 import AdminLayout from '@/components/layout/AdminLayout.vue';
 import UserLayout from '@/views/user/layouts/UserLayout.vue';
 
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   scrollBehavior(to, from, savedPosition) {
@@ -18,7 +17,7 @@ const router = createRouter({
     },
     {
       path: '/landing',
-      redirect: '/', // Redirect /landing to root
+      redirect: '/',
     },
     {
       path: '/signin',
@@ -40,7 +39,7 @@ const router = createRouter({
     },
 
     // ============================================================
-    // REDIRECTS for /profile and /settings (from admin navbar)
+    // REDIRECTS
     // ============================================================
     {
       path: '/profile',
@@ -57,9 +56,8 @@ const router = createRouter({
       }
     },
 
-
     // ============================================================
-    // USER ROUTES (requires authentication, user role)
+    // USER ROUTES
     // ============================================================
     {
       path: '/user',
@@ -94,10 +92,8 @@ const router = createRouter({
           path: 'profile',
           name: 'UserProfile',
           component: () => import('@/views/user/profile/UserProfile.vue'),
-
           meta: { title: 'Profile' },
         },
-
         {
           path: 'settings',
           name: 'UserSettings',
@@ -108,7 +104,7 @@ const router = createRouter({
     },
 
     // ============================================================
-    // ADMIN ROUTES (requires authentication, admin role)
+    // ADMIN ROUTES
     // ============================================================
     {
       path: '/admin',
@@ -122,7 +118,7 @@ const router = createRouter({
           component: () => import('@/views/admin/AdminDashboard.vue'),
           meta: { title: 'Admin Dashboard' },
         },
-        // Profile & Settings (Admin)
+        // Profile & Settings
         {
           path: 'profile',
           name: 'AdminProfile',
@@ -180,7 +176,7 @@ const router = createRouter({
           component: () => import('@/views/admin/ConsolidationForm.vue'),
           meta: { title: 'Edit Consolidation' },
         },
-        // Financial Statement
+        // Financial
         {
           path: 'accounts',
           name: 'AdminAccounts',
@@ -223,7 +219,7 @@ const router = createRouter({
           component: () => import('@/views/admin/TrialBalance.vue'),
           meta: { title: 'Trial Balance' },
         },
-        // Profit & Loss
+        // P&L
         {
           path: 'pandl/since-inception',
           name: 'AdminPandLSinceInception',
@@ -320,12 +316,100 @@ const router = createRouter({
           path: 'pages',
           name: 'AdminPages',
           component: () => import('@/views/admin/Pages.vue'),
-          meta: { title: 'Pages' },
+          meta: { title: 'Page Settings' },
+        },
+
+        // ============================================================
+        // LANDING PAGES - 14 MODULES
+        // ============================================================
+        {
+          path: 'hero-slides',
+          name: 'AdminHeroSlides',
+          component: () => import('@/views/admin/HeroSlides.vue'),
+          meta: { title: 'Hero Slides' },
+        },
+        {
+          path: 'about-sections',
+          name: 'AdminAboutSections',
+          component: () => import('@/views/admin/AboutSections.vue'),
+          meta: { title: 'About Sections' },
+        },
+        {
+          path: 'services',
+          name: 'AdminServices',
+          component: () => import('@/views/admin/Services.vue'),
+          meta: { title: 'Services' },
+        },
+        {
+          path: 'testimonials',
+          name: 'AdminTestimonials',
+          component: () => import('@/views/admin/Testimonials.vue'),
+          meta: { title: 'Testimonials' },
+        },
+        {
+          path: 'team-members',
+          name: 'AdminTeamMembers',
+          component: () => import('@/views/admin/TeamMembers.vue'),
+          meta: { title: 'Team Members' },
+        },
+        {
+          path: 'pricing-plans',
+          name: 'AdminPricingPlans',
+          component: () => import('@/views/admin/PricingPlans.vue'),
+          meta: { title: 'Pricing Plans' },
+        },
+        {
+          path: 'faqs',
+          name: 'AdminFaqs',
+          component: () => import('@/views/admin/Faqs.vue'),
+          meta: { title: 'FAQs' },
+        },
+        {
+          path: 'blog-posts',
+          name: 'AdminBlogPosts',
+          component: () => import('@/views/admin/BlogPosts.vue'),
+          meta: { title: 'Blog Posts' },
+        },
+        {
+          path: 'why-us-sections',
+          name: 'AdminWhyUsSections',
+          component: () => import('@/views/admin/WhyUsSections.vue'),
+          meta: { title: 'Why Us Sections' },
+        },
+        {
+          path: 'contact-sections',
+          name: 'AdminContactSections',
+          component: () => import('@/views/admin/ContactSections.vue'),
+          meta: { title: 'Contact Sections' },
+        },
+        {
+          path: 'footer-sections',
+          name: 'AdminFooterSections',
+          component: () => import('@/views/admin/FooterSections.vue'),
+          meta: { title: 'Footer Sections' },
+        },
+        {
+          path: 'stats',
+          name: 'AdminStats',
+          component: () => import('@/views/admin/Stats.vue'),
+          meta: { title: 'Statistics' },
+        },
+        {
+          path: 'quote-requests',
+          name: 'AdminQuoteRequests',
+          component: () => import('@/views/admin/QuoteRequests.vue'),
+          meta: { title: 'Quote Requests' },
+        },
+        {
+          path: 'prohibited-items',
+          name: 'AdminProhibitedItems',
+          component: () => import('@/views/admin/ProhibitedItems.vue'),
+          meta: { title: 'Prohibited Items' },
         },
       ],
     },
 
-    // ---- Catch-all ----
+    // Catch-all
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
@@ -339,7 +423,7 @@ const router = createRouter({
 // NAVIGATION GUARD
 // ============================================================
 router.beforeEach(async (to, from, next) => {
-  document.title = `${to.meta.title || 'US2PK'} | US2PK `;
+  document.title = `${to.meta.title || 'US2PK'} | US2PK`;
 
   const auth = useAuthStore();
 
@@ -352,22 +436,18 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
   }
+
   const isPublicRoute = to.path === '/' || to.path === '/landing';
-
-  // Guest only routes (signin, signup)
   const isGuestOnly = to.meta.guestOnly === true;
-
-  // Check if route requires authentication
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   const requiredRole = to.matched.find(record => record.meta.role)?.meta.role;
-  // Case 1: Route requires authentication
+
   if (requiresAuth) {
     if (!auth.isAuthenticated) {
       next({ path: '/', query: { redirect: to.fullPath } });
       return;
     }
 
-    // Check role requirements
     if (requiredRole && auth.user?.role !== requiredRole) {
       if (auth.isAdmin) {
         next('/admin/dashboard');
@@ -378,7 +458,6 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // Case 2: Guest-only routes (signin, signup)
   if (isGuestOnly) {
     if (auth.isAuthenticated) {
       next(auth.isAdmin ? '/admin/dashboard' : '/user/dashboard');
@@ -388,7 +467,6 @@ router.beforeEach(async (to, from, next) => {
     return;
   }
 
-  // Case 3: Landing page - if user is logged in, redirect to dashboard
   if (isPublicRoute && auth.isAuthenticated) {
     if (to.path === '/') {
       next(auth.isAdmin ? '/admin/dashboard' : '/user/dashboard');
@@ -396,7 +474,6 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  // Case 4: Role-based access control
   if (to.path.startsWith('/admin') && auth.isAuthenticated && !auth.isAdmin) {
     next('/user/dashboard');
     return;

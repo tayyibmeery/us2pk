@@ -359,6 +359,7 @@ const openEditModal = (item: any) => {
   modalOpen.value = true
 }
 
+
 const handleSave = async (data: any) => {
   if (props.selfSaving) {
     modalOpen.value = false
@@ -371,7 +372,25 @@ const handleSave = async (data: any) => {
     if (editingItem.value?.id) {
       await props.store.update(editingItem.value.id, data)
     } else {
-      if (data && Object.keys(data).length > 0) {
+      // === FIX: Properly detect if data has content ===
+      let hasData = false
+
+      // Check if it's FormData
+      if (data instanceof FormData) {
+        // Check if FormData has any entries
+        let hasEntries = false
+        for (const entry of data.entries()) {
+          hasEntries = true
+          break
+        }
+        hasData = hasEntries
+      }
+      // Check if it's a regular object
+      else if (data && typeof data === 'object') {
+        hasData = Object.keys(data).length > 0
+      }
+
+      if (hasData) {
         await props.store.create(data)
       } else {
         console.warn('⚠️ No data to create')
@@ -387,7 +406,6 @@ const handleSave = async (data: any) => {
     toastStore.error(msg || 'Save failed')
   }
 }
-
 const deleteItem = async (id: number) => {
   if (!confirm('Delete this record? This action cannot be undone.')) return
   try {

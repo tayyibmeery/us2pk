@@ -53,7 +53,7 @@ const getImageUrl = (imagePath) => {
     return imagePath;
   }
 
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:8000';
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://us2pk.com';
 
   if (imagePath.startsWith('/storage/')) {
     return `${baseUrl}${imagePath}`;

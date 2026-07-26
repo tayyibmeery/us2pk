@@ -159,8 +159,29 @@ const isAdmin = computed(() => authStore.user?.role === 'admin');
 
 const { isExpanded, isMobileOpen, isHovered, openSubmenu } = useSidebar();
 
-// Menu is grouped by workflow area (Overview -> Logistics -> Finance -> Directory -> System)
-// so related items sit together instead of being scattered by CRUD type.
+// ============================================================
+// ICON IMPORTS FOR LANDING PAGES
+// ============================================================
+// I'm using existing icons from the icon set. If you want
+// custom icons, you can import them here.
+const HeroIcon = GridIcon;       // Using GridIcon for Hero
+const AboutIcon = UserCircleIcon; // Using UserCircleIcon for About
+const ServiceIcon = BoxCubeIcon;  // Using BoxCubeIcon for Services
+const TestimonialIcon = UserGroupIcon; // Using UserGroupIcon for Testimonials
+const TeamIcon = UserGroupIcon;   // Using UserGroupIcon for Team
+const PricingIcon = DollarLineIcon; // Using DollarLineIcon for Pricing
+const FaqIcon = TaskIcon;         // Using TaskIcon for FAQ
+const BlogIcon = DocsIcon;        // Using DocsIcon for Blog
+const WhyUsIcon = FlagIcon;       // Using FlagIcon for Why Us
+const ContactIcon = SendIcon;     // Using SendIcon for Contact
+const FooterIcon = HomeIcon;      // Using HomeIcon for Footer
+const StatsIcon = BarChartIcon;   // Using BarChartIcon for Stats
+const QuoteIcon = SendIcon;       // Using SendIcon for Quotes
+const ProhibitedIcon = FlagIcon;  // Using FlagIcon for Prohibited Items
+
+// ============================================================
+// MENU GROUPS
+// ============================================================
 const menuGroups = [
   {
     title: "Overview",
@@ -171,11 +192,6 @@ const menuGroups = [
         path: "/admin/dashboard",
         adminOnly: true,
       },
-      // {
-      //   icon: UserCircleIcon,
-      //   name: "User Profile",
-      //   path: "/profile",
-      // },
       {
         icon: BoxCubeIcon,
         name: "My Shipments",
@@ -199,21 +215,11 @@ const menuGroups = [
         path: "/admin/consolidations",
         adminOnly: true,
       },
-
     ],
   },
   {
     title: "Finance",
     items: [
-      // {
-      //   icon: DollarLineIcon,
-      //   name: "Accounting",
-      //   subItems: [
-      //     { name: "Dashboard", path: "/admin/accounting" },
-
-      //   ],
-      //   adminOnly: true,
-      // },
       {
         icon: TableIcon,
         name: "Financial Statement",
@@ -245,7 +251,6 @@ const menuGroups = [
         path: "/admin/invoices",
         adminOnly: true,
       },
-    
       {
         icon: UserCircleIcon,
         name: "Debtors",
@@ -305,21 +310,107 @@ const menuGroups = [
         path: "/admin/sites",
         adminOnly: true,
       },
-      // {
-      //   icon: FlagIcon,
-      //   name: "Weight Discounts",
-      //   path: "/admin/weight-discounts",
-      //   adminOnly: true,
-      // },
     ],
   },
+  // ============================================================
+  // LANDING PAGES - NEW GROUP
+  // ============================================================
+  {
+    title: "Landing Pages",
+    items: [
+      {
+        icon: HeroIcon,
+        name: "Hero Slides",
+        path: "/admin/hero-slides",
+        adminOnly: true,
+      },
+      {
+        icon: AboutIcon,
+        name: "About Sections",
+        path: "/admin/about-sections",
+        adminOnly: true,
+      },
+      {
+        icon: ServiceIcon,
+        name: "Services",
+        path: "/admin/services",
+        adminOnly: true,
+      },
+      {
+        icon: TestimonialIcon,
+        name: "Testimonials",
+        path: "/admin/testimonials",
+        adminOnly: true,
+      },
+      {
+        icon: TeamIcon,
+        name: "Team Members",
+        path: "/admin/team-members",
+        adminOnly: true,
+      },
+      {
+        icon: PricingIcon,
+        name: "Pricing Plans",
+        path: "/admin/pricing-plans",
+        adminOnly: true,
+      },
+      {
+        icon: FaqIcon,
+        name: "FAQs",
+        path: "/admin/faqs",
+        adminOnly: true,
+      },
+      {
+        icon: BlogIcon,
+        name: "Blog Posts",
+        path: "/admin/blog-posts",
+        adminOnly: true,
+      },
+      {
+        icon: WhyUsIcon,
+        name: "Why Us Sections",
+        path: "/admin/why-us-sections",
+        adminOnly: true,
+      },
+      {
+        icon: ContactIcon,
+        name: "Contact Sections",
+        path: "/admin/contact-sections",
+        adminOnly: true,
+      },
+      {
+        icon: FooterIcon,
+        name: "Footer Sections",
+        path: "/admin/footer-sections",
+        adminOnly: true,
+      },
+      {
+        icon: StatsIcon,
+        name: "Statistics",
+        path: "/admin/stats",
+        adminOnly: true,
+      },
+      {
+        icon: QuoteIcon,
+        name: "Quote Requests",
+        path: "/admin/quote-requests",
+        adminOnly: true,
+      },
+      {
+        icon: ProhibitedIcon,
+        name: "Prohibited Items",
+        path: "/admin/prohibited-items",
+        adminOnly: true,
+      },
+    ],
+  },
+  // In the System section:
   {
     title: "System",
     items: [
-
       {
         icon: PageIcon,
-        name: "Pages",
+        name: "Page Settings",
         path: "/admin/pages",
         adminOnly: true,
       },
@@ -327,7 +418,7 @@ const menuGroups = [
   },
 ];
 
-// Filter menu items based on roleT
+// Filter menu items based on role
 const filteredMenuGroups = computed(() => {
   return menuGroups
     .map(group => ({
@@ -338,8 +429,6 @@ const filteredMenuGroups = computed(() => {
         return true;
       }),
     }))
-    // Hide any group that ends up with zero visible items (e.g. all-admin
-    // groups for a non-admin user) so we don't render an empty heading.
     .filter(group => group.items.length > 0);
 });
 

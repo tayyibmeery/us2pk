@@ -1,58 +1,59 @@
-<!-- src/views/Landing.vue -->
 <template>
   <PublicLayout>
     <div class="landing-page">
-      <!-- Spinner -->
-      <!-- <div id="spinner"
-        class="show bg-white position-fixed translate-middle w-100 vh-100 top-50 start-50 d-flex align-items-center justify-content-center">
-        <div class="spinner-grow text-primary" style="width: 3rem; height: 3rem;" role="status">
-          <span class="sr-only">Loading...</span>
-        </div>
-      </div> -->
+      <template v-for="setting in enabledSections" :key="setting.section_key">
+        <!-- Hero Section -->
+        <HeroSection v-if="setting.section_key === 'hero'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- Hero Section -->
-      <HeroSection />
+        <!-- Stats Section -->
+        <StatsSection v-else-if="setting.section_key === 'stats'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- About Section -->
-      <AboutSection />
+        <!-- About Section -->
+        <AboutSection v-else-if="setting.section_key === 'about'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- Stats Section -->
-      <StatsSection />
+        <!-- Services Section -->
+        <ServicesSection v-else-if="setting.section_key === 'services'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- Services Section -->
-      <ServicesSection />
+        <!-- Why Us Section -->
+        <WhyUsSection v-else-if="setting.section_key === 'whyus'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- Testimonials Section -->
-      <TestimonialsSection />
+        <!-- Testimonials Section -->
+        <TestimonialsSection v-else-if="setting.section_key === 'testimonials'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- Why Us Section -->
-      <WhyUsSection />
+        <!-- Team Section -->
+        <TeamSection v-else-if="setting.section_key === 'team'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- Team Section -->
-      <TeamSection />
+        <!-- Pricing Section -->
+        <PricingSection v-else-if="setting.section_key === 'pricing'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- Pricing Section -->
-      <PricingSection />
+        <!-- Prohibited Items Section -->
+        <ProhibitedItemsSection v-else-if="setting.section_key === 'prohibited_items'"
+          :section-title="setting.section_title" :section-subtitle="setting.section_subtitle" />
 
-      <!-- FAQ Section -->
-      <FaqSection />
+        <!-- FAQ Section -->
+        <FaqSection v-else-if="setting.section_key === 'faq'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
 
-      <!-- Blog Section -->
-      <BlogSection />
+        <!-- Contact Section -->
+        <ContactSection v-else-if="setting.section_key === 'contact'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
+      </template>
 
-      <!-- Contact Section -->
-      <ContactSection />
-
-      <!-- Back to Top -->
-      <a href="#" class="btn btn-lg btn-primary btn-lg-square rounded-0 back-to-top">
-        <i class="bi bi-arrow-up"></i>
-      </a>
+      <a href="#" class="back-to-top-btn" @click.prevent="scrollToTop">↑</a>
     </div>
   </PublicLayout>
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useLandingStore } from '@/stores/landingStore';
 import PublicLayout from '@/components/layout/PublicLayout.vue';
 import HeroSection from '@/components/landing/HeroSection.vue';
@@ -64,114 +65,24 @@ import WhyUsSection from '@/components/landing/WhyUsSection.vue';
 import TeamSection from '@/components/landing/TeamSection.vue';
 import PricingSection from '@/components/landing/PricingSection.vue';
 import FaqSection from '@/components/landing/FaqSection.vue';
-import BlogSection from '@/components/landing/BlogSection.vue';
 import ContactSection from '@/components/landing/ContactSection.vue';
+import ProhibitedItemsSection from '@/components/landing/ProhibitedItemsSection.vue';
 
 const landingStore = useLandingStore();
+const enabledSections = computed(() => landingStore.getEnabledSections());
+
+const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
 onMounted(async () => {
+  await landingStore.fetchSettings();
   await landingStore.fetchLandingData();
+  await landingStore.fetchProhibitedItems();
 
-  if (typeof window !== 'undefined') {
-    // Spinner
-    const spinner = document.getElementById('spinner');
-    if (spinner) {
-      setTimeout(() => {
-        spinner.classList.remove('show');
-        spinner.classList.add('d-none');
-      }, 500);
-    }
-
-    // Back to Top button
-    const backToTop = document.querySelector('.back-to-top');
-    if (backToTop) {
-      window.addEventListener('scroll', () => {
-        if (window.scrollY > 300) {
-          backToTop.style.display = 'block';
-        } else {
-          backToTop.style.display = 'none';
-        }
-      });
-      backToTop.addEventListener('click', (e) => {
-        e.preventDefault();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      });
-    }
-
-    // Wow.js
-    if (window.WOW) {
-      new window.WOW().init();
-    }
-
-    // Counter Up
-    const counters = document.querySelectorAll('[data-toggle="counter-up"]');
-    if (window.counterUp && counters.length) {
-      counters.forEach((counter) => {
-        const target = parseInt(counter.innerText, 10);
-        window.counterUp(counter, {
-          duration: 2000,
-          delay: 16,
-        });
-      });
-    }
-
-    // Owl Carousel
-    if (window.$ && window.$.fn.owlCarousel) {
-      const headerCarousel = document.querySelector('.header-carousel');
-      if (headerCarousel) {
-        $('.header-carousel').owlCarousel({
-          animateOut: 'fadeOut',
-          items: 1,
-          autoplay: true,
-          smartSpeed: 1000,
-          autoplayTimeout: 4000,
-          loop: true,
-          dots: false,
-          nav: true,
-          navText: [
-            '<i class="bi bi-chevron-left"></i>',
-            '<i class="bi bi-chevron-right"></i>'
-          ]
-        });
-      }
-
-      const testimonialCarousel = document.querySelector('.testimonial-carousel');
-      if (testimonialCarousel) {
-        $('.testimonial-carousel').owlCarousel({
-          autoplay: true,
-          smartSpeed: 1000,
-          autoplayTimeout: 4000,
-          loop: true,
-          center: true,
-          dots: true,
-          nav: false,
-          margin: 24,
-          responsive: {
-            0: { items: 1 },
-            768: { items: 2 },
-            992: { items: 3 }
-          }
-        });
-      }
-
-      const teamCarousel = document.querySelector('.owl-all');
-      if (teamCarousel) {
-        $('.owl-all').owlCarousel({
-          autoplay: true,
-          smartSpeed: 1000,
-          autoplayTimeout: 4000,
-          loop: true,
-          dots: true,
-          nav: false,
-          margin: 24,
-          responsive: {
-            0: { items: 1 },
-            768: { items: 2 },
-            992: { items: 3 }
-          }
-        });
-      }
-    }
+  const backToTop = document.querySelector('.back-to-top-btn');
+  if (backToTop) {
+    window.addEventListener('scroll', () => {
+      backToTop.classList.toggle('visible', window.scrollY > 500);
+    });
   }
 });
 </script>
@@ -179,5 +90,38 @@ onMounted(async () => {
 <style scoped>
 .landing-page {
   position: relative;
+}
+
+.back-to-top-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 48px;
+  height: 48px;
+  background: #E0A93A;
+  color: #0A1330;
+  border: none;
+  border-radius: 50%;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity .3s ease, transform .3s ease;
+  box-shadow: 0 4px 16px rgba(224, 169, 58, .4);
+  z-index: 999;
+  text-decoration: none;
+}
+
+.back-to-top-btn.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.back-to-top-btn:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(224, 169, 58, .5);
 }
 </style>

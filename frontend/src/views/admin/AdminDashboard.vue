@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, h, defineComponent } from 'vue'
-import api from '@/api'
+import api from '@/services/api'   
 import BarChartOne from '@/components/charts/BarChartOne.vue'
 import LineChartOne from '@/components/charts/LineChartOne.vue'
 import PieChart from '@/components/charts/PieChart.vue'

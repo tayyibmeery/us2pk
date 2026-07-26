@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             WarehouseSeeder::class,
             WeightDiscountSeeder::class,
 
-            PageSeeder::class,
+
             WarehouseSeeder::class,
 
             PaymentMethodsSeeder::class,
@@ -34,6 +34,8 @@ class DatabaseSeeder extends Seeder
             AccountsSeeder::class,
 
             TransactionTypeAccountSeeder::class,
+            LandingPageSeeder::class,
+            LandingSettingSeeder::class,
 
         ]);
     }

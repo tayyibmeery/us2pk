@@ -8,9 +8,22 @@ export interface City {
   updated_at?: string
 }
 
-
-
-
+export interface Page {
+  id: number;
+  title: string;
+  slug: string;
+  type: string;
+  content: string;
+  status: boolean;
+  order: number;
+  image: string | null;
+  icon: string | null;
+  meta: any;
+  parent_id: number | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
 
 // Paginated response from Laravel
 export interface PaginatedResponse<T> {
@@ -29,9 +42,6 @@ export interface PaginatedResponse<T> {
   total: number
 }
 
-
-// frontend/src/types/index.ts
-
 export interface User {
   id: number
   name: string
@@ -48,8 +58,6 @@ export interface User {
   created_at: string
   updated_at: string
 }
-// src/types/index.ts
-// src/types/index.ts
 
 export interface Shipment {
   id: number
@@ -65,7 +73,6 @@ export interface Shipment {
   seller_tracker_id?: string
   purchase_date?: string
   comments?: string
-  // New foreign keys
   shipment_status_id?: number | null
   shipment_status?: { id: number; name: string }
   payment_method_id?: number | null
@@ -74,11 +81,6 @@ export interface Shipment {
   local_courier?: { id: number; name: string }
   site_id?: number | null
   site?: { id: number; name: string }
-  // Old fields kept for backward compatibility (or removed)
-  // status?: string
-  // payment_method?: string
-  // local_delivery_by?: string
-  // site_name?: string
   arrival_date?: string
   expected_delivery_date?: string
   date_delivered?: string
@@ -95,7 +97,6 @@ export interface Shipment {
   updated_at: string
 }
 
-// Add these helper interfaces if not already present
 export interface Site {
   id: number
   name: string
