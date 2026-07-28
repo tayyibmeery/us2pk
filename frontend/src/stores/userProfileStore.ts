@@ -1,3 +1,4 @@
+// frontend/src/stores/userProfileStore.ts
 import { defineStore } from 'pinia'
 import api from '@/services/api'
 import { useAuthStore } from './authStore'
@@ -52,7 +53,6 @@ export const useUserProfileStore = defineStore('userProfile', {
   },
 
   actions: {
-    // Fetch user profile
     async fetchProfile() {
       console.log('🔵 Fetching profile...')
       this.loading = true
@@ -65,10 +65,7 @@ export const useUserProfileStore = defineStore('userProfile', {
         const response = await api.get('/user/profile')
         console.log('✅ Profile API response:', response.data)
 
-        // Set profile data
         this.profile = response.data
-
-        // Update auth store user as well
         authStore.user = response.data
 
         console.log('✅ Profile set in store:', this.profile)
@@ -83,27 +80,23 @@ export const useUserProfileStore = defineStore('userProfile', {
       }
     },
 
-    // Update user profile
     async updateProfile(data: Partial<UserProfile>) {
       this.loading = true
       this.error = null
       try {
         const response = await api.put('/user/profile', data)
         this.profile = response.data.user
-        // Update auth store
         const authStore = useAuthStore()
         authStore.user = response.data.user
         return response.data
       } catch (error: any) {
         this.error = error.response?.data?.message || 'Failed to update profile'
-        console.error('Update profile error:', error)
         throw error
       } finally {
         this.loading = false
       }
     },
 
-    // Upload avatar
     async uploadAvatar(file: File) {
       this.avatarUploading = true
       this.error = null
@@ -115,7 +108,6 @@ export const useUserProfileStore = defineStore('userProfile', {
           headers: { 'Content-Type': 'multipart/form-data' }
         })
 
-        // Update profile with new avatar
         await this.fetchProfile()
         return response.data
       } catch (error: any) {
@@ -127,7 +119,6 @@ export const useUserProfileStore = defineStore('userProfile', {
       }
     },
 
-    // Change password
     async changePassword(currentPassword: string, newPassword: string, newPasswordConfirmation: string) {
       this.passwordUpdating = true
       this.error = null
@@ -140,14 +131,12 @@ export const useUserProfileStore = defineStore('userProfile', {
         return response.data
       } catch (error: any) {
         this.error = error.response?.data?.message || 'Failed to change password'
-        console.error('Change password error:', error)
         throw error
       } finally {
         this.passwordUpdating = false
       }
     },
 
-    // Reset store
     reset() {
       this.profile = null
       this.loading = false
@@ -157,3 +146,6 @@ export const useUserProfileStore = defineStore('userProfile', {
     }
   }
 })
+
+// ✅ Also export as default for compatibility
+export default useUserProfileStore

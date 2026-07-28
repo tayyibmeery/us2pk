@@ -58,7 +58,8 @@ export const useStatStore = defineStore('stat', {
       if (options.sortBy !== undefined) this.sortBy = options.sortBy
       if (options.sortOrder !== undefined) this.sortOrder = options.sortOrder
 
-      this.loading = true
+      this.loading = true;
+
       this.error = null
 
       try {
@@ -104,7 +105,7 @@ export const useStatStore = defineStore('stat', {
     },
 
     async create(data: Partial<Stat>): Promise<Stat> {
-      this.loading = true
+      this.loading = true;
       this.error = null
       try {
         const res = await api.post<Stat>('/admin/stats', data)
@@ -118,7 +119,7 @@ export const useStatStore = defineStore('stat', {
     },
 
     async update(id: number, data: Partial<Stat>): Promise<Stat> {
-      this.loading = true
+      this.loading = true;
       this.error = null
       try {
         const res = await api.put<Stat>(`/admin/stats/${id}`, data)
@@ -132,7 +133,7 @@ export const useStatStore = defineStore('stat', {
     },
 
     async delete(id: number): Promise<void> {
-      this.loading = true
+      this.loading = true;
       this.error = null
       try {
         await api.delete(`/admin/stats/${id}`)

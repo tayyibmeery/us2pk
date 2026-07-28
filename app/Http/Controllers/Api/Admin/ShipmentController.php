@@ -28,10 +28,18 @@ class ShipmentController extends Controller
             'site',
         ]);
 
+        // ✅ Updated search to include comments, description, seller_tracker_id
         if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('shipment_code', 'like', "%{$request->search}%")
-                    ->orWhereHas('user', fn($q2) => $q2->where('name', 'like', "%{$request->search}%"));
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('shipment_code', 'like', "%{$searchTerm}%")
+                    ->orWhere('description', 'like', "%{$searchTerm}%")
+                    ->orWhere('comments', 'like', "%{$searchTerm}%")
+                    ->orWhere('seller_tracker_id', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('user', function ($q2) use ($searchTerm) {
+                        $q2->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('email', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -39,7 +47,12 @@ class ShipmentController extends Controller
             $query->where('shipment_status_id', $request->status);
         }
 
-        return response()->json($query->orderBy('created_at', 'desc')->paginate(20));
+        // ✅ Add sorting options
+        $sortBy = $request->sort_by ?? 'created_at';
+        $sortOrder = $request->sort_order ?? 'desc';
+        $query->orderBy($sortBy, $sortOrder);
+
+        return response()->json($query->paginate(20));
     }
 
     public function show(Shipment $shipment)
@@ -225,14 +238,18 @@ class ShipmentController extends Controller
     public function updateStatus(Request $request, Shipment $shipment)
     {
         $request->validate([
-            'shipment_status_id' => 'required|exists:shipment_statuses,id'
+            'shipment_status_id' => 'required|exists:shipment_statuses,id',
         ]);
 
         $shipment->shipment_status_id = $request->shipment_status_id;
+        $shipment->date_delivered = $request->shipment_status_id == 8
+            ? now()->toDateString()
+            : null;
+
         $shipment->save();
 
         return response()->json([
-            'message'  => 'Status updated',
+            'message' => 'Status updated',
             'shipment' => $shipment->load('shipmentStatus'),
         ]);
     }

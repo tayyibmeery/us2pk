@@ -76,14 +76,14 @@
                 </li>
               </ul>
             </div>
-            <div class="newsletter-section">
+            <!-- <div class="newsletter-section">
               <h4 class="footer-heading">Newsletter</h4>
               <p class="newsletter-text">Subscribe for updates and special offers.</p>
               <div class="newsletter-form">
                 <input type="email" placeholder="Your email address" class="newsletter-input">
                 <button type="button" class="newsletter-btn">Subscribe</button>
               </div>
-            </div>
+            </div> -->
           </div>
         </div>
       </div>

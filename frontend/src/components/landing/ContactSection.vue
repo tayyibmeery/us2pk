@@ -103,6 +103,7 @@
 <script setup>
 import { reactive, computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useLandingStore } from '@/stores/landingStore';
+import { useToast } from '@/composables/useToast';
 import axios from 'axios';
 
 const props = defineProps({
@@ -111,6 +112,7 @@ const props = defineProps({
 });
 
 const landingStore = useLandingStore();
+const toast = useToast();
 const allContacts = computed(() => landingStore.getContact || []);
 const submitting = ref(false);
 
@@ -131,14 +133,28 @@ const form = reactive({
 });
 
 const submitQuote = async () => {
+  // Validate required fields
+  if (!form.name || !form.email) {
+    toast.warning('⚠️ Please fill in your name and email.');
+    return;
+  }
+
   submitting.value = true;
   try {
     const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://us2pk.com/api';
     await axios.post(`${apiUrl}/quotes`, form);
-    alert('Thank you for your request! We will contact you soon.');
+
+    // Success toast
+    toast.success(
+      '✅ Thank you! Your request has been received. Our team will contact you soon via your provided email or phone number.'
+    );
+
+    // Reset form
     Object.assign(form, { name: '', email: '', mobile: '', service: '', note: '' });
-  } catch {
-    alert('Something went wrong. Please try again.');
+  } catch (error) {
+    // Error toast
+    const message = error.response?.data?.message || 'Something went wrong. Please try again.';
+    toast.error('❌ ' + message);
   } finally {
     submitting.value = false;
   }

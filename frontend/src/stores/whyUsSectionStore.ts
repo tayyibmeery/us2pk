@@ -2,7 +2,6 @@
 import { defineStore } from 'pinia'
 import api from '@/services/api'
 import type { PaginatedResponse } from '@/types'
-
 export interface WhyUsSection {
   id: number
   title: string

@@ -82,12 +82,12 @@ const router = createRouter({
           component: () => import('@/views/user/shipments/ShipmentDetail.vue'),
           meta: { title: 'Shipment Details' },
         },
-        {
-          path: 'track-shipment',
-          name: 'TrackShipment',
-          component: () => import('@/views/user/shipments/ShipmentTracker.vue'),
-          meta: { title: 'Track Shipment' },
-        },
+        // {
+        //   path: 'track-shipment',
+        //   name: 'TrackShipment',
+        //   component: () => import('@/views/user/shipments/ShipmentTracker.vue'),
+        //   meta: { title: 'Track Shipment' },
+        // },
         {
           path: 'profile',
           name: 'UserProfile',
@@ -97,7 +97,7 @@ const router = createRouter({
         {
           path: 'settings',
           name: 'UserSettings',
-          component: () => import('@/views/user/profile/ProfileSettings.vue'),
+          component: () => import('@/views/user/profile/UserProfileSettings.vue'),
           meta: { title: 'Settings' },
         },
       ],
@@ -122,13 +122,13 @@ const router = createRouter({
         {
           path: 'profile',
           name: 'AdminProfile',
-          component: () => import('@/views/admin/AdminProfile.vue'),
+          component: () => import('@/views/admin/profile/AdminProfile.vue'),
           meta: { title: 'Profile' },
         },
         {
           path: 'settings',
           name: 'AdminSettings',
-          component: () => import('@/views/admin/AdminSettings.vue'),
+          component: () => import('@/views/admin/profile/AdminProfileSettings.vue'),
           meta: { title: 'Settings' },
         },
         // Users

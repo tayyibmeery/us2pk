@@ -18,8 +18,8 @@
         <router-link :to="`/user/my-shipments/${shipment.id}`"
           class="px-3 py-1.5 text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300 font-medium">View
           Details</router-link>
-        <button @click="trackShipment(shipment)"
-          class="px-3 py-1.5 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition">Track</button>
+        <!-- <button @click="trackShipment(shipment)"
+          class="px-3 py-1.5 text-sm bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition">Track</button> -->
       </div>
     </div>
   </div>
@@ -44,7 +44,7 @@ const formatDate = (date: string) => {
   })
 }
 
-const trackShipment = (shipment: any) => {
-  router.push(`/user/track-shipment/${shipment.id}`)
-}
+// const trackShipment = (shipment: any) => {
+//   router.push(`/user/track-shipment/${shipment.id}`)
+// }
 </script>

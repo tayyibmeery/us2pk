@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import api from '@/services/api'
 import type { Shipment, PaginatedResponse } from '@/types'
 
+
 const SKIP_KEYS = [
   'images', 'total', 'user', 'site', 'shipment_status',
   'payment_method', 'local_courier', 'consolidation',
@@ -170,11 +171,31 @@ export const useShipmentStore = defineStore('shipment', {
     async updateStatus(id: number, shipmentStatusId: number): Promise<void> {
       this.loading = true
       this.error = null
+
       try {
         await api.post(`/admin/shipments/${id}/status`, { shipment_status_id: shipmentStatusId })
         await this.fetchItems(this.pagination?.current_page || 1)
+
       } catch (e: any) {
         this.error = e.message || 'Failed to update status'
+        throw e
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async updateBulkStatus(ids: number[], statusId: number): Promise<void> {
+      this.loading = true
+      this.error = null
+
+      try {
+        await api.post('/admin/shipments/bulk-status', {
+          ids,
+          shipment_status_id: statusId
+        })
+
+      } catch (e: any) {
+        this.error = e.message || 'Failed to update statuses'
         throw e
       } finally {
         this.loading = false
@@ -195,21 +216,7 @@ export const useShipmentStore = defineStore('shipment', {
       }
     },
 
-    async updateBulkStatus(ids: number[], statusId: number): Promise<void> {
-      this.loading = true
-      this.error = null
-      try {
-        await api.post('/admin/shipments/bulk-status', {
-          ids,
-          shipment_status_id: statusId
-        })
-      } catch (e: any) {
-        this.error = e.message || 'Failed to update statuses'
-        throw e
-      } finally {
-        this.loading = false
-      }
-    },
+
 
     reset() {
       this.items = []

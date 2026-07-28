@@ -85,10 +85,11 @@ export const useUserStore = defineStore('user', {
 
     async updateStatus(userId: number, status: string): Promise<void> {
       this.error = null
+
       try {
         await api.post(`/admin/users/${userId}/status`, { status })
-        // Refresh the current page
         await this.fetchItems(this.pagination?.current_page || 1)
+   
       } catch (e: any) {
         this.error = e.message || 'Failed to update status'
         throw e
@@ -98,8 +99,10 @@ export const useUserStore = defineStore('user', {
     async create(data: Partial<User>): Promise<User> {
       this.loading = true
       this.error = null
+
       try {
         const res = await api.post<User>('/admin/users', data)
+
         return res.data
       } catch (e: any) {
         this.error = e.message || 'Failed to create user'
@@ -112,8 +115,10 @@ export const useUserStore = defineStore('user', {
     async update(id: number, data: Partial<User>): Promise<User> {
       this.loading = true
       this.error = null
+
       try {
         const res = await api.put<User>(`/admin/users/${id}`, data)
+
         return res.data
       } catch (e: any) {
         this.error = e.message || 'Failed to update user'

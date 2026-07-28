@@ -12,7 +12,7 @@ class ShipmentStatusController extends Controller
 {
     public function index()
     {
-        $statuses = ShipmentStatus::orderBy('name')->paginate(20);
+        $statuses = ShipmentStatus::orderBy('id')->paginate(20);
         return response()->json($statuses);
     }
 

@@ -139,7 +139,7 @@
             </td>
 
             <td class="px-5 py-3.5">
-              <slot name="actions" :item="item" :edit="openEditModal" :delete="deleteItem">
+              <slot name="actions" :item="item" :edit="openEditModal" :delete="openDeleteModal">
                 <div class="flex items-center justify-end gap-0.5">
                   <button @click="openEditModal(item)"
                     class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
@@ -150,7 +150,7 @@
                         fill="currentColor" />
                     </svg>
                   </button>
-                  <button v-if="!hideDelete" @click="deleteItem(item.id)"
+                  <button v-if="!hideDelete" @click="openDeleteModal(item.id)"
                     class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
                     title="Delete">
                     <svg width="16" height="16" viewBox="0 0 21 21" fill="none">
@@ -215,6 +215,11 @@
   <component v-if="modalComponent" :is="modalComponent" :isOpen="modalOpen" :initialData="editingItem"
     @close="modalOpen = false" @save="handleSave" v-bind="modalProps" />
 
+  <!-- Confirmation Modal -->
+  <ConfirmationModal :isOpen="deleteModalOpen" :title="'Delete Record'"
+    :message="'Are you sure you want to delete this record? This action cannot be undone.'" :loading="deleting"
+    @confirm="confirmDelete" @cancel="cancelDelete" />
+
   <Teleport to="body">
     <Transition enter-active-class="transition duration-200 ease-out"
       enter-from-class="opacity-0 translate-y-2 scale-95" enter-to-class="opacity-100 translate-y-0 scale-100"
@@ -251,9 +256,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue'
 import type { ColumnDefinition } from '@/types/table'
 import { useToastStore } from '@/stores/toastStore'
+import ConfirmationModal from './ConfirmationModal.vue'
 
 defineOptions({
   inheritAttrs: false,
@@ -275,6 +281,7 @@ const emit = defineEmits<{
 }>()
 
 const toastStore = useToastStore()
+
 const search = ref<string>(props.store.search ?? '')
 const perPage = ref<number>(Number(props.store.perPage ?? 10))
 const sortByKey = ref<string>(props.store.sortBy ?? 'id')
@@ -283,6 +290,13 @@ const sortOrder = ref<'asc' | 'desc'>(props.store.sortOrder ?? 'asc')
 const modalOpen = ref(false)
 const editingItem = ref<any>(null)
 
+// Delete confirmation modal
+const deleteModalOpen = ref(false)
+const deleting = ref(false)
+const deleteId = ref<number | null>(null)
+let isDeleting = false
+
+// Error modal state (kept for potential future use but not used for toasts)
 const errorModalOpen = ref(false)
 const errorMessage = ref('')
 const errorProgress = ref(0)
@@ -292,13 +306,6 @@ let progressTimer: ReturnType<typeof setInterval> | null = null
 watch(() => props.store.sortBy, (v) => { sortByKey.value = v }, { immediate: true })
 watch(() => props.store.sortOrder, (v) => { sortOrder.value = v }, { immediate: true })
 watch(() => props.store.perPage, (v) => { perPage.value = Number(v) }, { immediate: true })
-
-watch(() => props.store.error, (err) => {
-  if (err) {
-    showError(err)
-    props.store.error = null
-  }
-})
 
 const pageNumbers = computed(() => {
   if (!props.store.pagination || !props.store.pagination.last_page) {
@@ -359,11 +366,53 @@ const openEditModal = (item: any) => {
   modalOpen.value = true
 }
 
+// Delete functions
+const openDeleteModal = (id: number) => {
+  deleteId.value = id
+  deleteModalOpen.value = true
+}
+
+const cancelDelete = () => {
+  deleteModalOpen.value = false
+  deleteId.value = null
+}
+
+const confirmDelete = async () => {
+  if (!deleteId.value || isDeleting) return
+
+  isDeleting = true
+  deleting.value = true
+
+  // Close modal immediately
+  deleteModalOpen.value = false
+
+  try {
+    await props.store.delete(deleteId.value)
+    await props.store.fetchItems(props.store.pagination?.current_page ?? 1)
+
+    await nextTick()
+    setTimeout(() => {
+      toastStore.success('🗑️ Record deleted successfully!')
+    }, 100)
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'Delete failed'
+    // ✅ Only ONE error toast
+    await nextTick()
+    setTimeout(() => {
+      toastStore.error('❌ ' + msg)
+    }, 100)
+  } finally {
+    deleting.value = false
+    isDeleting = false
+    deleteId.value = null
+  }
+}
 
 const handleSave = async (data: any) => {
   if (props.selfSaving) {
     modalOpen.value = false
     await props.store.fetchItems(props.store.pagination?.current_page ?? 1)
+    toastStore.success('✅ Record saved successfully!')
     emit('saved')
     return
   }
@@ -371,27 +420,24 @@ const handleSave = async (data: any) => {
   try {
     if (editingItem.value?.id) {
       await props.store.update(editingItem.value.id, data)
+      toastStore.success('✅ Record updated successfully!')
     } else {
-      // === FIX: Properly detect if data has content ===
       let hasData = false
 
-      // Check if it's FormData
       if (data instanceof FormData) {
-        // Check if FormData has any entries
         let hasEntries = false
         for (const entry of data.entries()) {
           hasEntries = true
           break
         }
         hasData = hasEntries
-      }
-      // Check if it's a regular object
-      else if (data && typeof data === 'object') {
+      } else if (data && typeof data === 'object') {
         hasData = Object.keys(data).length > 0
       }
 
       if (hasData) {
         await props.store.create(data)
+        toastStore.success('✅ Record created successfully!')
       } else {
         console.warn('⚠️ No data to create')
         return
@@ -402,52 +448,15 @@ const handleSave = async (data: any) => {
     emit('saved')
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || 'Save failed'
-    showError(msg)
-    toastStore.error(msg || 'Save failed')
-  }
-}
-const deleteItem = async (id: number) => {
-  if (!confirm('Delete this record? This action cannot be undone.')) return
-  try {
-    await props.store.delete(id)
-    await props.store.fetchItems(props.store.pagination?.current_page ?? 1)
-  } catch (err: any) {
-    const msg = err?.response?.data?.message || err?.message || 'Delete failed'
-    showError(msg)
-    toastStore.error(msg || 'Delete failed')
+    // ✅ Only ONE error toast
+    toastStore.error('❌ ' + (msg || 'Save failed'))
   }
 }
 
-const showError = (message: string) => {
-  clearError()
-  errorMessage.value = message || 'An unexpected error occurred.'
-  errorModalOpen.value = true
-  errorProgress.value = 0
-
-  const duration = 5000
-  const step = 50
-  const totalSteps = duration / step
-  let steps = 0
-
-  progressTimer = setInterval(() => {
-    steps++
-    errorProgress.value = Math.min(100, (steps / totalSteps) * 100)
-    if (steps >= totalSteps) clearInterval(progressTimer!)
-  }, step)
-
-  errorTimer = setTimeout(closeErrorModal, duration)
-}
-
+// Clear error timer on unmount
 const clearError = () => {
   if (errorTimer) { clearTimeout(errorTimer); errorTimer = null }
   if (progressTimer) { clearInterval(progressTimer); progressTimer = null }
-}
-
-const closeErrorModal = () => {
-  clearError()
-  errorModalOpen.value = false
-  errorMessage.value = ''
-  errorProgress.value = 0
 }
 
 onUnmounted(() => {

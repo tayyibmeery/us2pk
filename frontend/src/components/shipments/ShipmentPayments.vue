@@ -1,41 +1,49 @@
 <template>
   <div class="mt-6">
-    <h3 class="text-lg font-semibold mb-3">Payment History</h3>
+    <h3 class="text-lg font-semibold mb-3">Payments</h3>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Payable</p>
-        <p class="text-xl font-bold text-gray-800 dark:text-white/90">{{ totalPayable.toFixed(2) }} PKR</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount Due</p>
+        <p class="text-xl font-bold text-gray-800 dark:text-white/90">{{ formatCurrency(totalPayable) }}</p>
       </div>
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Received</p>
-        <p class="text-xl font-bold text-gray-800 dark:text-white/90">{{ totalReceived.toFixed(2) }} PKR</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Amount Paid</p>
+        <p class="text-xl font-bold text-gray-800 dark:text-white/90">{{ formatCurrency(totalReceived) }}</p>
       </div>
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Remaining</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">COD Amount</p>
         <p class="text-xl font-bold"
           :class="remaining > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
-          {{ remaining > 0 ? remaining.toFixed(2) + ' PKR' : '—' }}
+          {{ remaining > 0 ? formatCurrency(remaining) : 'Nil' }}
         </p>
       </div>
       <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</p>
-        <p class="text-xl font-bold">
-          <span v-if="remaining <= 0" class="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Payment Status</p>
+        <p class="mt-1">
+          <span v-if="remaining <= 0"
+            class="inline-flex items-center gap-1.5 rounded-full bg-green-50 dark:bg-green-500/10 px-2.5 py-1 text-sm font-medium text-green-700 dark:text-green-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
             Cleared
           </span>
-          <span v-else class="text-amber-600 dark:text-amber-400">Pending</span>
+          <span v-else
+            class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 text-sm font-medium text-amber-700 dark:text-amber-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Partially Paid
+          </span>
         </p>
       </div>
     </div>
 
     <!-- Add Payment Form -->
     <div class="mb-6 p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800/30 shadow-sm">
-      <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Record New Payment</h4>
+      <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Add a Payment</h4>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <!-- Amount -->
         <div>
@@ -65,7 +73,7 @@
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
           <select v-model="newPayment.payment_method"
             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent">
-            <option value="">Select Method</option>
+            <option value="">Select a method</option>
             <option v-for="method in paymentMethods" :key="method.id" :value="method.name">
               {{ method.name }}
             </option>
@@ -73,7 +81,7 @@
         </div>
         <!-- Reference Number -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference No.</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference Number</label>
           <input v-model="newPayment.reference_number" placeholder="e.g. TXN12345"
             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
         </div>
@@ -101,7 +109,7 @@
               Date</th>
             <th
               class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Amount</th>
+              Amount (PKR)</th>
             <th
               class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               Method</th>
@@ -121,15 +129,17 @@
             class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
             <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ formatDate(payment.payment_date) }}</td>
             <td class="px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">
-              {{ Number(payment.amount).toFixed(2) }}</td>
+              {{ formatNumber(payment.amount) }}
+            </td>
             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ payment.payment_method || '—' }}</td>
             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ payment.reference_number || '—' }}</td>
             <td class="px-4 py-3 max-w-xs truncate text-gray-600 dark:text-gray-400" :title="payment.notes">
-              {{ payment.notes || '—' }}</td>
+              {{ payment.notes || '—' }}
+            </td>
             <td class="px-4 py-3 text-center">
               <button @click="editPayment(payment)"
                 class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 mr-3 transition">Edit</button>
-              <button @click="deletePayment(payment.id)"
+              <button @click="openDeleteModal(payment.id)"
                 class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition">Delete</button>
             </td>
           </tr>
@@ -142,17 +152,27 @@
         </tbody>
         <tfoot class="bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700">
           <tr>
-            <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">Total Received:
+            <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">Amount Paid
             </td>
             <td class="px-4 py-3 text-right font-semibold text-gray-800 dark:text-white/90">
-              {{ totalReceived.toFixed(2) }}</td>
+              {{ formatNumber(totalReceived) }}
+            </td>
             <td colspan="4"></td>
           </tr>
           <tr class="border-t border-gray-200 dark:border-gray-700">
-            <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">COD Amount:</td>
-            <td class="px-4 py-3 text-right font-bold"
-              :class="remaining <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-              {{ remaining <= 0 ? '✅ Cleared' : remaining.toFixed(2) + ' PKR' }}
+            <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">COD Balance
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span v-if="remaining <= 0"
+                class="inline-flex items-center gap-1.5 font-semibold text-green-600 dark:text-green-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Settled
+              </span>
+              <span v-else class="font-semibold text-red-600 dark:text-red-400">
+                {{ formatNumber(remaining) }} due
+              </span>
             </td>
             <td colspan="4"></td>
           </tr>
@@ -193,12 +213,12 @@
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
             <select v-model="editForm.payment_method"
               class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent">
-              <option value="">Select Method</option>
+              <option value="">Select a method</option>
               <option v-for="method in paymentMethods" :key="method.id" :value="method.name">{{ method.name }}</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference No.</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference Number</label>
             <input v-model="editForm.reference_number" placeholder="e.g. TXN12345"
               class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
           </div>
@@ -211,11 +231,16 @@
             <button @click="editing = false"
               class="border px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">Cancel</button>
             <button @click="updatePayment"
-              class="bg-brand-500 text-white px-4 py-2 rounded-lg hover:bg-brand-600 transition">Update</button>
+              class="bg-brand-500 text-white px-4 py-2 rounded-lg hover:bg-brand-600 transition">Save Changes</button>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <ConfirmationModal :isOpen="deleteModalOpen" :title="'Delete Payment'"
+      :message="'Are you sure you want to delete this payment record? This action cannot be undone.'"
+      :loading="deleting" @confirm="confirmDelete" @cancel="cancelDelete" />
   </div>
 </template>
 
@@ -223,6 +248,8 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { useShipmentPaymentStore } from '@/stores/shipmentPaymentStore';
 import { usePaymentMethodStore } from '@/stores/paymentMethodStore';
+import { useToast } from '@/composables/useToast';
+import ConfirmationModal from '@/components/common/ConfirmationModal.vue';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.css';
 
@@ -242,9 +269,28 @@ const remaining = computed(() => totalPayable.value - totalReceived.value);
 
 const paymentMethodStore = usePaymentMethodStore();
 const store = useShipmentPaymentStore();
+const toast = useToast();
 
 const payments = computed(() => store.items);
 const paymentMethods = computed(() => paymentMethodStore.items);
+
+// Delete confirmation modal
+const deleteModalOpen = ref(false);
+const deleting = ref(false);
+const deleteId = ref<number | null>(null);
+let isDeleting = false;
+
+// ============================================================
+// Currency formatting — thousands separators, 2 decimal places.
+// ============================================================
+const formatNumber = (value: number | string | null | undefined) => {
+  const n = Number(value ?? 0);
+  return n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const formatCurrency = (value: number | string | null | undefined) => {
+  return `PKR ${formatNumber(value)}`;
+};
 
 // Date pickers
 const datePickerRefs = ref<Record<string, any>>({});
@@ -300,6 +346,44 @@ const editing = ref(false);
 const editForm = ref<any>({});
 const editId = ref<number | null>(null);
 
+// Delete functions
+const openDeleteModal = (id: number) => {
+  deleteId.value = id;
+  deleteModalOpen.value = true;
+};
+
+const cancelDelete = () => {
+  deleteModalOpen.value = false;
+  deleteId.value = null;
+};
+
+const confirmDelete = async () => {
+  if (!deleteId.value || isDeleting) return;
+
+  isDeleting = true;
+  deleting.value = true;
+  deleteModalOpen.value = false;
+
+  try {
+    await store.deletePayment(deleteId.value);
+    await nextTick();
+    setTimeout(() => {
+      toast.success('🗑️ Payment deleted successfully!');
+    }, 100);
+    emit('paymentChanged');
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || 'Delete failed';
+    await nextTick();
+    setTimeout(() => {
+      toast.error('❌ ' + msg);
+    }, 100);
+  } finally {
+    deleting.value = false;
+    isDeleting = false;
+    deleteId.value = null;
+  }
+};
+
 async function addPayment() {
   if (!newPayment.value.amount || !newPayment.value.payment_date) return;
   submitting.value = true;
@@ -314,9 +398,11 @@ async function addPayment() {
     };
     await nextTick();
     updateDatePickers();
+    toast.success('💰 Payment recorded successfully!');
     emit('paymentChanged');
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
+    toast.error('❌ ' + (err?.response?.data?.message || 'Failed to record payment.'));
   } finally {
     submitting.value = false;
   }
@@ -334,25 +420,22 @@ async function updatePayment() {
   try {
     await store.updatePayment(editId.value, editForm.value);
     editing.value = false;
+    toast.success('✅ Payment updated successfully!');
     emit('paymentChanged');
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
-  }
-}
-
-async function deletePayment(id: number) {
-  if (!confirm('Delete this payment?')) return;
-  try {
-    await store.deletePayment(id);
-    emit('paymentChanged');
-  } catch (err) {
-    console.error(err);
+    toast.error('❌ ' + (err?.response?.data?.message || 'Failed to update payment.'));
   }
 }
 
 const emit = defineEmits<{
   (e: 'paymentChanged'): void;
 }>();
+
+const formatDate = (date: string | null | undefined) => {
+  if (!date) return '—';
+  return new Date(date).toLocaleDateString('en-GB');
+};
 
 onMounted(async () => {
   await paymentMethodStore.fetchItems(1, { per_page: 100 });

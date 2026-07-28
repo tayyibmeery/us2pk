@@ -25,8 +25,6 @@
               <input v-model="form.awb_number" class="w-full rounded-lg border p-2 dark:bg-gray-800" />
             </div>
 
-
-
             <!-- Date Departed -->
             <div>
               <label class="block text-sm font-medium">Date Departed</label>
@@ -61,7 +59,7 @@
             </div>
           </div>
 
-          <!-- Right: Costs (unchanged) -->
+          <!-- Right: Costs -->
           <div class="space-y-4">
             <h3 class="text-lg font-semibold">Costs</h3>
             <div>
@@ -92,7 +90,7 @@
           </div>
         </div>
 
-        <!-- Shipments (unchanged) -->
+        <!-- Shipments -->
         <div class="mt-6">
           <h3 class="text-lg font-semibold">Shipments</h3>
           <div class="flex items-center gap-4 mt-2">
@@ -120,7 +118,6 @@
                   <th class="px-3 py-2 text-left">City</th>
                   <th class="px-3 py-2 text-right">KGs</th>
                   <th class="px-3 py-2 text-right">US2PK Charges</th>
-                  <!-- <th class="px-3 py-2 text-right">Amount Due</th> -->
                   <th class="px-3 py-2 text-right">COD</th>
                   <th class="px-3 py-2 text-center">Action</th>
                 </tr>
@@ -132,7 +129,6 @@
                   <td class="px-3 py-2">{{ s.user?.city?.city_name ?? 'N/A' }}</td>
                   <td class="px-3 py-2 text-right">{{ (s.weight_kgs ?? 0).toFixed(2) }}</td>
                   <td class="px-3 py-2 text-right">{{ (s.company_charges ?? 0).toFixed(2) }}</td>
-                  <!-- <td class="px-3 py-2 text-right">{{ (s.amount_due ?? 0).toFixed(2) }}</td> -->
                   <td class="px-3 py-2 text-right">{{ (s.receivable_cod ?? 0).toFixed(2) }}</td>
                   <td class="px-3 py-2 text-center">
                     <button type="button" @click="removeShipment(index)"
@@ -140,7 +136,7 @@
                   </td>
                 </tr>
                 <tr v-if="!selectedShipments.length">
-                  <td colspan="8" class="py-4 text-center text-gray-400">No shipments added yet.</td>
+                  <td colspan="7" class="py-4 text-center text-gray-400">No shipments added yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -169,6 +165,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, onErrorCaptured, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import api from '@/services/api'
+import { useToast } from '@/composables/useToast'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
 import { useWarehouseStore } from '@/stores/warehouseStore'
 import { useInternationalCourierStore } from '@/stores/internationalCourierStore'
@@ -177,6 +174,7 @@ import 'flatpickr/dist/flatpickr.css'
 
 const router = useRouter()
 const route = useRoute()
+const toast = useToast()
 const isEdit = computed(() => !!route.params.id)
 const pageTitle = ref(isEdit.value ? 'Edit Consolidation' : 'New Consolidation')
 
@@ -205,7 +203,6 @@ const showSuggestions = ref(false)
 const form = reactive({
   awb_number: '',
   warehouse_id: null,
-
   international_courier_id: null,
   date_departed: '',
   date_reached: '',
@@ -274,13 +271,17 @@ function addShipment(s: any) {
       suggestions.value = []
       showSuggestions.value = false
       form.shipment_ids = selectedShipments.value.map(s => s.id)
+      toast.success('📦 Shipment added successfully!')
     })
-    .catch(err => alert('Failed to fetch shipment details: ' + err.message))
+    .catch(err => {
+      toast.error('❌ ' + (err.response?.data?.message || 'Failed to fetch shipment details'))
+    })
 }
 
 function removeShipment(index: number) {
   selectedShipments.value.splice(index, 1)
   form.shipment_ids = selectedShipments.value.map(s => s.id)
+  toast.info('🗑️ Shipment removed')
 }
 
 // ── Load existing consolidation (edit mode) ──────────────
@@ -293,7 +294,6 @@ async function loadConsolidation() {
     Object.assign(form, {
       awb_number: data.awb_number,
       warehouse_id: data.warehouse_id,
-
       international_courier_id: data.international_courier_id,
       date_departed: data.date_departed || '',
       date_reached: data.date_reached || '',
@@ -307,10 +307,10 @@ async function loadConsolidation() {
     selectedShipments.value = (data.shipments || []).map((s: any) =>
       coerceNumericShipment({ ...s })
     )
-    // Update date pickers after data loads
     await nextTick()
     updateDatePickers()
-  } catch (err) {
+  } catch (err: any) {
+    toast.error('❌ ' + (err.response?.data?.message || 'Failed to load consolidation'))
     console.error(err)
   } finally {
     loading.value = false
@@ -320,7 +320,7 @@ async function loadConsolidation() {
 // ── Submit form ─────────────────────────────────────────────
 async function submitForm() {
   if (!selectedShipments.value.length) {
-    alert('Please add at least one shipment.')
+    toast.warning('⚠️ Please add at least one shipment.')
     return
   }
   submitting.value = true
@@ -331,12 +331,14 @@ async function submitForm() {
     }
     if (isEdit.value) {
       await api.put(`/admin/consolidations/${route.params.id}`, payload)
+      toast.success('✅ Consolidation updated successfully!')
     } else {
       await api.post('/admin/consolidations', payload)
+      toast.success('✅ Consolidation created successfully!')
     }
     router.push('/admin/consolidations')
   } catch (err: any) {
-    alert(err.response?.data?.message || 'Failed to save consolidation')
+    toast.error('❌ ' + (err.response?.data?.message || 'Failed to save consolidation'))
   } finally {
     submitting.value = false
   }
@@ -344,7 +346,7 @@ async function submitForm() {
 
 // ── Date picker initialization ──────────────────────────────
 function initDatePickers() {
-  const dateFields = [ 'date_departed', 'date_reached']
+  const dateFields = ['date_departed', 'date_reached']
   dateFields.forEach(field => {
     const el = datePickerRefs.value[field]
     if (el) {
@@ -358,7 +360,6 @@ function initDatePickers() {
           (form as any)[field] = dateStr
         },
       })
-      // Set initial value if form has it
       const val = (form as any)[field]
       if (val) {
         const clean = typeof val === 'string' && val.includes('T') ? val.split('T')[0] : val
@@ -369,7 +370,7 @@ function initDatePickers() {
 }
 
 function updateDatePickers() {
-  const dateFields = [ 'date_departed', 'date_reached']
+  const dateFields = ['date_departed', 'date_reached']
   dateFields.forEach(field => {
     const inst = flatpickrInstances[field]
     const val = (form as any)[field]
@@ -390,11 +391,11 @@ onMounted(async () => {
   } catch (err) {
     console.error('Failed to load dropdown data:', err)
     error.value = 'Could not load required data.'
+    toast.error('❌ Failed to load required data')
   }
   if (isEdit.value) {
     await loadConsolidation()
   }
-  // Initialize date pickers after DOM is ready
   await nextTick()
   initDatePickers()
 })
@@ -405,7 +406,6 @@ onBeforeUnmount(() => {
   })
 })
 
-// Watch for route changes (if editing different ID)
 watch(() => route.params.id, async (newId) => {
   if (newId) {
     await loadConsolidation()

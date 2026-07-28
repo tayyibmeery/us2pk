@@ -20,6 +20,7 @@ export const useShipmentStatusStore = defineStore('shipmentStatus', {
   actions: {
     async fetchItems(page = 1, params = {}) {
       this.loading = true;
+
       this.error = null;
       try {
         const res = await api.get('/admin/shipment-statuses', { params: { page, ...params } });
@@ -39,10 +40,12 @@ export const useShipmentStatusStore = defineStore('shipmentStatus', {
     },
     async create(data: Partial<ShipmentStatus>) {
       this.loading = true;
+
       try {
         const res = await api.post('/admin/shipment-statuses', data);
         this.items.unshift(res.data);
         this.pagination.total += 1;
+
         return res.data;
       } catch (err: any) {
         this.error = err.response?.data?.message || 'Create failed';
@@ -53,10 +56,12 @@ export const useShipmentStatusStore = defineStore('shipmentStatus', {
     },
     async update(id: number, data: Partial<ShipmentStatus>) {
       this.loading = true;
+
       try {
         const res = await api.put(`/admin/shipment-statuses/${id}`, data);
         const idx = this.items.findIndex(i => i.id === id);
         if (idx !== -1) this.items[idx] = res.data;
+
         return res.data;
       } catch (err: any) {
         this.error = err.response?.data?.message || 'Update failed';
@@ -67,10 +72,12 @@ export const useShipmentStatusStore = defineStore('shipmentStatus', {
     },
     async delete(id: number) {
       this.loading = true;
+
       try {
         await api.delete(`/admin/shipment-statuses/${id}`);
         this.items = this.items.filter(i => i.id !== id);
         this.pagination.total -= 1;
+
       } catch (err: any) {
         this.error = err.response?.data?.message || 'Delete failed';
         throw err;

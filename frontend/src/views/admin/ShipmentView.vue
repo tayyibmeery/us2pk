@@ -15,12 +15,18 @@
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-800 dark:text-white/90 flex items-center gap-3">
+
             {{ shipment.shipment_code }}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium" :class="{
+            <!-- <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium" :class="{
               'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300': isCleared,
               'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300': !isCleared,
             }">
               {{ isCleared ? 'Cleared' : 'Pending' }}
+            </span> -->
+
+            <span
+              class="inline-flex px-2 py-0.5 rounded-full text-m font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+              {{ shipment.shipment_status?.name || '—' }}
             </span>
           </h2>
           <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -28,14 +34,14 @@
           </p>
         </div>
         <div class="flex gap-2">
-          <button @click="openEditModal"
+          <!-- <button @click="openEditModal"
             class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Edit
-          </button>
+          </button> -->
           <button @click="goBack"
             class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,14 +80,16 @@
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Status</dt>
                 <dd class="text-gray-800 dark:text-white/90">
                   <span
-                    class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                    class="inline-flex px-2 py-0.5 rounded-full text-m font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
                     {{ shipment.shipment_status?.name || '—' }}
                   </span>
                 </dd>
               </div>
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Description</dt>
-                <dd class="text-gray-800 dark:text-white/90">{{ shipment.description || '—' }}</dd>
+                <dd class="text-gray-800 dark:text-white/90 max-w-[200px]">
+                  <TruncateTooltip :text="shipment.description || '—'" :limit="20" />
+                </dd>
               </div>
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Weight</dt>
@@ -120,10 +128,6 @@
               Dates
             </h3>
             <dl class="grid grid-cols-1 gap-3 text-sm">
-              <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
-                <!-- <dt class="font-medium text-gray-500 dark:text-gray-400">Arrival Date</dt>
-                <dd class="text-gray-800 dark:text-white/90">{{ formatDate(shipment.arrival_date) || '—' }}</dd> -->
-              </div>
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Expected Delivery</dt>
                 <dd class="text-gray-800 dark:text-white/90">{{ formatDate(shipment.expected_delivery_date) || '—' }}
@@ -176,13 +180,6 @@
                 <dd class="text-gray-800 dark:text-white/90">{{ Number(shipment.receivable_cod || 0).toFixed(2) }} PKR
                 </dd>
               </div>
-              <!-- <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
-                <dt class="font-medium text-gray-500 dark:text-gray-400">Amount Due</dt>
-                <dd class="font-semibold"
-                  :class="Number(shipment.amount_due || 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
-                  {{ Number(shipment.amount_due || 0).toFixed(2) }} PKR
-                </dd>
-              </div> -->
               <div class="flex justify-between py-1 border-b border-gray-100 dark:border-gray-700/50">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Paid By</dt>
                 <dd class="text-gray-800 dark:text-white/90">{{ shipment.bought_by || '—' }}</dd>
@@ -227,7 +224,18 @@
               </div>
               <div class="flex justify-between py-1">
                 <dt class="font-medium text-gray-500 dark:text-gray-400">Comments</dt>
-                <dd class="text-gray-800 dark:text-white/90">{{ shipment.comments || '—' }}</dd>
+                <dd class="text-gray-800 dark:text-white/90 max-w-[200px]">
+                  <!-- Clickable comments with count -->
+                  <button v-if="hasComments" @click="openCommentsModal"
+                    class="text-brand-500 hover:text-brand-600 hover:underline flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    {{ commentCount }} comment{{ commentCount > 1 ? 's' : '' }}
+                  </button>
+                  <span v-else>—</span>
+                </dd>
               </div>
             </dl>
           </div>
@@ -246,7 +254,8 @@
         </h3>
         <div class="flex flex-wrap gap-3">
           <div v-for="img in shipmentImages" :key="img.id"
-            class="w-24 h-24 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+            class="w-24 h-24 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm cursor-pointer hover:opacity-80 transition"
+            @click="openImageViewer(img)">
             <img :src="getImageUrl(img.image_path)" class="w-full h-full object-cover" />
           </div>
         </div>
@@ -257,6 +266,13 @@
         :totalReceived="Number(shipment.received_amount || 0)" :amountDue="Number(shipment.amount_due || 0)"
         :receivableCod="Number(shipment.receivable_cod || 0)" @paymentChanged="refreshShipmentData" />
     </div>
+
+    <!-- Image Viewer Modal -->
+    <ImageModal v-if="showImageModal" :isOpen="showImageModal" :imageUrl="selectedImageUrl" @close="closeImageViewer" />
+
+    <!-- Comments Modal -->
+    <CommentsModal v-if="showCommentsModal" :isOpen="showCommentsModal" :comments="shipment?.comments"
+      @close="closeCommentsModal" />
 
     <!-- Edit Modal -->
     <ShipmentFormModal v-if="showEditModal" :isOpen="showEditModal" :initialData="shipment" @close="closeEditModal"
@@ -271,7 +287,9 @@ import api from '@/services/api'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
 import ShipmentPayments from '@/components/shipments/ShipmentPayments.vue'
 import ShipmentFormModal from '@/components/admin/ShipmentFormModal.vue'
-
+import TruncateTooltip from '@/components/common/TruncateTooltip.vue'
+import ImageModal from '@/components/common/ImageModal.vue'
+import CommentsModal from '@/components/common/CommentsModal.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -279,21 +297,60 @@ const loading = ref(false)
 const shipment = ref<any>(null)
 const pageTitle = ref('Shipment Details')
 const showEditModal = ref(false)
+const showImageModal = ref(false)
+const showCommentsModal = ref(false)
+const selectedImageUrl = ref('')
 
 const shipmentImages = computed(() => shipment.value?.images || [])
-const isCleared = computed(() => Number(shipment.value?.amount_due || 0) <= 0)
+// const isCleared = computed(() => Number(shipment.value?.amount_due || 0) <= 0)
+
+// Parse comments count
+const hasComments = computed(() => {
+  if (!shipment.value?.comments) return false
+  if (Array.isArray(shipment.value.comments)) {
+    return shipment.value.comments.length > 0
+  }
+  return shipment.value.comments.trim().length > 0
+})
+
+const commentCount = computed(() => {
+  if (!shipment.value?.comments) return 0
+  if (Array.isArray(shipment.value.comments)) {
+    return shipment.value.comments.length
+  }
+  return shipment.value.comments.split(/\n+/).filter((c: string) => c.trim()).length
+})
 
 function getImageUrl(path: string) {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://')) return path
-  const baseUrl = import.meta.env.VITE_API_URL || 'https://us2pk.com'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://us2pk.com'
   return `${baseUrl}/storage/${path}`
 }
 
-// function formatDate(date: string | null | undefined) {
-//   if (!date) return '—';
-//   return new Date(date).toLocaleDateString('en-GB');
-// }
+function formatDate(date: string | null | undefined) {
+  if (!date) return '—'
+  return new Date(date).toLocaleDateString('en-GB')
+}
+
+function openImageViewer(img: any) {
+  selectedImageUrl.value = getImageUrl(img.image_path)
+  showImageModal.value = true
+}
+
+function closeImageViewer() {
+  showImageModal.value = false
+  selectedImageUrl.value = ''
+}
+
+function openCommentsModal() {
+  showCommentsModal.value = true
+}
+
+function closeCommentsModal() {
+  showCommentsModal.value = false
+}
+
 async function fetchShipment() {
   loading.value = true
   try {

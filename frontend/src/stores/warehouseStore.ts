@@ -46,10 +46,12 @@ export const useWarehouseStore = defineStore('warehouse', {
     },
     async create(data: Partial<Warehouse>) {
       this.loading = true;
+
       try {
         const res = await api.post('/admin/warehouses', data);
         this.items.unshift(res.data);
         this.pagination.total += 1;
+
         return res.data;
       } catch (err: any) {
         this.error = err.response?.data?.message || 'Create failed';
@@ -60,10 +62,12 @@ export const useWarehouseStore = defineStore('warehouse', {
     },
     async update(id: number, data: Partial<Warehouse>) {
       this.loading = true;
+
       try {
         const res = await api.put(`/admin/warehouses/${id}`, data);
         const idx = this.items.findIndex(i => i.id === id);
         if (idx !== -1) this.items[idx] = res.data;
+
         return res.data;
       } catch (err: any) {
         this.error = err.response?.data?.message || 'Update failed';
@@ -74,10 +78,12 @@ export const useWarehouseStore = defineStore('warehouse', {
     },
     async delete(id: number) {
       this.loading = true;
+
       try {
         await api.delete(`/admin/warehouses/${id}`);
         this.items = this.items.filter(i => i.id !== id);
         this.pagination.total -= 1;
+
       } catch (err: any) {
         this.error = err.response?.data?.message || 'Delete failed';
         throw err;

@@ -1,3 +1,4 @@
+// frontend/src/stores/userShipmentStore.ts
 import { defineStore } from 'pinia'
 import api from '@/services/api'
 
@@ -181,3 +182,6 @@ export const useUserShipmentStore = defineStore('userShipment', {
     }
   }
 })
+
+// ✅ Also export as default for compatibility
+export default useUserShipmentStore

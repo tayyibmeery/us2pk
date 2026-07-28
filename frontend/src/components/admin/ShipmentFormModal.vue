@@ -336,7 +336,7 @@ const newImagePreviews = ref<string[]>([])
 const getImageUrl = (path: string) => {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://')) return path
-  const baseUrl = import.meta.env.VITE_API_URL || 'https://us2pk.com'
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://us2pk.com'
   return `${baseUrl}/storage/${path}`
 }
 

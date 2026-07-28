@@ -24,76 +24,148 @@
     <!-- Shipment Details -->
     <div v-else-if="shipment"
       class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-      <!-- Status Bar -->
-      <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 class="text-xl font-bold text-gray-800 dark:text-white">{{ shipment.shipment_code }}</h2>
-          <p class="text-sm text-gray-500 dark:text-gray-400">Created {{ formatDate(shipment.created_at) }}</p>
+
+      <!-- Header - Shipment Code & Status -->
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">{{ shipment.shipment_code }}</h2>
+            <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">
+              <span class="font-medium">Order Date:</span> {{ formatDate(shipment.created_at) }}
+            </p>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
+            <ShipmentStatusBadge :status="shipment.shipment_status?.name" class="text-base px-4 py-2" />
+          </div>
         </div>
-        <ShipmentStatusBadge :status="shipment.shipment_status?.name" />
       </div>
 
-      <!-- Details Grid -->
-      <div class="p-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
+      <!-- Key Information Grid -->
+      <div class="p-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <!-- Column 1 -->
         <div class="space-y-4">
           <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</p>
-            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.description || 'N/A' }}</p>
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Weight</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Weight</p>
             <p class="font-medium text-gray-800 dark:text-white">{{ shipment.weight }}
               {{ shipment.weight_unit || 'kg' }}</p>
           </div>
           <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Seller Tracker</p>
-            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.seller_tracker_id || 'N/A' }}</p>
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Site</p>
-            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.site?.name || 'N/A' }}</p>
-          </div>
-        </div>
-        <div class="space-y-4">
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bought By</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Bought By</p>
             <p class="font-medium text-gray-800 dark:text-white">{{ shipment.bought_by || 'N/A' }}</p>
           </div>
+          <!-- <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Site</p>
+            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.site?.name || 'N/A' }}</p>
+          </div> -->
+        </div>
+
+        <!-- Column 2 -->
+        <div class="space-y-4">
           <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Payment Method</p>
-            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.payment_method?.name || 'N/A' }}</p>
-          </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Local Courier</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold"> Courier</p>
             <p class="font-medium text-gray-800 dark:text-white">{{ shipment.local_courier?.name || 'N/A' }}</p>
           </div>
           <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Consolidation</p>
-            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.consolidation?.consol_id || 'N/A' }}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">
+              {{ shipment.date_delivered ? 'Delivered On' : 'Expected Delivery' }}
+            </p>
+            <p class="font-medium text-gray-800 dark:text-white">
+              {{ shipment.date_delivered ? formatDate(shipment.date_delivered) : formatDate(shipment.expected_delivery_date) || 'N/A' }}
+            </p>
           </div>
         </div>
       </div>
 
-      <!-- Financials -->
+      <!-- Description - Full Width at Bottom -->
+      <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold mb-2">Description</p>
+        <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
+          {{ shipment.description || 'No description provided.' }}</p>
+      </div>
+
+      <!-- Financial Summary -->
       <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Financial Summary</h3>
-        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Item Value</p>
-            <p class="font-bold text-gray-800 dark:text-white">{{ formatCurrency(shipment.item_value_pkr) }}</p>
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">Financial
+          Summary</h3>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div
+            class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Payable</p>
+            <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ formatCurrency(shipment.total) }}</p>
           </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Company Charges</p>
-            <p class="font-bold text-gray-800 dark:text-white">{{ formatCurrency(shipment.company_charges) }}</p>
+          <div
+            class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Paid Amount</p>
+            <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {{ formatCurrency(shipment.received_amount) }}
+            </p>
           </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Total Payable</p>
-            <p class="font-bold text-emerald-600 dark:text-emerald-400">{{ formatCurrency(shipment.total) }}</p>
+          <div
+            class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Payable Amount</p>
+            <p class="text-2xl font-bold"
+              :class="(shipment.total - shipment.received_amount) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
+              {{ formatCurrency(shipment.total - shipment.received_amount) }}
+            </p>
           </div>
-          <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Received Amount</p>
-            <p class="font-bold text-blue-600 dark:text-blue-400">{{ formatCurrency(shipment.received_amount) }}</p>
-          </div>
+        </div>
+      </div>
+
+      <!-- Payment History Table -->
+      <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">Payment History
+        </h3>
+
+        <div v-if="shipment.payments && shipment.payments.length" class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-100 dark:bg-gray-800">
+              <tr>
+                <th
+                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Date</th>
+                <th
+                  class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Amount (PKR)</th>
+                <th
+                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Method</th>
+                <th
+                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Reference</th>
+                <th
+                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="payment in shipment.payments" :key="payment.id"
+                class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ formatDate(payment.payment_date) }}</td>
+                <td class="px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">
+                  {{ formatCurrency(payment.amount) }}
+                </td>
+                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ payment.payment_method || '—' }}</td>
+                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ payment.reference_number || '—' }}</td>
+                <td class="px-4 py-3 max-w-xs truncate text-gray-600 dark:text-gray-400" :title="payment.notes">
+                  {{ payment.notes || '—' }}
+                </td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700">
+              <tr>
+                <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">Total Paid
+                </td>
+                <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                  {{ formatCurrency(shipment.received_amount) }}
+                </td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div v-else class="text-center py-6 text-gray-400 dark:text-gray-500">
+          No payment records found.
         </div>
       </div>
     </div>
@@ -123,7 +195,7 @@ console.log('📄 ShipmentDetail component loaded!')
 
 const route = useRoute()
 const loading = ref(true)
-const shipment = ref(null)
+const shipment = ref<any>(null)
 
 const formatDate = (date: string) => {
   if (!date) return 'N/A'
