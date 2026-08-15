@@ -1,7 +1,7 @@
 <template>
   <teleport to="body">
     <!-- <div v-if="isOpen" class="fixed inset-0 z-[100000] overflow-y-auto" @click.self="close"> -->
-      <div v-if="isOpen" class="fixed inset-0 z-[100000] overflow-y-auto" @click.self="close">
+    <div v-if="isOpen" class="fixed inset-0 z-[100000] overflow-y-auto" @click.self="close">
       <!-- Backdrop -->
       <div class="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" @click="close"></div>
 

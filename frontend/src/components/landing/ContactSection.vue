@@ -104,7 +104,7 @@
 import { reactive, computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useLandingStore } from '@/stores/landingStore';
 import { useToast } from '@/composables/useToast';
-import axios from 'axios';
+import api from '@/services/api'; // ✅ Import the centralized API service
 
 const props = defineProps({
   sectionTitle: { type: String, default: '' },
@@ -141,8 +141,8 @@ const submitQuote = async () => {
 
   submitting.value = true;
   try {
-    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'https://us2pk.com/api';
-    await axios.post(`${apiUrl}/quotes`, form);
+    // ✅ Use the centralized API service with relative path
+    await api.post('/quotes', form);
 
     // Success toast
     toast.success(
