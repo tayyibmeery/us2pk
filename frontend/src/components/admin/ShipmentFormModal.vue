@@ -112,9 +112,6 @@
           <p v-if="sitesLoading" class="text-xs text-gray-400 mt-1">Loading sites...</p>
         </div>
 
-        <!-- Purchase Date (hidden - auto-set to today) -->
-        <input type="hidden" ref="purchaseDateInput" v-model="formData.purchase_date" />
-
         <!-- Status - Only show when editing -->
         <div v-if="isEdit">
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
@@ -140,8 +137,7 @@
             Expected Delivery Date
           </label>
           <div class="relative">
-            <input :ref="el => { if (el) datePickerRefs.expected_delivery_date = el }"
-              v-model="formData.expected_delivery_date" type="text"
+            <input ref="expectedDeliveryDateInput" v-model="formData.expected_delivery_date" type="text"
               class="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
               placeholder="Select date" readonly />
             <span
@@ -363,8 +359,44 @@ const statusesLoading = ref(false)
 const localCouriers = ref<any[]>([])
 const localCouriersLoading = ref(false)
 
-const datePickerRefs = ref<Record<string, any>>({})
-const flatpickrInstances: Record<string, any> = {}
+// ---- Date picker: single instance, lifecycle tied to the ref itself ----
+// This avoids racing against nextTick() timing through the
+// ShipmentFormModal -> FormModal -> Modal (Teleport, v-if) chain.
+const expectedDeliveryDateInput = ref<HTMLInputElement | null>(null)
+let flatpickrInstance: any = null
+
+const syncDatePickerValue = () => {
+  const val = formData.value.expected_delivery_date
+  if (flatpickrInstance && val) {
+    const clean = typeof val === 'string' && val.includes('T') ? val.split('T')[0] : val
+    flatpickrInstance.setDate(clean, false)
+  }
+}
+
+const initDatePicker = (el: HTMLInputElement) => {
+  flatpickrInstance = flatpickr(el, {
+    dateFormat: 'Y-m-d',
+    allowInput: true,
+    appendTo: document.body,
+    onChange: (_dates: any, dateStr: string) => {
+      formData.value.expected_delivery_date = dateStr
+    },
+  })
+  syncDatePickerValue()
+}
+
+watch(expectedDeliveryDateInput, (el) => {
+  if (el) {
+    if (flatpickrInstance) {
+      flatpickrInstance.destroy()
+      flatpickrInstance = null
+    }
+    initDatePicker(el)
+  } else if (flatpickrInstance) {
+    flatpickrInstance.destroy()
+    flatpickrInstance = null
+  }
+})
 
 const defaultForm = (): Partial<Shipment> => ({
   user_id: undefined,
@@ -411,10 +443,8 @@ const selectedUser = computed(() => {
 
 const isEdit = computed(() => !!props.initialData?.id)
 
-// Handle Bought By change - auto-set status
 const onBoughtByChange = () => {
   if (!isEdit.value) {
-    // Only auto-set status when creating new shipment
     const paidBy = formData.value.bought_by
     let statusName = ''
 
@@ -424,20 +454,17 @@ const onBoughtByChange = () => {
       statusName = 'Bought by Customer'
     }
 
-    // Find the status ID by name
     const status = statuses.value.find(s => s.name === statusName)
     if (status) {
       formData.value.shipment_status_id = status.id
     }
   }
 
-  // Handle item value disabled state
   if (formData.value.bought_by === 'By Customer') {
     formData.value.item_value_pkr = 0
   }
 }
 
-// Watch for statuses loading and auto-set status
 watch([() => statuses.value, () => formData.value.bought_by, isEdit], () => {
   if (!isEdit.value && statuses.value.length > 0 && formData.value.bought_by) {
     const paidBy = formData.value.bought_by
@@ -468,7 +495,6 @@ const resetForm = () => {
   showUserDropdown.value = false
 }
 
-// User search functions
 const onUserSearch = () => {
   if (userSearchTimeout.value) {
     clearTimeout(userSearchTimeout.value)
@@ -500,16 +526,12 @@ const searchUsers = async (query: string) => {
   try {
     usersLoading.value = true
     const response = await api.get('/admin/users/search', {
-      params: {
-        search: query,
-        per_page: 20
-      }
+      params: { search: query, per_page: 20 }
     })
     filteredUsers.value = response.data.data || response.data || []
     showUserDropdown.value = true
   } catch (error) {
     console.error('Failed to search users:', error)
-    // Fallback to client-side filtering
     filterUsers(query)
   } finally {
     usersLoading.value = false
@@ -539,9 +561,7 @@ const fetchAllUsers = async () => {
 
   usersLoading.value = true
   try {
-    const response = await api.get('/admin/users', {
-      params: { per_page: 1000 }
-    })
+    const response = await api.get('/admin/users', { params: { per_page: 1000 } })
     allUsers.value = response.data.data || response.data || []
     filteredUsers.value = allUsers.value
     showUserDropdown.value = true
@@ -556,23 +576,18 @@ const selectUser = (user: any) => {
   formData.value.user_id = user.id
   userSearch.value = `${user.name} (${user.email})`
   showUserDropdown.value = false
-
-  // Trigger shipment code generation
   generateShipmentCode(user.id)
 }
 
 const generateShipmentCode = async (userId: number) => {
   try {
-    const res = await api.get('/admin/shipments/generate-shipment-code', {
-      params: { user_id: userId }
-    })
+    const res = await api.get('/admin/shipments/generate-shipment-code', { params: { user_id: userId } })
     formData.value.shipment_code = res.data.shipment_code
   } catch (e) {
     console.error('Failed to generate shipment code', e)
   }
 }
 
-// Close dropdown when clicking outside
 const closeUserDropdown = (event: Event) => {
   const target = event.target as HTMLElement
   const dropdown = target.closest('.relative')
@@ -606,7 +621,6 @@ const fetchLookupData = async () => {
   try {
     await shipmentStatusStore.fetchItems(1, { per_page: 100 })
     statuses.value = shipmentStatusStore.items
-    // Auto-set status after loading
     if (!isEdit.value && formData.value.bought_by) {
       const paidBy = formData.value.bought_by
       let statusName = paidBy === 'By Company' ? 'Bought by Company' : 'Bought by Customer'
@@ -632,36 +646,13 @@ const fetchLookupData = async () => {
   }
 }
 
-const initDatePickers = () => {
-  const dateFields = ['purchase_date', 'expected_delivery_date']
-  dateFields.forEach(field => {
-    const el = datePickerRefs.value[field]
-    if (el) {
-      if (flatpickrInstances[field]) flatpickrInstances[field].destroy()
-      flatpickrInstances[field] = flatpickr(el, {
-        dateFormat: 'Y-m-d',
-        allowInput: true,
-        onChange: (_dates: any, dateStr: string) => {
-          (formData.value as any)[field] = dateStr
-        },
-      })
-      const val = (formData.value as any)[field]
-      if (val) {
-        const clean = typeof val === 'string' && val.includes('T') ? val.split('T')[0] : val
-        flatpickrInstances[field].setDate(clean)
-      }
-    }
-  })
-}
-
 watch(() => props.isOpen, async (open) => {
   if (open) {
-    await nextTick()
-    initDatePickers()
     await fetchAllUsers()
     await fetchLookupData()
+    await nextTick()
+    syncDatePickerValue()
   } else {
-    Object.values(flatpickrInstances).forEach((inst: any) => inst.destroy())
     showUserDropdown.value = false
   }
 })
@@ -683,10 +674,8 @@ watch(() => props.initialData, (newVal) => {
     }
     formData.value = cleaned
 
-    // Set user search text if user exists
     if (newVal.user) {
       userSearch.value = `${newVal.user.name} (${newVal.user.email})`
-      // Add user to allUsers if not already there
       if (!allUsers.value.find(u => u.id === newVal.user?.id)) {
         allUsers.value.push(newVal.user)
       }
@@ -703,6 +692,10 @@ watch(() => props.initialData, (newVal) => {
     newImages.value = []
     newImagePreviews.value = []
     imagesToDelete.value = []
+
+    nextTick(() => {
+      syncDatePickerValue()
+    })
   } else {
     resetForm()
   }
@@ -741,7 +734,6 @@ const close = () => {
 const save = async () => {
   if (saving.value) return
 
-  // Validate required fields
   if (!formData.value.user_id) {
     alert('Please select a user')
     return
@@ -815,7 +807,6 @@ const save = async () => {
   }
 }
 
-// Lifecycle hooks
 onMounted(() => {
   document.addEventListener('click', closeUserDropdown)
 })
@@ -824,6 +815,10 @@ onUnmounted(() => {
   document.removeEventListener('click', closeUserDropdown)
   if (userSearchTimeout.value) {
     clearTimeout(userSearchTimeout.value)
+  }
+  if (flatpickrInstance) {
+    flatpickrInstance.destroy()
+    flatpickrInstance = null
   }
 })
 </script>
