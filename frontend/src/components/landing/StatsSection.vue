@@ -1,5 +1,5 @@
 <template>
-  <div class="stats-strip">
+  <div id="stats-section" class="stats-strip">
     <div class="wrap">
       <div class="stat-item">
         <div class="num">{{ stats?.happy_clients || '18,400+' }}</div>

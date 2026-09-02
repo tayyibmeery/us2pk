@@ -3,7 +3,7 @@
     <div class="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
       <div class="relative flex flex-col justify-center w-full h-screen lg:flex-row dark:bg-gray-900">
         <div class="flex flex-col flex-1 w-full lg:w-1/2">
-          <!-- <div class="w-full max-w-md pt-10 mx-auto">
+          <div class="w-full max-w-md pt-10 mx-auto">
             <router-link to="/"
               class="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
               <svg class="stroke-current" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"
@@ -11,12 +11,14 @@
                 <path d="M12.7083 5L7.5 10.2083L12.7083 15.4167" stroke="" stroke-width="1.5" stroke-linecap="round"
                   stroke-linejoin="round" />
               </svg>
-              Back to dashboard
+              Back to Home
             </router-link>
-          </div> -->
+          </div>
           <div class="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
             <div class="mb-2 sm:mb-8">
-              <h1 class="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md text-center">Sign Up
+              <h1
+                class="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md text-center">
+                Sign Up
               </h1>
               <!-- <p class="text-sm text-gray-500 dark:text-gray-400">Enter your email and password to sign up!</p> -->
             </div>
@@ -106,11 +108,6 @@
                         </span>
                       </div>
                     </div>
-                    <!-- <p class="inline-block font-normal text-gray-500 dark:text-gray-400">By creating an account you
-                      agree to the <span class="text-gray-800 dark:text-white/90">Terms and Conditions</span> and our
-                      <span class="text-gray-800 dark:text-white">Privacy Policy</span>
-                    </p> -->
-
                     <p class="text-gray-500 dark:text-gray-400 text-sm">
                       By creating an account you agree to the <span
                         class="text-gray-800 dark:text-white/90">Terms</span> and <span
@@ -185,18 +182,6 @@ const form = ref({
   address: '',
   source: '',
 });
-
-// Load cities when component mounts
-// onMounted(async () => {
-//   if (!cityStore.items.length) {
-//     try {
-//       // ✅ Use public endpoint – no authentication required
-//       await cityStore.fetchPublicCities();
-//     } catch (err) {
-//       console.error('Failed to load cities:', err);
-//     }
-//   }
-// });
 
 onMounted(async () => {
   if (!cityStore.items.length) {

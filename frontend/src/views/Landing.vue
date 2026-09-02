@@ -42,6 +42,10 @@
         <FaqSection v-else-if="setting.section_key === 'faq'" :section-title="setting.section_title"
           :section-subtitle="setting.section_subtitle" />
 
+
+          <BlogSection v-else-if="setting.section_key === 'blog'" :section-title="setting.section_title"
+          :section-subtitle="setting.section_subtitle" />
+
         <!-- Contact Section -->
         <ContactSection v-else-if="setting.section_key === 'contact'" :section-title="setting.section_title"
           :section-subtitle="setting.section_subtitle" />
@@ -67,6 +71,7 @@ import PricingSection from '@/components/landing/PricingSection.vue';
 import FaqSection from '@/components/landing/FaqSection.vue';
 import ContactSection from '@/components/landing/ContactSection.vue';
 import ProhibitedItemsSection from '@/components/landing/ProhibitedItemsSection.vue';
+import BlogSection from '@/components/landing/BlogSection.vue'; // ADD THIS
 
 const landingStore = useLandingStore();
 const enabledSections = computed(() => landingStore.getEnabledSections());

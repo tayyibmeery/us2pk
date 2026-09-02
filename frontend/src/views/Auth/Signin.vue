@@ -3,7 +3,7 @@
     <div class="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
       <div class="relative flex flex-col justify-center w-full h-screen lg:flex-row dark:bg-gray-900">
         <div class="flex flex-col flex-1 w-full lg:w-1/2">
-          <!-- <div class="w-full max-w-md pt-10 mx-auto">
+          <div class="w-full max-w-md pt-10 mx-auto">
             <router-link to="/"
               class="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
               <svg class="stroke-current" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"
@@ -11,13 +11,15 @@
                 <path d="M12.7083 5L7.5 10.2083L12.7083 15.4167" stroke="" stroke-width="1.5" stroke-linecap="round"
                   stroke-linejoin="round" />
               </svg>
-              Back to dashboard
+              Back to Home
             </router-link>
-          </div> -->
+          </div>
           <div class="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
             <div>
               <div class="mb-5 sm:mb-8">
-                <h1 class="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md text-center">Sign In
+                <h1
+                  class="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md text-center">
+                  Sign In
                 </h1>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Enter your email and password to sign in!</p>
               </div>
@@ -109,38 +111,6 @@
   </FullScreenLayout>
 </template>
 
-<!-- <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/authStore';
-import FullScreenLayout from '@/components/layout/FullScreenLayout.vue';
-import CommonGridShape from '@/components/common/CommonGridShape.vue';
-
-const router = useRouter();
-const authStore = useAuthStore();
-const email = ref('');
-const password = ref('');
-const showPassword = ref(false);
-const loading = ref(false);
-const error = ref('');
-
-const togglePasswordVisibility = () => { showPassword.value = !showPassword.value; };
-
-async function handleSubmit() {
-  loading.value = true;
-  error.value = '';
-  try {
-    await authStore.login(email.value, password.value);
-    if (authStore.isAdmin) router.push('/admin/dashboard');
-    else router.push('/dashboard');
-
-  } catch (err: any) {
-    error.value = err.response?.data?.message || 'Login failed.';
-  } finally {
-    loading.value = false;
-  }
-}
-</script> -->
 <!-- src/views/Auth/Signin.vue -->
 <script setup lang="ts">
 import { ref } from 'vue';

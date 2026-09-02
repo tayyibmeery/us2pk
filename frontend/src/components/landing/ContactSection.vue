@@ -1,5 +1,5 @@
 <template>
-  <section id="contact-section" style="background:#EDEAE0;">
+  <section id="contact" style="background:#EDEAE0;">
     <div class="wrap">
       <!-- Centered Header -->
       <div class="section-header">
@@ -33,12 +33,22 @@
               <div class="field">
                 <label>Service</label>
                 <select v-model="form.service">
-                  <option value="">Select a service</option>
-                  <option value="Air Freight">Air Freight</option>
-                  <option value="Ocean Freight">Ocean Freight</option>
-                  <option value="Road Freight">Road Freight</option>
-                  <option value="Customs Clearance">Customs Clearance</option>
-                  <option value="Warehouse Solutions">Warehouse Solutions</option>
+                  <option value="">Choose a shipping service</option>
+                  <option value="USA to Pakistan Air">🇺🇸→🇵🇰 Air Freight (USA to Pakistan)</option>
+                  <option value="USA to Pakistan Sea">🇺🇸→🇵🇰 Ocean Freight (USA to Pakistan)</option>
+                  <option value="Pakistan to USA Air">🇵🇰→🇺🇸 Air Freight (Pakistan to USA)</option>
+                  <option value="Pakistan to USA Sea">🇵🇰→🇺🇸 Ocean Freight (Pakistan to USA)</option>
+                  <option value="Customs Clearance Pakistan">🛃 Customs Clearance (Pakistan)</option>
+                  <option value="Customs Clearance USA">🛃 Customs Clearance (USA)</option>
+                  <option value="Door-to-Door Pakistan">🚪 Door-to-Door (Pakistan)</option>
+                  <option value="Door-to-Door USA">🚪 Door-to-Door (USA)</option>
+                  <option value="Warehousing USA">📦 Warehousing (USA)</option>
+                  <option value="Warehousing Pakistan">📦 Warehousing (Pakistan)</option>
+                  <option value="E-commerce Fulfillment">🛍️ E-commerce Fulfillment</option>
+                  <option value="Personal Effects Shipping">🧳 Personal Effects / Household Goods</option>
+                  <option value="Commercial Cargo">🏭 Commercial Cargo</option>
+                  <option value="Vehicle Shipping">🚗 Vehicle Shipping</option>
+                  <option value="Consultation">💡 Consultation / Quote Request</option>
                 </select>
               </div>
             </div>
@@ -49,6 +59,13 @@
             <button type="submit" class="btn btn-amber" style="width:100%;justify-content:center;">
               {{ submitting ? 'Submitting...' : 'Submit Request' }}
             </button>
+
+            <transition name="success-fade">
+              <div v-if="showSuccess" class="form-success">
+                <span class="form-success-icon">✓</span>
+                <span>Thank you! Our agent will contact you on your provided phone number or email shortly.</span>
+              </div>
+            </transition>
           </form>
         </div>
 
@@ -132,6 +149,13 @@ const form = reactive({
   note: ''
 });
 
+// ============================================================
+// SUCCESS MESSAGE — shown inline below the submit button after
+// a successful submission, alongside the toast, and auto-hides.
+// ============================================================
+const showSuccess = ref(false);
+let successTimer = null;
+
 const submitQuote = async () => {
   // Validate required fields
   if (!form.name || !form.email) {
@@ -140,6 +164,7 @@ const submitQuote = async () => {
   }
 
   submitting.value = true;
+  showSuccess.value = false;
   try {
     // ✅ Use the centralized API service with relative path
     await api.post('/quotes', form);
@@ -148,6 +173,13 @@ const submitQuote = async () => {
     toast.success(
       '✅ Thank you! Your request has been received. Our team will contact you soon via your provided email or phone number.'
     );
+
+    // Inline confirmation below the button
+    showSuccess.value = true;
+    if (successTimer) clearTimeout(successTimer);
+    successTimer = setTimeout(() => {
+      showSuccess.value = false;
+    }, 8000);
 
     // Reset form
     Object.assign(form, { name: '', email: '', mobile: '', service: '', note: '' });
@@ -207,6 +239,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', measure);
   if (resizeObserver) resizeObserver.disconnect();
+  if (successTimer) clearTimeout(successTimer);
 });
 
 watch(activeContacts, () => nextTick(checkOverflow));
@@ -327,6 +360,48 @@ section {
 .btn-amber:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(224, 169, 58, .35);
+}
+
+/* SUCCESS MESSAGE — inline confirmation shown under the button */
+.form-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 13px 16px;
+  background: rgba(44, 140, 134, 0.08);
+  border: 1px solid rgba(44, 140, 134, 0.35);
+  border-radius: 3px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #1F5F5A;
+}
+
+.form-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  background: #2C8C86;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.success-fade-enter-active,
+.success-fade-leave-active {
+  transition: opacity .25s ease, transform .25s ease;
+}
+
+.success-fade-enter-from,
+.success-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 /* CONTACT PANEL — right column.

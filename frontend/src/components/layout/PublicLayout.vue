@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Navbar -->
-    <header class="nav">
+    <header class="nav" :class="{ 'is-scrolled': isScrolled }">
       <div class="nav-inner">
         <router-link to="/" class="brand">
           <span class="dot"></span>{{ brandName }}
@@ -22,12 +22,12 @@
 
         <div class="nav-cta" :class="{ 'mobile-open': mobileOpen }">
           <template v-if="!isAuthenticated">
-            <router-link to="/signin" class="login">Sign In</router-link>
-            <router-link to="/signup" class="btn btn-amber">Get Your US Address</router-link>
+            <router-link to="/signin" class="nav-btn nav-btn-ghost">Sign In</router-link>
+            <router-link to="/signup" class="nav-btn nav-btn-solid">Get Started</router-link>
           </template>
           <template v-else>
-            <router-link to="/dashboard" class="login">Dashboard</router-link>
-            <a href="#" @click.prevent="logout" class="btn btn-amber">Logout</a>
+            <router-link to="/dashboard" class="nav-btn nav-btn-ghost">Dashboard</router-link>
+            <a href="#" @click.prevent="logout" class="nav-btn nav-btn-solid">Logout</a>
           </template>
         </div>
       </div>
@@ -115,6 +115,15 @@ function dismissTooltip() {
   if (tooltipAutoHideTimer) clearTimeout(tooltipAutoHideTimer);
 }
 
+// Navbar scroll state — the header stays sticky/visible at all times;
+// this just lets it pick up a shadow + tighten slightly once the page
+// has actually moved, so it reads as a deliberate floating bar instead
+// of a flat static one.
+const isScrolled = ref(false);
+function handleScroll() {
+  isScrolled.value = window.scrollY > 8;
+}
+
 const logout = async () => {
   await authStore.logout();
   router.push('/signin');
@@ -139,10 +148,14 @@ onMounted(async () => {
       showTooltip.value = false;
     }, 6000);
   }, 2500);
+
+  handleScroll();
+  window.addEventListener('scroll', handleScroll, { passive: true });
 });
 
 onBeforeUnmount(() => {
   if (tooltipAutoHideTimer) clearTimeout(tooltipAutoHideTimer);
+  window.removeEventListener('scroll', handleScroll);
 });
 </script>
 
@@ -170,6 +183,10 @@ onBeforeUnmount(() => {
 
 html {
   scroll-behavior: smooth;
+  /* overflow-x: clip (not hidden) — blocks horizontal overflow without
+     turning body into a scroll container, which is what silently breaks
+     position: sticky on the header below. */
+  overflow-x: clip;
 }
 
 body {
@@ -178,6 +195,8 @@ body {
   color: var(--ink);
   background: var(--paper);
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+  width: 100%;
 }
 
 h1,
@@ -296,16 +315,34 @@ header.nav {
   background: rgba(10, 19, 48, .92);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line-dark);
+  width: 100%;
+  transition: background .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+
+/* Once the page has actually scrolled, the bar tightens up and picks
+   up depth — makes it read as a floating panel rather than a flat
+   strip that happens to be pinned. */
+header.nav.is-scrolled {
+  background: rgba(7, 13, 33, .97);
+  border-bottom-color: transparent;
+  box-shadow: 0 14px 34px rgba(3, 6, 20, .35), 0 1px 0 rgba(255, 255, 255, .04) inset;
 }
 
 .nav-inner {
   max-width: 1180px;
   margin: 0 auto;
   padding: 0 32px;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 20px;
   height: 76px;
+  transition: height .25s ease;
+}
+
+header.nav.is-scrolled .nav-inner {
+  height: 64px;
 }
 
 .brand {
@@ -316,6 +353,12 @@ header.nav {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 20px;
+  flex-shrink: 0;
+  transition: font-size .25s ease;
+}
+
+header.nav.is-scrolled .brand {
+  font-size: 18px;
 }
 
 .brand .dot {
@@ -327,35 +370,89 @@ header.nav {
 
 .nav-links {
   display: flex;
-  gap: 36px;
+  gap: 22px;
   align-items: center;
+  /* keep this from being wider than the space it's given */
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
 }
 
 .nav-links a {
   color: rgba(255, 255, 255, .75);
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 500;
+  position: relative;
+  padding: 4px 0;
   transition: color .15s;
+  white-space: nowrap;
 }
 
 .nav-links a:hover {
   color: #fff;
 }
 
+/* subtle underline-on-hover, gives the nav a bit more polish */
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 1px;
+  background: var(--amber);
+  transition: width .2s ease;
+}
+
+.nav-links a:hover::after {
+  width: 100%;
+}
+
+/* ===== NAV BUTTONS ===== */
 .nav-cta {
   display: flex;
   gap: 12px;
   align-items: center;
+  flex-shrink: 0;
 }
 
-.nav-cta a.login {
-  color: rgba(255, 255, 255, .8);
-  font-size: 14.5px;
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease, color .15s ease;
+  white-space: nowrap;
 }
 
-.nav-cta .btn-amber {
-  padding: 10px 20px;
-  font-size: 14px;
+/* Sign In — quiet, outlined, secondary */
+.nav-btn-ghost {
+  color: rgba(255, 255, 255, .82);
+  border-color: rgba(255, 255, 255, .28);
+  background: transparent;
+}
+
+.nav-btn-ghost:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, .55);
+  background: rgba(255, 255, 255, .06);
+}
+
+/* Get Started / Logout — the one thing you want the eye drawn to */
+.nav-btn-solid {
+  background: var(--amber);
+  color: var(--navy-950);
+  border-color: var(--amber);
+}
+
+.nav-btn-solid:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(224, 169, 58, .3);
 }
 
 .mobile-toggle {
@@ -365,14 +462,8 @@ header.nav {
   color: #fff;
   font-size: 24px;
   cursor: pointer;
+  flex-shrink: 0;
 }
-
-/* NOTE: no footer styling lives here anymore — FooterSection.vue
-   is a self-contained, scoped component and owns 100% of its own
-   CSS. Duplicating class names like .footer-grid / .footer-bottom
-   here previously created two unscoped rule sets fighting over the
-   same selectors, which is a real bug (last-loaded rule silently
-   wins). Keep footer styling in FooterSection.vue only. */
 
 /* ===== WHATSAPP WIDGET ===== */
 .whatsapp-widget {
@@ -555,8 +646,13 @@ header.nav {
   transform: translateY(8px) scale(.96);
 }
 
-/* ===== RESPONSIVE ===== */
-@media(max-width:960px) {
+/* ===== RESPONSIVE =====
+   Raised from 960px to 1260px: with this many nav items (Home, About,
+   Services, Testimonials, Team, Pricing, FAQ, Blog, Why Us, Contact,
+   Stats, Prohibited Items) plus two buttons, there isn't room to keep
+   them on one line below ~1260px without wrapping or clipping — so we
+   switch to the hamburger menu earlier instead of letting it overflow. */
+@media(max-width:1260px) {
   .mobile-toggle {
     display: block;
   }
@@ -576,6 +672,10 @@ header.nav {
 
   .nav-links.mobile-open {
     display: flex;
+  }
+
+  .nav-links a {
+    white-space: normal;
   }
 
   .nav-cta {
@@ -613,6 +713,11 @@ header.nav {
   .nav-cta.mobile-open {
     padding: 16px;
     flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .nav-cta.mobile-open .nav-btn {
     width: 100%;
   }
 

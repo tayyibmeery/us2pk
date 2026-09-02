@@ -17,7 +17,9 @@
           <ul class="price-feats">
             <li v-for="(f, i) in getFeatures(p)" :key="i"><b>&check;</b> {{ f }}</li>
           </ul>
-          <a href="#contact-section" class="btn-ink" :class="{ 'btn-amber': p.featured }">Get Quote</a>
+          <a :href="p.button_link || '#contact-section'" class="btn-ink" :class="{ 'btn-amber': p.featured }">
+            {{ p.button_text || 'Get Quote' }}
+          </a>
           <div class="tear-edge"></div>
         </div>
       </div>

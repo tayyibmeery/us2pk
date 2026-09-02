@@ -9,7 +9,8 @@
         </p>
       </div>
       <div class="services-grid">
-        <div class="service-card" v-for="(s, i) in displayServices" :key="s.id">
+        <div class="service-card" :class="{ 'is-open': isExpanded(s.id) }" v-for="(s, i) in displayServices"
+          :key="s.id">
           <div class="stub">
             <div class="route-code">
               <span class="num">{{ String(i + 1).padStart(2, '0') }}</span>{{ routeLabels[i] || 'SERVICE' }}
@@ -23,7 +24,20 @@
           <div class="body-content">
             <h3>{{ s.title }}</h3>
             <p>{{ s.content || s.meta?.description || 'Service description' }}</p>
-            <span class="service-link">Learn more <i class="fas fa-arrow-right"></i></span>
+
+            <button type="button" class="service-toggle" :aria-expanded="isExpanded(s.id)" @click="toggleService(s.id)">
+              {{ isExpanded(s.id) ? 'Show less' : 'Learn more' }}
+              <i class="fas fa-chevron-down"></i>
+            </button>
+
+            <div class="service-detail">
+              <div class="service-detail-inner">
+                <p>{{ getServiceDetail(s) }}</p>
+                <ul v-if="getServiceHighlights(s).length" class="service-highlights">
+                  <li v-for="(h, hi) in getServiceHighlights(s)" :key="hi">{{ h }}</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -32,7 +46,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
 import { useLandingStore } from '@/stores/landingStore';
 
 const props = defineProps({
@@ -46,6 +60,40 @@ const displayServices = computed(() => landingStore.getServices || []);
 // Short route-style labels and fallback icons, keyed by card position
 const routeLabels = ['US → PK · AIR', 'US → PK · SEA', 'PK · LAND', 'CUSTOMS', 'US WAREHOUSE', 'LIVE STATUS'];
 const iconClasses = ['fas fa-plane', 'fas fa-ship', 'fas fa-truck', 'fas fa-file-invoice', 'fas fa-warehouse', 'fas fa-location-crosshairs'];
+
+// ============================================================
+// EXPAND / COLLAPSE — "Learn more" now opens an inline detail
+// panel inside the same card instead of linking away.
+// ============================================================
+const openIds = reactive(new Set());
+
+const isExpanded = (id) => openIds.has(id);
+
+const toggleService = (id) => {
+  if (openIds.has(id)) {
+    openIds.delete(id);
+  } else {
+    openIds.add(id);
+  }
+};
+
+// Extended copy shown once a card is expanded. Prefers real data from
+// the API (meta.details / meta.long_description) and falls back to a
+// safe generic line so the panel never renders empty.
+const getServiceDetail = (s) => {
+  return (
+    s.meta?.details ||
+    s.meta?.long_description ||
+    s.meta?.description ||
+    'Our team handles this step end-to-end — reach out and we\'ll walk you through exactly how it works for your shipment.'
+  );
+};
+
+// Optional bullet highlights, if the API provides them.
+const getServiceHighlights = (s) => {
+  const list = s.meta?.highlights || s.meta?.features;
+  return Array.isArray(list) ? list : [];
+};
 
 // ============================================================
 // IMAGE HELPER - Resolve image path
@@ -162,6 +210,7 @@ const handleImageError = (event) => {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 28px;
+  align-items: start;
 }
 
 .service-card {
@@ -177,6 +226,11 @@ const handleImageError = (event) => {
 .service-card:hover {
   transform: translateY(-6px);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
+}
+
+/* once expanded, drop the hover lift so the open card doesn't jump around */
+.service-card.is-open:hover {
+  transform: none;
 }
 
 /* corner notches punch the ticket out of the navy field */
@@ -299,10 +353,12 @@ const handleImageError = (event) => {
   line-height: 1.6;
   color: #565B72;
   margin: 0 0 22px;
-  flex: 1;
 }
 
-.service-link {
+/* ============================================================
+   LEARN MORE TOGGLE — replaces the old plain link
+   ============================================================ */
+.service-toggle {
   font-family: 'Manrope', sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -312,19 +368,80 @@ const handleImageError = (event) => {
   gap: 7px;
   letter-spacing: 0.01em;
   cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: auto;
+  align-self: flex-start;
 }
 
-.service-link i {
-  font-size: 11px;
+.service-toggle i {
+  font-size: 10px;
   transition: transform .25s ease;
 }
 
-.service-card:hover .service-link {
+.service-card.is-open .service-toggle i {
+  transform: rotate(180deg);
+}
+
+.service-toggle:hover {
   color: #B37E1C;
 }
 
-.service-card:hover .service-link i {
-  transform: translateX(3px);
+/* ============================================================
+   INLINE DETAIL PANEL
+   Grid-rows trick animates height without measuring it in JS.
+   ============================================================ */
+.service-detail {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .35s ease;
+}
+
+.service-card.is-open .service-detail {
+  grid-template-rows: 1fr;
+}
+
+.service-detail-inner {
+  overflow: hidden;
+}
+
+.service-detail-inner p {
+  font-family: 'Manrope', sans-serif;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #565B72;
+  margin: 16px 0 0;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(15, 27, 61, 0.16);
+}
+
+.service-highlights {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.service-highlights li {
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  color: #0F1B3D;
+  padding-left: 18px;
+  position: relative;
+}
+
+.service-highlights li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2C8C86;
 }
 
 /* ============================================================

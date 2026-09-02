@@ -46,44 +46,38 @@
             </div>
           </div>
 
-          <!-- Column 2: Services -->
-          <div v-if="footerData?.service_links?.length" class="footer-col links-col">
-            <h4 class="footer-heading">Services</h4>
+          <!-- Column 2: Explore (First 5 footer items) -->
+          <div v-if="firstFiveFooterItems.length" class="footer-col links-col">
+            <h4 class="footer-heading">Explore</h4>
             <ul class="footer-links">
-              <li v-for="link in footerData.service_links" :key="link.title">
-                <a :href="link.url">{{ link.title }}</a>
+              <li v-for="item in firstFiveFooterItems" :key="item.id">
+                <a :href="item.route_path || '#'">{{ item.nav_label || item.section_name }}</a>
               </li>
             </ul>
           </div>
 
-          <!-- Column 3: Company -->
-          <div v-if="footerData?.company_links?.length" class="footer-col links-col">
-            <h4 class="footer-heading">Company</h4>
+          <!-- Column 3: Resources (Next 5 footer items) -->
+          <div v-if="secondFiveFooterItems.length" class="footer-col links-col">
+            <h4 class="footer-heading">Resources</h4>
             <ul class="footer-links">
-              <li v-for="link in footerData.company_links" :key="link.title">
-                <a :href="link.url">{{ link.title }}</a>
+              <li v-for="item in secondFiveFooterItems" :key="item.id">
+                <a :href="item.route_path || '#'">{{ item.nav_label || item.section_name }}</a>
               </li>
             </ul>
           </div>
 
-          <!-- Column 4: Quick Links & Newsletter -->
-          <div class="footer-col newsletter-col">
-            <div v-if="footerData?.quick_links?.length" class="quick-links">
-              <h4 class="footer-heading">Quick Links</h4>
-              <ul class="footer-links">
-                <li v-for="link in footerData.quick_links" :key="link.title">
-                  <a :href="link.url">{{ link.title }}</a>
-                </li>
-              </ul>
-            </div>
-            <!-- <div class="newsletter-section">
-              <h4 class="footer-heading">Newsletter</h4>
-              <p class="newsletter-text">Subscribe for updates and special offers.</p>
-              <div class="newsletter-form">
-                <input type="email" placeholder="Your email address" class="newsletter-input">
-                <button type="button" class="newsletter-btn">Subscribe</button>
-              </div>
-            </div> -->
+          <!-- Column 4: Quick Links (Remaining footer items + Auth) -->
+          <div class="footer-col links-col">
+            <h4 class="footer-heading">Quick Links</h4>
+            <ul class="footer-links">
+              <!-- Remaining footer items (after first 10) -->
+              <li v-for="item in remainingFooterItems" :key="item.id">
+                <a :href="item.route_path || '#'">{{ item.nav_label || item.section_name }}</a>
+              </li>
+              <!-- Auth Links -->
+              <li><a href="/signin">Sign In</a></li>
+              <li><a href="/signup">Register</a></li>
+            </ul>
           </div>
         </div>
       </div>
@@ -109,17 +103,42 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useLandingStore } from '@/stores/landingStore'
 
 const landingStore = useLandingStore()
 const footerData = computed(() => landingStore.getPublicFooter)
+
+// Get footer items from LandingSetting (enabled + show_in_footer = true)
+const footerItems = computed(() => landingStore.getFooterItems())
+
+// First 5 items for "Explore" column
+const firstFiveFooterItems = computed(() => {
+  return footerItems.value.slice(0, 5)
+})
+
+// Next 5 items for "Resources" column
+const secondFiveFooterItems = computed(() => {
+  return footerItems.value.slice(5, 10)
+})
+
+// Remaining items for "Quick Links" column
+const remainingFooterItems = computed(() => {
+  return footerItems.value.slice(10, 15)
+})
 
 const socialIcons = computed(() => {
   return footerData.value?.social_icons || []
 })
 
 const currentYear = computed(() => new Date().getFullYear())
+
+// Ensure settings are loaded
+onMounted(async () => {
+  if (landingStore.settings.length === 0) {
+    await landingStore.fetchSettings()
+  }
+})
 </script>
 
 <style scoped>
@@ -327,68 +346,6 @@ const currentYear = computed(() => new Date().getFullYear())
   transform: translateX(0);
 }
 
-/* ===== Newsletter Column ===== */
-.newsletter-col {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
-}
-
-.newsletter-text {
-  font-size: 13.5px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 14px;
-  line-height: 1.6;
-}
-
-.newsletter-form {
-  display: flex;
-  gap: 8px;
-  max-width: 100%;
-}
-
-.newsletter-input {
-  flex: 1;
-  padding: 11px 16px;
-  border: 1px solid var(--line-dark, rgba(255, 255, 255, 0.1));
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #ffffff;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
-  outline: none;
-  transition: all 0.2s ease;
-  min-width: 0;
-}
-
-.newsletter-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.newsletter-input:focus {
-  border-color: var(--amber, #E0A93A);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.newsletter-btn {
-  padding: 11px 20px;
-  background: var(--amber, #E0A93A);
-  color: var(--navy-950, #0A1330);
-  border: none;
-  border-radius: 2px;
-  font-weight: 600;
-  font-size: 13px;
-  font-family: 'Space Grotesk', sans-serif;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  white-space: nowrap;
-}
-
-.newsletter-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(224, 169, 58, 0.35);
-}
-
 /* ===== Footer Bottom ===== */
 .footer-bottom {
   padding: 24px 0;
@@ -479,15 +436,6 @@ const currentYear = computed(() => new Date().getFullYear())
 
   .container {
     padding: 0 16px;
-  }
-
-  .newsletter-form {
-    flex-direction: column;
-  }
-
-  .newsletter-btn {
-    width: 100%;
-    justify-content: center;
   }
 
   .footer-bottom-content {
