@@ -12,17 +12,20 @@
         <div class="service-card" :class="{ 'is-open': isExpanded(s.id) }" v-for="(s, i) in displayServices"
           :key="s.id">
           <div class="stub">
-            <div class="route-code">
-              <span class="num">{{ String(i + 1).padStart(2, '0') }}</span>{{ routeLabels[i] || 'SERVICE' }}
+             <div class="route-code">
+              <h3>{{ s.title }}</h3>
+              <!-- <span class="num">{{ String(i + 1).padStart(2, '0') }}</span>{{ routeLabels[i] || 'SERVICE' }} -->
             </div>
             <div class="stub-icon">
               <img v-if="s.image" :src="getImageUrl(s.image)" :alt="s.title" loading="lazy" @error="handleImageError" />
               <i v-else :class="iconClasses[i] || 'fas fa-box'"></i>
             </div>
+
+
           </div>
           <div class="tear"></div>
           <div class="body-content">
-            <h3>{{ s.title }}</h3>
+            <!-- <h3>{{ s.title }}</h3> -->
             <p>{{ s.content || s.meta?.description || 'Service description' }}</p>
 
             <button type="button" class="service-toggle" :aria-expanded="isExpanded(s.id)" @click="toggleService(s.id)">
