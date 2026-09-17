@@ -59,7 +59,8 @@
         </div>
       </transition>
       <a :href="whatsappUrl" target="_blank" rel="noopener noreferrer" class="whatsapp-float"
-        :class="{ 'is-visible': isMounted }" @mouseenter="showTooltip = true" @mouseleave="showTooltip = false">
+        :class="{ 'is-visible': isMounted }" @mouseenter="showTooltip = true" @mouseleave="showTooltip = false"
+        @click="trackWhatsAppClick">
         <span class="whatsapp-ring"></span>
         <span class="whatsapp-online-dot"></span>
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" width="32" height="32" fill="white">
@@ -105,6 +106,32 @@ const whatsappUrl = computed(() => {
   const number = whatsappNumber.value.replace(/[^0-9]/g, '');
   return `https://wa.me/${number}?text=${encodedMessage}`;
 });
+
+// =========================================================
+// META PIXEL: WhatsApp Click Tracking
+// =========================================================
+// ⚠️ Test Event Code - REMOVE 'test_event_code' from the track call after testing is complete!
+const META_TEST_EVENT_CODE = 'TEST82641';
+
+function trackWhatsAppClick() {
+  // Check if fbq (Meta Pixel) is available
+  if (typeof window.fbq === 'function') {
+    // Track as a "Contact" event (standard Meta event)
+    // Alternative: use 'Lead' instead of 'Contact' if you prefer
+    window.fbq('track', 'Contact', {
+      content_name: 'WhatsApp Chat',
+      content_category: 'Customer Support',
+      value: 1.00,
+      currency: 'USD'
+    }, {
+      test_event_code: META_TEST_EVENT_CODE  // ⚠️ REMOVE this for production!
+    });
+
+    console.log('✅ Meta Pixel: Contact event tracked (WhatsApp click)');
+  } else {
+    console.warn('⚠️ Meta Pixel (fbq) not loaded');
+  }
+}
 
 const isMounted = ref(false);
 const showTooltip = ref(false);
