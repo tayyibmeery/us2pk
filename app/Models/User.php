@@ -61,8 +61,10 @@ class User extends Authenticatable implements MustVerifyEmail
     protected static function booted()
     {
         static::creating(function ($user) {
-            if (empty($user->pcode)) {
-
+            // Only auto-generate pcode when:
+            //  - pcode is not provided, AND
+            //  - a city is assigned (needed for the city code prefix)
+            if (empty($user->pcode) && !empty($user->city_id)) {
                 $counter = PcodeCounter::firstOrCreate(
                     ['city_id' => $user->city_id],
                     ['last_number' => 0]
@@ -70,9 +72,10 @@ class User extends Authenticatable implements MustVerifyEmail
 
                 $counter->increment('last_number');
 
-                $cityCode = $user->city->city_code;
+                // Safely access city code
+                $cityCode = optional($user->city)->city_code ?? '';
 
-                // Add zero only for numbers below 100
+                // Pad to 2 digits only for numbers below 100
                 $number = $counter->last_number < 100
                     ? str_pad($counter->last_number, 2, '0', STR_PAD_LEFT)
                     : $counter->last_number;
@@ -99,7 +102,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Shipment::class);
     }
 
-   
+
 
     /**
      * Get all debtor records for the user.

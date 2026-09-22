@@ -51,17 +51,18 @@ class UserController extends Controller
         $validated = $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|unique:users,email',
-            'phone'    => 'nullable|string|max:20',
-            'address'  => 'nullable|string',
-            'city_id'  => 'nullable|exists:cities,id',
-            'pcode'    => 'nullable|string|max:50',
+            'phone'    => 'required|string|max:20',
+            'address'  => 'required|string',
+            'city_id'  => 'required|exists:cities,id',
+            'pcode'    => 'nullable|string|max:50|unique:users,pcode',
             'source'   => 'nullable|string|max:100',
             'status'   => ['required', Rule::in(['pending', 'verified', 'approved'])],
-            'role'     => ['required', Rule::in(['user', 'admin'])],
-            'password' => 'required|string|min:8',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
+        // Role is always forced to 'user' for admin-created accounts
+        $validated['role'] = 'user';
 
         $user = User::create($validated);
 
@@ -79,16 +80,20 @@ class UserController extends Controller
             'phone'    => 'nullable|string|max:20',
             'address'  => 'nullable|string',
             'city_id'  => 'nullable|exists:cities,id',
-            'pcode'    => 'nullable|string|max:50',
+            'pcode'    => ['nullable', 'string', 'max:50', Rule::unique('users')->ignore($user->id)],
             'source'   => 'nullable|string|max:100',
             'status'   => ['sometimes', Rule::in(['pending', 'verified', 'approved'])],
-            'role'     => ['sometimes', Rule::in(['user', 'admin'])],
             'password' => 'nullable|string|min:8',
         ]);
 
-        if (isset($validated['password'])) {
+        if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
+        } else {
+            unset($validated['password']);
         }
+
+        // Role is never changed via this endpoint
+        unset($validated['role']);
 
         $user->update($validated);
 
