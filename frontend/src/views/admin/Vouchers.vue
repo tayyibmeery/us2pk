@@ -55,17 +55,23 @@
           </button>
         </div>
       </template>
+
+      <!-- Amount column: sums debit from details -->
+      <template #cell-amount="{ item }">
+        <span class="font-mono">
+          {{ formatAmount(item) }}
+        </span>
+      </template>
+
+      <!-- Status column -->
       <template #cell-status="{ item }">
         <span :class="{
-          'text-green-600': item.approved,
-          'text-yellow-600': !item.approved && !item.is_deleted,
-          'text-red-400': item.is_deleted,
+          'text-green-600 dark:text-green-400': item.approved && !item.is_deleted,
+          'text-yellow-600 dark:text-yellow-400': !item.approved && !item.is_deleted,
+          'text-red-400 dark:text-red-400': item.is_deleted,
         }">
           {{ item.is_deleted ? 'Deleted' : (item.approved ? 'Approved' : 'Not Approved') }}
         </span>
-      </template>
-      <template #cell-amount="{ item }">
-        {{ Number(item.total_debit || 0).toFixed(2) }}
       </template>
     </DataTable>
   </div>
@@ -103,6 +109,28 @@ const columns: ColumnDefinition[] = [
   { key: 'status', label: 'Status' },
 ]
 
+/**
+ * Compute the display amount for a voucher row.
+ * Prefers backend-provided `total_debit` (added in VoucherController::index).
+ * Falls back to summing `details[].debit` on the frontend.
+ */
+const formatAmount = (item: any): string => {
+  let total = 0
+
+  if (item.total_debit !== undefined && item.total_debit !== null) {
+    total = Number(item.total_debit) || 0
+  } else if (Array.isArray(item.details)) {
+    total = item.details.reduce((sum: number, d: any) => {
+      return sum + (Number(d.debit) || 0)
+    }, 0)
+  }
+
+  return total.toLocaleString('en-PK', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
 const handleSaved = () => {
   fetchVouchers()
 }
@@ -136,7 +164,6 @@ const fetchVouchers = () => {
 }
 
 const onFilterChange = () => {
-  // Update URL with filter parameter
   const query: any = {}
   if (filterStatus.value) {
     query.approved = filterStatus.value
@@ -166,7 +193,6 @@ watch(() => route.query.approved, (newVal) => {
 }, { immediate: true })
 
 onMounted(() => {
-  // Check URL query parameter on mount
   const approvedParam = route.query.approved as string
   if (approvedParam === '0') {
     filterStatus.value = '0'

@@ -48,7 +48,7 @@ export const useShipmentStore = defineStore('shipment', {
     search: '',
     perPage: 20,
     sortBy: 'id',
-    sortOrder: 'asc' as 'asc' | 'desc',
+    sortOrder: 'desc' as 'asc' | 'desc',   // ← changed from 'asc' to 'desc'
     statusFilter: '',
   }),
 
@@ -226,7 +226,7 @@ export const useShipmentStore = defineStore('shipment', {
       this.search = ''
       this.perPage = 20
       this.sortBy = 'id'
-      this.sortOrder = 'asc'
+      this.sortOrder = 'desc'   // ← changed from 'asc' to 'desc'
       this.statusFilter = ''
     },
   },

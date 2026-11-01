@@ -31,17 +31,21 @@ class VoucherController extends Controller
         if ($request->description) {
             $query->where('description', 'like', "%{$request->description}%");
         }
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->is_active);
-        }
         if ($request->has('approved')) {
-            $query->where('approved', $request->approved);
-        }
-        if ($request->has('is_deleted')) {
-            $query->where('is_deleted', $request->is_deleted);
+            $query->where('approved', filter_var($request->approved, FILTER_VALIDATE_BOOLEAN));
         }
 
-        return response()->json($query->paginate(20));
+        $vouchers = $query->paginate(20);
+
+        // ✅ Append computed totals to each voucher
+        $vouchers->getCollection()->transform(function ($voucher) {
+            $voucher->total_debit = $voucher->details->sum('debit');
+            $voucher->total_credit = $voucher->details->sum('credit');
+            $voucher->is_balanced = round($voucher->total_debit, 2) === round($voucher->total_credit, 2);
+            return $voucher;
+        });
+
+        return response()->json($vouchers);
     }
 
     public function store(Request $request)
@@ -77,8 +81,9 @@ class VoucherController extends Controller
             'manual',
             null,
             $validated['date'],
-            $validated['description'],
-            $entries
+            $validated['description'] ?? 'Manual voucher',
+            $validated['entries'],
+            false            // ← manual vouchers should NOT be auto-approved
         );
 
         return response()->json($voucher->load('details.account'), 201);

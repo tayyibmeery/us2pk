@@ -54,10 +54,6 @@
             <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Bought By</p>
             <p class="font-medium text-gray-800 dark:text-white">{{ shipment.bought_by || 'N/A' }}</p>
           </div>
-          <!-- <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Site</p>
-            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.site?.name || 'N/A' }}</p>
-          </div> -->
         </div>
 
         <!-- Column 2 -->
@@ -77,11 +73,31 @@
         </div>
       </div>
 
-      <!-- Description - Full Width at Bottom -->
+      <!-- Description -->
       <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
         <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold mb-2">Description</p>
         <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
           {{ shipment.description || 'No description provided.' }}</p>
+      </div>
+
+      <!-- Images Gallery (only when images exist) -->
+      <div v-if="shipmentImages.length" class="p-6 border-t border-gray-200 dark:border-gray-700">
+        <h3
+          class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Images
+          <span class="ml-1 text-xs font-normal text-gray-400 normal-case">({{ shipmentImages.length }})</span>
+        </h3>
+        <div class="flex flex-wrap gap-3">
+          <div v-for="img in shipmentImages" :key="img.id"
+            class="w-24 h-24 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm cursor-pointer hover:opacity-80 transition"
+            @click="openImageViewer(img)">
+            <img :src="getImageUrl(img.image_path)" class="w-full h-full object-cover" />
+          </div>
+        </div>
       </div>
 
       <!-- Financial Summary -->
@@ -182,20 +198,30 @@
       <router-link to="/user/my-shipments" class="inline-block mt-4 text-sm text-brand-500 hover:text-brand-600">Back to
         Shipments</router-link>
     </div>
+
+    <!-- Image Viewer Modal -->
+    <ImageModal v-if="showImageModal" :isOpen="showImageModal" :imageUrl="selectedImageUrl"
+      @close="closeImageViewer" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '@/services/api'
 import ShipmentStatusBadge from '@/components/user/ShipmentStatusBadge.vue'
-
-console.log('📄 ShipmentDetail component loaded!')
+import ImageModal from '@/components/common/ImageModal.vue'
 
 const route = useRoute()
 const loading = ref(true)
 const shipment = ref<any>(null)
+
+// Image viewer state
+const showImageModal = ref(false)
+const selectedImageUrl = ref('')
+
+// Computed list of images
+const shipmentImages = computed(() => shipment.value?.images || [])
 
 const formatDate = (date: string) => {
   if (!date) return 'N/A'
@@ -212,6 +238,27 @@ const formatCurrency = (value: number) => {
     currency: 'PKR',
     minimumFractionDigits: 0
   }).format(value || 0)
+}
+
+/**
+ * Builds the full URL for an image path.
+ * Mirrors the admin-side logic.
+ */
+function getImageUrl(path: string) {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://us2pk.com'
+  return `${baseUrl}/storage/${path}`
+}
+
+function openImageViewer(img: any) {
+  selectedImageUrl.value = getImageUrl(img.image_path)
+  showImageModal.value = true
+}
+
+function closeImageViewer() {
+  showImageModal.value = false
+  selectedImageUrl.value = ''
 }
 
 const fetchShipment = async () => {

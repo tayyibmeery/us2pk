@@ -99,11 +99,31 @@ class UserDashboardController extends Controller
     /**
      * Get single shipment details
      */
+    // public function shipmentDetails(Request $request, $id)
+    // {
+    //     $shipment = $request->user()
+    //         ->shipments()
+    //         ->with(['consolidation', 'shipmentStatus', 'localCourier', 'payments'])
+    //         ->findOrFail($id);
+
+    //     return response()->json($shipment);
+    // }
+    /**
+     * Get single shipment details
+     */
     public function shipmentDetails(Request $request, $id)
     {
         $shipment = $request->user()
             ->shipments()
-            ->with(['consolidation', 'shipmentStatus', 'localCourier', 'payments'])
+            ->with([
+                'consolidation',
+                'shipmentStatus',
+                'localCourier',
+                'payments',
+                'images',        // ← ADD THIS
+                // 'site',          // (optional, in case you want to show the site name later)
+                'paymentMethod', // (optional, in case you want to show payment method later)
+            ])
             ->findOrFail($id);
 
         return response()->json($shipment);
