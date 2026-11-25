@@ -26,6 +26,13 @@
 
 # Compiled Blade views
 /storage/framework/views/*.php
+
+# Laravel generated cache files
+/bootstrap/cache/*.php
+/bootstrap/cache/*.tmp
+
+# Compiled Blade views
+/storage/framework/views/*.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
