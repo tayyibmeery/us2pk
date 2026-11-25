@@ -1,10 +1,28 @@
 import { defineStore } from 'pinia';
 import api from '@/services/api';
 
+export interface InvoiceShipment {
+  id: number;
+  shipment_code: string;
+  description?: string;
+  weight?: number;
+  pivot: {
+    amount: number;
+    cod: number;
+  };
+}
+
 export interface Invoice {
   id: number;
   invoice_no: string;
-  shipment_id: number;
+  user_id: number | null;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    city?: any;
+  };
+  shipment_id: number | null;
   shipment?: {
     id: number;
     shipment_code: string;
@@ -12,6 +30,7 @@ export interface Invoice {
     user?: any;
     consolidation?: any;
   };
+  shipments?: InvoiceShipment[];
   date: string;
   amount_due: number;
   cod: number;
@@ -23,6 +42,26 @@ export interface Invoice {
   notes: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface InvoiceUser {
+  id: number;
+  name: string;
+  email: string;
+  cod_shipments_count: number;
+  unbilled_cod_count: number;
+  total_pending_cod: number;
+}
+
+export interface UserCodShipment {
+  id: number;
+  shipment_code: string;
+  description?: string;
+  weight?: number;
+  receivable_cod: number;
+  created_at: string;
+  already_invoiced: boolean;
+  invoice_no?: string | null;
 }
 
 interface PaginationData {
@@ -67,24 +106,23 @@ export const useInvoiceStore = defineStore('invoice', {
   }),
 
   getters: {
-    totalAmount: (state) => {
-      return state.items.reduce((sum, invoice) => sum + invoice.amount_due, 0);
-    },
-    totalCOD: (state) => {
-      return state.items.reduce((sum, invoice) => sum + invoice.cod, 0);
-    },
-    totalTax: (state) => {
-      return state.items.reduce((sum, invoice) => sum + invoice.output_tax, 0);
-    },
-    totalWithTax: (state) => {
-      return state.items.reduce((sum, invoice) => sum + invoice.amount_due + invoice.output_tax, 0);
-    },
-    pendingCount: (state) => {
-      return state.items.filter(invoice => invoice.status === 'pending').length;
-    },
-    paidCount: (state) => {
-      return state.items.filter(invoice => invoice.status === 'paid').length;
-    },
+    totalAmount: (state) =>
+      state.items.reduce((sum, invoice) => sum + invoice.amount_due, 0),
+
+    totalCOD: (state) =>
+      state.items.reduce((sum, invoice) => sum + invoice.cod, 0),
+
+    totalTax: (state) =>
+      state.items.reduce((sum, invoice) => sum + invoice.output_tax, 0),
+
+    totalWithTax: (state) =>
+      state.items.reduce((sum, invoice) => sum + invoice.amount_due + invoice.output_tax, 0),
+
+    pendingCount: (state) =>
+      state.items.filter((invoice) => invoice.status === 'pending').length,
+
+    paidCount: (state) =>
+      state.items.filter((invoice) => invoice.status === 'paid').length,
   },
 
   actions: {
@@ -133,7 +171,36 @@ export const useInvoiceStore = defineStore('invoice', {
       }
     },
 
-    async create(data: Partial<Invoice>) {
+    /**
+     * ✅ Cancel an invoice → frees its shipments so they can be re-invoiced.
+     */
+    async cancel(id: number, reason?: string) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const res = await api.post(`/admin/invoices/${id}/cancel`, {
+          reason: reason ?? null,
+        });
+
+        // Update in-place
+        const idx = this.items.findIndex((i) => i.id === id);
+        if (idx !== -1) {
+          this.items[idx] = res.data;
+        }
+        if (this.selected?.id === id) {
+          this.selected = res.data;
+        }
+        return res.data;
+      } catch (err: any) {
+        this.error = err.response?.data?.message || 'Failed to cancel invoice';
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async create(data: Partial<Invoice> & { shipment_ids?: number[] }) {
       this.loading = true;
       this.error = null;
 
@@ -150,13 +217,30 @@ export const useInvoiceStore = defineStore('invoice', {
       }
     },
 
+    async createFromShipment(shipmentId: number, data: Partial<Invoice> = {}) {
+      this.loading = true;
+      this.error = null;
+
+      try {
+        const res = await api.post(`/admin/shipments/${shipmentId}/invoice`, data);
+        this.items.unshift(res.data);
+        this.pagination.total += 1;
+        return res.data;
+      } catch (err: any) {
+        this.error = err.response?.data?.message || 'Failed to create invoice from shipment';
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
     async update(id: number, data: Partial<Invoice>) {
       this.loading = true;
       this.error = null;
 
       try {
         const res = await api.put(`/admin/invoices/${id}`, data);
-        const idx = this.items.findIndex(i => i.id === id);
+        const idx = this.items.findIndex((i) => i.id === id);
         if (idx !== -1) {
           this.items[idx] = res.data;
         }
@@ -178,7 +262,7 @@ export const useInvoiceStore = defineStore('invoice', {
 
       try {
         await api.delete(`/admin/invoices/${id}`);
-        this.items = this.items.filter(i => i.id !== id);
+        this.items = this.items.filter((i) => i.id !== id);
         this.pagination.total -= 1;
         if (this.selected?.id === id) {
           this.selected = null;
@@ -198,7 +282,7 @@ export const useInvoiceStore = defineStore('invoice', {
 
       try {
         const res = await api.post(`/admin/invoices/${id}/mark-as-paid`, data);
-        const idx = this.items.findIndex(i => i.id === id);
+        const idx = this.items.findIndex((i) => i.id === id);
         if (idx !== -1) {
           this.items[idx] = res.data;
         }
@@ -213,6 +297,20 @@ export const useInvoiceStore = defineStore('invoice', {
         this.loading = false;
       }
     },
+
+    /* ── helpers for the create-invoice modal ─────────── */
+
+    async fetchUsersWithCod(search = ''): Promise<InvoiceUser[]> {
+      const res = await api.get('/admin/invoice-users', { params: { search } });
+      return res.data.data as InvoiceUser[];
+    },
+
+    async fetchUserCodShipments(userId: number): Promise<UserCodShipment[]> {
+      const res = await api.get(`/admin/users/${userId}/cod-shipments`);
+      return res.data.data as UserCodShipment[];
+    },
+
+    /* ──────────────────────────────────────────────────── */
 
     setFilters(filters: Record<string, any>) {
       this.filters = filters;

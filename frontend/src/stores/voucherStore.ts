@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import api from '@/services/api'
-import { useToast } from '@/composables/useToast'
+
 export const useVoucherStore = defineStore('voucher', {
   state: () => ({
     items: [],
@@ -61,10 +61,18 @@ export const useVoucherStore = defineStore('voucher', {
         throw err
       }
     },
-    async delete(id: number) {
+    // ✅ Password-protected delete
+    async delete(id: number, password: string) {
       try {
-        await api.delete(`/admin/vouchers/${id}`)
-        await this.fetchItems(this.pagination?.current_page || 1)
+        await api.delete(`/admin/vouchers/${id}`, { data: { password } })
+      } catch (err: any) {
+        throw err
+      }
+    },
+    // ✅ Password-protected restore
+    async restore(id: number, password: string) {
+      try {
+        await api.post(`/admin/vouchers/${id}/restore`, { password })
       } catch (err: any) {
         throw err
       }

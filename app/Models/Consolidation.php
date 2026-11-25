@@ -67,79 +67,47 @@ class Consolidation extends Model
 
     public function voucher()
     {
-        return $this->morphOne(Voucher::class, 'reference', 'reference_type', 'reference_id');
+        // ✅ FIX: withTrashed() so we can find (and restore) soft-deleted vouchers
+        // when updating a consolidation. Without this, a soft-deleted voucher is
+        // invisible and the service falls back to "create new" — causing a
+        // duplicate voucher_no unique-constraint violation.
+        return $this->morphOne(Voucher::class, 'reference', 'reference_type', 'reference_id')
+            ->withTrashed();
     }
 
-    /**
-     * Recalculate all totals from associated shipments.
-     * ✅ Direct Cost = Warehouse Charges + Import Taxes
-     * ✅ Import Taxes = Customs Duty + Sales Tax + Income Tax + CAA Charges
-     */
     public function recalculateTotals()
     {
         $shipments = $this->shipments;
 
-        // Sum child shipment fields
         $this->total_weight_kg = $shipments->sum('weight_kgs');
         $this->courier_charges = $shipments->sum('delivery_charges');
         $this->output_sales_tax = $shipments->sum('output_tax');
 
-        // Total COD Collected = sum of receivable_cod from shipments
-        $this->total_cod_collected = $shipments->sum('receivable_cod');
+        $this->total_cod_collected = $shipments->sum(function ($s) {
+            $total = ($s->item_value_pkr ?? 0) + ($s->company_charges ?? 0);
+            $advance = $s->payments()->where('payment_method', '!=', 'Cash on Delivery')->sum('amount') ?? 0;
+            return max(0, $total - $advance);
+        });
 
-        // Receivable from Courier = Total COD - Local Delivery Charges
-        $totalCod = $shipments->sum('receivable_cod');
-        $totalDeliveryCharges = $shipments->sum('delivery_charges');
-        $this->receivable_from_courier = max(0, $totalCod - $totalDeliveryCharges);
-
-        // Total US2PK Charges = sum of company_charges (revenue)
+        $this->receivable_from_courier = max(0, $this->total_cod_collected - $this->courier_charges);
         $this->total_us2pk_charges = $shipments->sum('company_charges');
 
-        // ✅ Calculate Import Taxes = Customs Duty + Sales Tax + Income Tax + CAA Charges
         $this->import_taxes = ($this->customs_duty ?? 0)
             + ($this->sales_tax ?? 0)
             + ($this->income_tax ?? 0)
             + ($this->caa_charges ?? 0);
 
-        // Net Sales Tax Payable = Output Tax - Input Tax (Sales Tax)
         $this->net_st_payable = ($this->output_sales_tax ?? 0) - ($this->sales_tax ?? 0);
 
-        // ✅ The direct_cost and gross_income are STORED columns
-        // They will be automatically updated by the database:
-        // direct_cost = ware_house_charges + import_taxes
-        // gross_income = total_us2pk_charges - direct_cost
-
-        // Save to trigger stored column updates
         $this->saveQuietly();
-
-        // ✅ Refresh to get updated stored columns
         $this->refresh();
 
-        // ✅ Calculate ROI manually
         $directCost = $this->direct_cost ?? 0;
         $grossIncome = $this->gross_income ?? 0;
 
-        $this->roi_percent = $directCost > 0
-            ? ($grossIncome / $directCost) * 100
-            : 0;
+        $this->roi_percent = $directCost > 0 ? ($grossIncome / $directCost) * 100 : 0;
 
-        // Save ROI
         $this->saveQuietly();
-
-        // Log for debugging
-        \Log::info('Consolidation recalculated', [
-            'consolidation' => $this->consol_id,
-            'ware_house_charges' => $this->ware_house_charges,
-            'customs_duty' => $this->customs_duty,
-            'sales_tax' => $this->sales_tax,
-            'income_tax' => $this->income_tax,
-            'caa_charges' => $this->caa_charges,
-            'import_taxes' => $this->import_taxes,
-            'direct_cost' => $this->direct_cost,
-            'total_us2pk_charges' => $this->total_us2pk_charges,
-            'gross_income' => $this->gross_income,
-            'roi_percent' => $this->roi_percent,
-        ]);
 
         return $this;
     }

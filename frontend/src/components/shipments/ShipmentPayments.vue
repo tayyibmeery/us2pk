@@ -45,13 +45,13 @@
     <div class="mb-6 p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800/30 shadow-sm">
       <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">Add a Payment</h4>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <!-- Amount -->
+
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (PKR)</label>
           <input v-model.number="newPayment.amount" type="number" step="0.01" placeholder="0.00"
             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
         </div>
-        <!-- Payment Date -->
+
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Date</label>
           <div class="relative">
@@ -68,24 +68,49 @@
             </span>
           </div>
         </div>
-        <!-- Payment Method -->
+
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
           <select v-model="newPayment.payment_method"
             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent">
             <option value="">Select a method</option>
-            <option v-for="method in paymentMethods" :key="method.id" :value="method.name">
+            <option v-for="method in paymentMethods" :key="method.id" :value="method.name"
+              :disabled="method.name === 'Cash on Delivery' && !canRecordCOD">
               {{ method.name }}
+              <template v-if="method.name === 'Cash on Delivery' && !canRecordCOD"> (available after
+                delivery)</template>
             </option>
           </select>
+          <p v-if="!canRecordCOD" class="text-xs text-gray-400 mt-1">
+            COD can be recorded only after the shipment is marked Delivered.
+          </p>
         </div>
-        <!-- Reference Number -->
+
         <div>
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reference Number</label>
           <input v-model="newPayment.reference_number" placeholder="e.g. TXN12345"
             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
         </div>
-        <!-- Notes (full width) -->
+
+        <!-- ✅ NEW: Actual Courier Charges Field -->
+        <div v-if="newPayment.payment_method === 'Cash on Delivery' && canRecordCOD"
+          class="sm:col-span-2 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Actual Courier Charges (PKR)
+          </label>
+          <input v-model.number="newPayment.actual_courier_charges" type="number" step="0.01" min="0"
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent" />
+          <p class="text-xs text-gray-500 mt-2">
+            This will update the shipment's courier fee and deduct it from the COD remittance.
+          </p>
+
+          <div
+            class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex justify-between font-bold text-brand-600 dark:text-brand-400">
+            <span>Net Amount to be Deposited in Bank:</span>
+            <span>{{ formatCurrency(netRemittance) }}</span>
+          </div>
+        </div>
+
         <div class="sm:col-span-2">
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
           <textarea v-model="newPayment.notes" rows="2" placeholder="Optional notes"
@@ -152,16 +177,14 @@
         </tbody>
         <tfoot class="bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700">
           <tr>
-            <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">Amount Paid
-            </td>
+            <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">Amount Paid</td>
             <td class="px-4 py-3 text-right font-semibold text-gray-800 dark:text-white/90">
               {{ formatNumber(totalReceived) }}
             </td>
             <td colspan="4"></td>
           </tr>
           <tr class="border-t border-gray-200 dark:border-gray-700">
-            <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">COD Balance
-            </td>
+            <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">COD Balance</td>
             <td class="px-4 py-3 text-right">
               <span v-if="remaining <= 0"
                 class="inline-flex items-center gap-1.5 font-semibold text-green-600 dark:text-green-400">
@@ -170,9 +193,7 @@
                 </svg>
                 Settled
               </span>
-              <span v-else class="font-semibold text-red-600 dark:text-red-400">
-                {{ formatNumber(remaining) }} due
-              </span>
+              <span v-else class="font-semibold text-red-600 dark:text-red-400">{{ formatNumber(remaining) }} due</span>
             </td>
             <td colspan="4"></td>
           </tr>
@@ -214,7 +235,10 @@
             <select v-model="editForm.payment_method"
               class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent">
               <option value="">Select a method</option>
-              <option v-for="method in paymentMethods" :key="method.id" :value="method.name">{{ method.name }}</option>
+              <option v-for="method in paymentMethods" :key="method.id" :value="method.name"
+                :disabled="method.name === 'Cash on Delivery' && !canRecordCOD && editForm.payment_method !== 'Cash on Delivery'">
+                {{ method.name }}
+              </option>
             </select>
           </div>
           <div>
@@ -259,6 +283,8 @@ const props = defineProps<{
   totalReceived?: number;
   amountDue?: number;
   receivableCod?: number;
+  deliveryCharges?: number; // ✅ NEW: Pass the initial courier fee
+  isDelivered?: boolean;   // NEW: guards COD payments until delivery
 }>();
 
 const totalPayable = computed(() => props.totalPayable ?? 0);
@@ -266,6 +292,9 @@ const totalReceived = computed(() => props.totalReceived ?? 0);
 const amountDue = computed(() => props.amountDue ?? 0);
 const receivableCod = computed(() => props.receivableCod ?? 0);
 const remaining = computed(() => totalPayable.value - totalReceived.value);
+
+// NEW: allow COD only after delivery
+const canRecordCOD = computed(() => !!props.isDelivered);
 
 const paymentMethodStore = usePaymentMethodStore();
 const store = useShipmentPaymentStore();
@@ -280,9 +309,7 @@ const deleting = ref(false);
 const deleteId = ref<number | null>(null);
 let isDeleting = false;
 
-// ============================================================
-// Currency formatting — thousands separators, 2 decimal places.
-// ============================================================
+// Currency formatting
 const formatNumber = (value: number | string | null | undefined) => {
   const n = Number(value ?? 0);
   return n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -339,12 +366,28 @@ const newPayment = ref({
   payment_method: '',
   reference_number: '',
   notes: '',
+  actual_courier_charges: 0, // ✅ NEW
 });
 
 const submitting = ref(false);
 const editing = ref(false);
 const editForm = ref<any>({});
 const editId = ref<number | null>(null);
+
+// ✅ NEW: Live calculation for Net Remittance
+const netRemittance = computed(() => {
+  const gross = newPayment.value.amount || 0;
+  const charges = newPayment.value.actual_courier_charges || 0;
+  return Math.max(0, gross - charges);
+});
+
+// Reset courier charges when opening form to match shipment defaults
+watch(() => newPayment.value.payment_method, (val) => {
+  if (val === 'Cash on Delivery') {
+    newPayment.value.actual_courier_charges = props.deliveryCharges || 0;
+    newPayment.value.amount = remaining.value; // Pre-fill gross amount
+  }
+});
 
 // Delete functions
 const openDeleteModal = (id: number) => {
@@ -395,6 +438,7 @@ async function addPayment() {
       payment_method: '',
       reference_number: '',
       notes: '',
+      actual_courier_charges: 0,
     };
     await nextTick();
     updateDatePickers();

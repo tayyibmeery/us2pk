@@ -5,50 +5,34 @@ namespace App\Services;
 use App\Models\Voucher;
 use App\Models\VoucherDetail;
 use App\Models\Account;
-use App\Models\TransactionTypeAccount;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class VoucherService
 {
-    // public function generateVoucherNumber()
-    // {
-    //     $last = Voucher::orderBy('id', 'desc')->first();
-    //     $next = $last ? intval(substr($last->voucher_no, 4)) + 1 : 1;
-    //     return 'VR-' . str_pad($next, 2, '0', STR_PAD_LEFT);
-    // }
     public function generateVoucherNumber()
     {
-        // ✅ Get the last voucher to find the next ID
-        $last = Voucher::orderBy('id', 'desc')->first();
-        $nextId = $last ? $last->id + 1 : 1;
-
-        // ✅ Return VR-{ID}
+        $last = Voucher::withTrashed()
+            ->where('voucher_no', 'like', 'VR-%')
+            ->orderByRaw('CAST(SUBSTRING(voucher_no, 4) AS UNSIGNED) DESC')
+            ->first();
+        $nextId = $last ? intval(substr($last->voucher_no, 3)) + 1 : 1;
         return 'VR-' . $nextId;
     }
+
     public function generateVoucher($source, $referenceType, $referenceId, $date, $description, array $entries, $approved = true)
     {
-        foreach ($entries as $index => $entry) {
-            if (!isset($entry['account_id'])) {
-                throw new \Exception("Entry at index {$index} is missing 'account_id'");
-            }
-            if (!isset($entry['debit'])) {
-                $entries[$index]['debit'] = 0;
-            }
-            if (!isset($entry['credit'])) {
-                $entries[$index]['credit'] = 0;
-            }
+        foreach ($entries as $i => $entry) {
+            if (!isset($entry['account_id'])) throw new \Exception("Entry at index {$i} is missing 'account_id'");
+            $entries[$i]['debit'] = $entry['debit'] ?? 0;
+            $entries[$i]['credit'] = $entry['credit'] ?? 0;
         }
 
         $totalDebit = array_sum(array_column($entries, 'debit'));
         $totalCredit = array_sum(array_column($entries, 'credit'));
 
-        if (round($totalDebit, 2) != round($totalCredit, 2)) {
-            Log::warning('Voucher entries not balanced', [
-                'debit' => $totalDebit,
-                'credit' => $totalCredit,
-                'difference' => $totalDebit - $totalCredit
-            ]);
+        if (round($totalDebit, 2) !== round($totalCredit, 2)) {
+            throw new \Exception("Voucher not balanced: Dr {$totalDebit} / Cr {$totalCredit}");
         }
 
         return DB::transaction(function () use ($source, $referenceType, $referenceId, $date, $description, $entries, $approved) {
@@ -63,696 +47,397 @@ class VoucherService
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,
                 'created_by' => auth()->id(),
+                'approved_by' => $approved ? auth()->id() : null,
             ]);
 
             foreach ($entries as $entry) {
-                $debit = isset($entry['debit']) ? (float) $entry['debit'] : 0;
-                $credit = isset($entry['credit']) ? (float) $entry['credit'] : 0;
-
-                if ($debit > 0 || $credit > 0) {
-                    VoucherDetail::create([
-                        'voucher_id' => $voucher->id,
-                        'account_id' => $entry['account_id'],
-                        'debit' => $debit,
-                        'credit' => $credit,
-                        'description' => $entry['description'] ?? null,
-                    ]);
-                }
+                if (($entry['debit'] ?? 0) == 0 && ($entry['credit'] ?? 0) == 0) continue;
+                VoucherDetail::create([
+                    'voucher_id' => $voucher->id,
+                    'account_id' => $entry['account_id'],
+                    'debit' => $entry['debit'] ?? 0,
+                    'credit' => $entry['credit'] ?? 0,
+                    'description' => $entry['description'] ?? null,
+                ]);
             }
-
-            Log::info('Voucher generated', [
-                'voucher_no' => $voucher->voucher_no,
-                'reference_type' => $referenceType,
-                'reference_id' => $referenceId,
-                'entries_count' => count($entries)
-            ]);
-
             return $voucher;
         });
     }
 
-    private function getAccountId($name)
+    private function getAccountId(string $name): ?int
     {
         return Account::where('name', $name)->value('id');
     }
 
-    // private function getAccountForPaymentMethod($paymentMethodName)
-    // {
-    //     $accountMap = [
-    //         'Bank Transfer' => 'Cash Account',
-    //         'Cash' => 'Cash Account',
-    //         'JazzCash' => 'Cash Account',
-    //         'EasyPaisa' => 'Cash Account',
-    //         'Credit Card' => 'Cash Account',
-    //         'Bank Transfer (IBFT)' => 'Cash Account',
-    //         'Cheque' => 'Cash Account',
-    //     ];
-    //     return $accountMap[$paymentMethodName] ?? 'Cash Account';
-    // }
-    /**
-     * Get account ID for a payment method
-     * First tries to get from payment_method->account_id mapping
-     * If not found, falls back to Cash Account
-     */
-    private function getAccountForPaymentMethod($paymentMethodId, $paymentMethodName = null)
+    private function voucherExists(string $refType, $refId): bool
     {
-        // If payment_method_id is provided, try to get the mapped account
-        if ($paymentMethodId) {
-            $paymentMethod = \App\Models\PaymentMethod::with('account')
-                ->where('id', $paymentMethodId)
-                ->first();
-
-            if ($paymentMethod && $paymentMethod->account_id) {
-                Log::info('Using mapped account for payment method', [
-                    'payment_method' => $paymentMethod->name,
-                    'account' => $paymentMethod->account?->name ?? 'Not found'
-                ]);
-                return $paymentMethod->account_id;
-            }
-        }
-
-        // Fallback: Use the hardcoded mapping
-        $fallbackMap = [
-            'Bank Transfer' => 'Cash Account',
-            'Cash' => 'Cash Account',
-            'JazzCash' => 'Cash Account',
-            'EasyPaisa' => 'Cash Account',
-            'Credit Card' => 'Cash Account',
-            'Bank Transfer (IBFT)' => 'Cash Account',
-            'Cheque' => 'Cash Account',
-            'Cash on Delivery' => 'Cash Account',
-        ];
-
-        $accountName = $fallbackMap[$paymentMethodName] ?? 'Cash Account';
-        return $this->getAccountId($accountName);
+        return Voucher::where('reference_type', $refType)->where('reference_id', $refId)->where('is_deleted', false)->exists();
     }
 
-    // public function generateShipmentVouchers($shipment)
-    // {
-    //     $total = ($shipment->item_value_pkr ?? 0) + ($shipment->company_charges ?? 0);
-    //     $received = $shipment->received_amount ?? 0;
-    //     $courierCharges = $shipment->delivery_charges ?? 0;
-
-    //     $grossCod = max(0, $total - $received);
-    //     $netReceivable = max(0, $grossCod - $courierCharges);
-
-    //     $date = $shipment->created_at->toDateString();
-
-    //     $debtorAccountId = $this->getAccountId('Debtors');
-    //     $revenueShippingAccountId = $this->getAccountId('Revenue - Shipping');
-    //     $costOfSalesAccountId = $this->getAccountId('Cost of Sales - Items');
-    //     $inventoryAccountId = $this->getAccountId('Inventory');
-    //     $courierExpenseAccountId = $this->getAccountId('Courier Charges Expense');
-
-    //     $paymentMethodName = $shipment->paymentMethod?->name ?? 'Cash';
-    //     $paymentAccountName = $this->getAccountForPaymentMethod($paymentMethodName);
-    //     // $paymentAccountId = $this->getAccountId($paymentAccountName);
-    //     $paymentAccountId = $this->getAccountForPaymentMethod($shipment->payment_method_id, $paymentMethodName);
-
-    //     $vouchers = [];
-
-    //     // ============================================================
-    //     // 1. REVENUE RECOGNITION VOUCHER - SIMPLE AND CLEAN
-    //     // ============================================================
-    //     if ($total > 0 && $debtorAccountId && $revenueShippingAccountId) {
-    //         Log::info('Generating Revenue Recognition', [
-    //             'shipment' => $shipment->shipment_code,
-    //             'bought_by' => $shipment->bought_by,
-    //             'total' => $total,
-    //             'received' => $received,
-    //             'gross_cod' => $grossCod,
-    //             'courier_charges' => $courierCharges,
-    //             'net_receivable' => $netReceivable
-    //         ]);
-
-    //         // SIMPLE APPROACH: Recognize revenue at gross amount
-    //         // Dr: Debtors = Total amount
-    //         // Cr: Revenue - Shipping = Total amount
-    //         $entries1 = [
-    //             [
-    //                 'account_id' => $debtorAccountId,
-    //                 'debit' => $total,
-    //                 'credit' => 0,
-    //                 'description' => "Revenue from shipment {$shipment->shipment_code}"
-    //             ],
-    //             [
-    //                 'account_id' => $revenueShippingAccountId,
-    //                 'debit' => 0,
-    //                 'credit' => $total,
-    //                 'description' => "Revenue from shipment {$shipment->shipment_code}"
-    //             ]
-    //         ];
-
-    //         $vouchers[] = $this->generateVoucher(
-    //             'system',
-    //             'shipment_revenue',
-    //             $shipment->id,
-    //             $date,
-    //             "Shipment Created - Revenue Recognition for {$shipment->shipment_code}",
-    //             $entries1
-    //         );
-    //     }
-
-    //     // ============================================================
-    //     // 2. COURIER CHARGES VOUCHER (ONLY if courier charges exist)
-    //     // ============================================================
-    //     // This reduces the Debtors by the courier charges
-    //     if ($courierCharges > 0 && $courierExpenseAccountId && $debtorAccountId) {
-    //         Log::info('Creating courier charges voucher', [
-    //             'shipment' => $shipment->shipment_code,
-    //             'courier_charges' => $courierCharges
-    //         ]);
-
-    //         // Dr: Courier Charges Expense = 200
-    //         // Cr: Debtors = 200 (Reduce the receivable)
-    //         $entriesCourier = [
-    //             [
-    //                 'account_id' => $courierExpenseAccountId,
-    //                 'debit' => $courierCharges,
-    //                 'credit' => 0,
-    //                 'description' => "Courier charges for {$shipment->shipment_code}"
-    //             ],
-    //             [
-    //                 'account_id' => $debtorAccountId,
-    //                 'debit' => 0,
-    //                 'credit' => $courierCharges,
-    //                 'description' => "Courier charges reducing debtor for {$shipment->shipment_code}"
-    //             ]
-    //         ];
-
-    //         $vouchers[] = $this->generateVoucher(
-    //             'system',
-    //             'shipment_courier',
-    //             $shipment->id,
-    //             $date,
-    //             "Courier Charges Deduction for {$shipment->shipment_code}",
-    //             $entriesCourier
-    //         );
-    //     }
-
-    //     // ============================================================
-    //     // 3. ADVANCE PAYMENT VOUCHER
-    //     // ============================================================
-    //     if ($received > 0 && $paymentAccountId && $debtorAccountId) {
-    //         Log::info('Creating advance payment voucher', [
-    //             'shipment' => $shipment->shipment_code,
-    //             'amount' => $received,
-    //             'payment_account' => $paymentAccountName,
-    //         ]);
-
-    //         $entries2 = [
-    //             [
-    //                 'account_id' => $paymentAccountId,
-    //                 'debit' => $received,
-    //                 'credit' => 0,
-    //                 'description' => "Customer advance for shipment {$shipment->shipment_code}"
-    //             ],
-    //             [
-    //                 'account_id' => $debtorAccountId,
-    //                 'debit' => 0,
-    //                 'credit' => $received,
-    //                 'description' => "Customer advance for shipment {$shipment->shipment_code}"
-    //             ]
-    //         ];
-
-    //         $vouchers[] = $this->generateVoucher(
-    //             'system',
-    //             'shipment_advance',
-    //             $shipment->id,
-    //             $date,
-    //             "Customer Advance Received for {$shipment->shipment_code}",
-    //             $entries2
-    //         );
-    //     }
-
-    //     // ============================================================
-    //     // 4. COST RECOGNITION VOUCHER (ONLY if Bought By Company AND item_value > 0)
-    //     // ============================================================
-    //     $itemValue = $shipment->item_value_pkr ?? 0;
-    //     if ($itemValue > 0 && $costOfSalesAccountId && $inventoryAccountId && $shipment->bought_by === 'By Company') {
-    //         $entries3 = [
-    //             [
-    //                 'account_id' => $costOfSalesAccountId,
-    //                 'debit' => $itemValue,
-    //                 'credit' => 0,
-    //                 'description' => "Cost of items for shipment {$shipment->shipment_code}"
-    //             ],
-    //             [
-    //                 'account_id' => $inventoryAccountId,
-    //                 'debit' => 0,
-    //                 'credit' => $itemValue,
-    //                 'description' => "Inventory reduction for shipment {$shipment->shipment_code}"
-    //             ]
-    //         ];
-
-    //         $vouchers[] = $this->generateVoucher(
-    //             'system',
-    //             'shipment_cost',
-    //             $shipment->id,
-    //             $date,
-    //             "Company Purchased Items - Cost Recognition for {$shipment->shipment_code}",
-    //             $entries3
-    //         );
-    //     }
-
-    //     Log::info('Shipment vouchers generated', [
-    //         'shipment' => $shipment->shipment_code,
-    //         'bought_by' => $shipment->bought_by,
-    //         'voucher_count' => count($vouchers),
-    //         'received_amount' => $received,
-    //         'courier_charges' => $courierCharges
-    //     ]);
-
-    //     return $vouchers;
-    // }
-
-    public function generateShipmentVouchers($shipment)
+    private function getAccountForPaymentMethod(?int $paymentMethodId, ?string $paymentMethodName): ?int
     {
-        $total = ($shipment->item_value_pkr ?? 0) + ($shipment->company_charges ?? 0);
-        $received = $shipment->received_amount ?? 0;
-        $courierCharges = $shipment->delivery_charges ?? 0;
-
-        $grossCod = max(0, $total - $received);
-        $netReceivable = max(0, $grossCod - $courierCharges);
-
-        $date = $shipment->created_at->toDateString();
-
-        $debtorAccountId = $this->getAccountId('Debtors');
-        $revenueShippingAccountId = $this->getAccountId('Revenue - Shipping');
-        $costOfSalesAccountId = $this->getAccountId('Cost of Sales - Items');
-        $inventoryAccountId = $this->getAccountId('Inventory');
-        $courierExpenseAccountId = $this->getAccountId('Courier Charges Expense');
-
-        $paymentMethodName = $shipment->paymentMethod?->name ?? 'Cash';
-
-        // Get the payment account ID using the new method
-        $paymentAccountId = $this->getAccountForPaymentMethod(
-            $shipment->payment_method_id,
-            $paymentMethodName
-        );
-
-        $vouchers = [];
-
-        // 1. REVENUE RECOGNITION
-        if ($total > 0 && $debtorAccountId && $revenueShippingAccountId) {
-            Log::info('Generating Revenue Recognition', [
-                'shipment' => $shipment->shipment_code,
-                'bought_by' => $shipment->bought_by,
-                'total' => $total,
-                'received' => $received,
-                'gross_cod' => $grossCod,
-                'courier_charges' => $courierCharges,
-                'net_receivable' => $netReceivable
-            ]);
-
-            $entries1 = [
-                [
-                    'account_id' => $debtorAccountId,
-                    'debit' => $total,
-                    'credit' => 0,
-                    'description' => "Revenue from shipment {$shipment->shipment_code}"
-                ],
-                [
-                    'account_id' => $revenueShippingAccountId,
-                    'debit' => 0,
-                    'credit' => $total,
-                    'description' => "Revenue from shipment {$shipment->shipment_code}"
-                ]
-            ];
-
-            $vouchers[] = $this->generateVoucher(
-                'system',
-                'shipment_revenue',
-                $shipment->id,
-                $date,
-                "Shipment Created - Revenue Recognition for {$shipment->shipment_code}",
-                $entries1
-            );
+        if ($paymentMethodId) {
+            $pm = \App\Models\PaymentMethod::find($paymentMethodId);
+            if ($pm && $pm->account_id) return $pm->account_id;
         }
 
-        // 2. COURIER CHARGES VOUCHER
-        if ($courierCharges > 0 && $courierExpenseAccountId && $debtorAccountId) {
-            Log::info('Creating courier charges voucher', [
-                'shipment' => $shipment->shipment_code,
-                'courier_charges' => $courierCharges
-            ]);
+        $map = [
+            'Bank Transfer' => 'Bank Account',
+            'Bank Transfer (IBFT)' => 'Bank Account',
+            'Cheque' => 'Bank Account',
+            'Credit Card' => 'Bank Account',
+            'Cash' => 'Cash Account',
+            'JazzCash' => 'JazzCash Account',
+            'EasyPaisa' => 'EasyPaisa Account',
+            'Cash on Delivery' => 'COD Receivable - BlueEx',
+        ];
 
-            $entriesCourier = [
-                [
-                    'account_id' => $courierExpenseAccountId,
-                    'debit' => $courierCharges,
-                    'credit' => 0,
-                    'description' => "Courier charges for {$shipment->shipment_code}"
-                ],
-                [
-                    'account_id' => $debtorAccountId,
-                    'debit' => 0,
-                    'credit' => $courierCharges,
-                    'description' => "Courier charges reducing debtor for {$shipment->shipment_code}"
-                ]
-            ];
-
-            $vouchers[] = $this->generateVoucher(
-                'system',
-                'shipment_courier',
-                $shipment->id,
-                $date,
-                "Courier Charges Deduction for {$shipment->shipment_code}",
-                $entriesCourier
-            );
-        }
-
-        // 3. ADVANCE PAYMENT VOUCHER - USING MAPPED ACCOUNT
-        if ($received > 0 && $paymentAccountId && $debtorAccountId) {
-            Log::info('Creating advance payment voucher', [
-                'shipment' => $shipment->shipment_code,
-                'amount' => $received,
-                'payment_account_id' => $paymentAccountId,
-                'payment_method' => $paymentMethodName
-            ]);
-
-            $entries2 = [
-                [
-                    'account_id' => $paymentAccountId,  // Now using mapped account
-                    'debit' => $received,
-                    'credit' => 0,
-                    'description' => "Customer advance for shipment {$shipment->shipment_code}"
-                ],
-                [
-                    'account_id' => $debtorAccountId,
-                    'debit' => 0,
-                    'credit' => $received,
-                    'description' => "Customer advance for shipment {$shipment->shipment_code}"
-                ]
-            ];
-
-            $vouchers[] = $this->generateVoucher(
-                'system',
-                'shipment_advance',
-                $shipment->id,
-                $date,
-                "Customer Advance Received for {$shipment->shipment_code}",
-                $entries2
-            );
-        }
-
-        // 4. COST RECOGNITION VOUCHER
-        $itemValue = $shipment->item_value_pkr ?? 0;
-        if ($itemValue > 0 && $costOfSalesAccountId && $inventoryAccountId && $shipment->bought_by === 'By Company') {
-            $entries3 = [
-                [
-                    'account_id' => $costOfSalesAccountId,
-                    'debit' => $itemValue,
-                    'credit' => 0,
-                    'description' => "Cost of items for shipment {$shipment->shipment_code}"
-                ],
-                [
-                    'account_id' => $inventoryAccountId,
-                    'debit' => 0,
-                    'credit' => $itemValue,
-                    'description' => "Inventory reduction for shipment {$shipment->shipment_code}"
-                ]
-            ];
-
-            $vouchers[] = $this->generateVoucher(
-                'system',
-                'shipment_cost',
-                $shipment->id,
-                $date,
-                "Company Purchased Items - Cost Recognition for {$shipment->shipment_code}",
-                $entries3
-            );
-        }
-
-        Log::info('Shipment vouchers generated', [
-            'shipment' => $shipment->shipment_code,
-            'bought_by' => $shipment->bought_by,
-            'voucher_count' => count($vouchers),
-            'received_amount' => $received,
-            'courier_charges' => $courierCharges,
-            'payment_method' => $paymentMethodName,
-            'payment_account_id' => $paymentAccountId
-        ]);
-
-        return $vouchers;
+        $name = $map[$paymentMethodName ?? ''] ?? 'Bank Account';
+        return $this->getAccountId($name) ?? $this->getAccountId('Bank Account');
     }
 
     public function syncShipmentVouchers($shipment)
     {
-        $voucherTypes = [
-            'shipment_revenue',
-            'shipment_advance',
-            'shipment_cost',
-            'shipment_courier',
-            'shipment_cod',
-            'shipment_settlement'
+        $created = [];
+
+        $v = $this->generateShipmentPurchaseVoucher($shipment);
+        if ($v) $created[] = $v;
+
+        if ($shipment->date_delivered) {
+            $v = $this->generateDeliveryRevenueVoucher($shipment);
+            if ($v) $created[] = $v;
+            $v = $this->generateDeliveryCOGSVoucher($shipment);
+            if ($v) $created[] = $v;
+            // Delivery charge voucher is generated when COD is remitted.
+        }
+        return $created;
+    }
+
+    public function generateShipmentPurchaseVoucher($shipment): ?Voucher
+    {
+        if ($shipment->bought_by !== 'By Company' || (float) $shipment->item_value_pkr <= 0) return null;
+        if ($this->voucherExists('shipment_purchase', $shipment->id)) return null;
+
+        $inventory = $this->getAccountId('Inventory');
+        $bank = $this->getAccountId('Bank Account');
+        if (!$inventory || !$bank) return null;
+
+        $amount = (float) $shipment->item_value_pkr;
+
+        return $this->generateVoucher('system', 'shipment_purchase', $shipment->id, $shipment->created_at->toDateString(), "Company Purchased Items - Purchase for {$shipment->shipment_code}", [
+            ['account_id' => $inventory, 'debit' => $amount, 'credit' => 0],
+            ['account_id' => $bank, 'debit' => 0, 'credit' => $amount],
+        ]);
+    }
+
+    public function generateDeliveryRevenueVoucher($shipment): ?Voucher
+    {
+        if (!$shipment->date_delivered) return null;
+
+        $itemValue = (float) $shipment->item_value_pkr;
+        $shippingRevenue = (float) $shipment->company_charges;
+        $total = $itemValue + $shippingRevenue;
+
+        $advance = (float) $shipment->payments()
+            ->where('payment_method', '!=', 'Cash on Delivery')
+            ->sum('amount');
+
+        $codAmount = max(0, $total - $advance);
+
+        $itemSales = $this->getAccountId('Item Sales');
+        $shippingRev = $this->getAccountId('Revenue - Shipping');
+        $customerAdvance = $this->getAccountId('Customer Advances');
+        $codReceivable = $this->getAccountId('COD Receivable - BlueEx');
+
+        if (!$itemSales || !$shippingRev) return null;
+
+        $entries = [];
+        if ($advance > 0 && $customerAdvance) {
+            $entries[] = ['account_id' => $customerAdvance, 'debit' => $advance, 'credit' => 0, 'description' => "Advance applied for {$shipment->shipment_code}"];
+        }
+        if ($codAmount > 0 && $codReceivable) {
+            $entries[] = ['account_id' => $codReceivable, 'debit' => $codAmount, 'credit' => 0, 'description' => "COD to collect for {$shipment->shipment_code}"];
+        }
+        if ($itemValue > 0) {
+            $entries[] = ['account_id' => $itemSales, 'debit' => 0, 'credit' => $itemValue, 'description' => "Item sales for {$shipment->shipment_code}"];
+        }
+        if ($shippingRevenue > 0) {
+            $entries[] = ['account_id' => $shippingRev, 'debit' => 0, 'credit' => $shippingRevenue, 'description' => "Shipping revenue for {$shipment->shipment_code}"];
+        }
+
+        $existingVoucher = Voucher::where('reference_type', 'shipment_delivery_revenue')
+            ->where('reference_id', $shipment->id)
+            ->where('is_deleted', false)
+            ->first();
+
+        if ($existingVoucher) {
+            $currentAdvanceDebit = $existingVoucher->details()->where('account_id', $customerAdvance)->sum('debit');
+            $currentCodDebit = $existingVoucher->details()->where('account_id', $codReceivable)->sum('debit');
+
+            if (round($currentAdvanceDebit, 2) === round($advance, 2) && round($currentCodDebit, 2) === round($codAmount, 2)) {
+                return $existingVoucher;
+            }
+
+            $existingVoucher->details()->delete();
+            foreach ($entries as $entry) {
+                VoucherDetail::create([
+                    'voucher_id' => $existingVoucher->id,
+                    'account_id' => $entry['account_id'],
+                    'debit' => $entry['debit'] ?? 0,
+                    'credit' => $entry['credit'] ?? 0,
+                    'description' => $entry['description'] ?? null,
+                ]);
+            }
+            $existingVoucher->save();
+            return $existingVoucher;
+        }
+
+        return $this->generateVoucher('system', 'shipment_delivery_revenue', $shipment->id, $shipment->date_delivered->toDateString(), "Revenue Recognition on Delivery for {$shipment->shipment_code}", $entries);
+    }
+
+    public function generateDeliveryCOGSVoucher($shipment): ?Voucher
+    {
+        if (!$shipment->date_delivered || $shipment->bought_by !== 'By Company' || (float) $shipment->item_value_pkr <= 0) return null;
+        if ($this->voucherExists('shipment_delivery_cost', $shipment->id)) return null;
+
+        $cogs = $this->getAccountId('Cost of Sales - Items');
+        $inventory = $this->getAccountId('Inventory');
+        if (!$cogs || !$inventory) return null;
+
+        $amount = (float) $shipment->item_value_pkr;
+
+        return $this->generateVoucher('system', 'shipment_delivery_cost', $shipment->id, $shipment->date_delivered->toDateString(), "Company Purchased Items - Cost Recognition for {$shipment->shipment_code}", [
+            ['account_id' => $cogs, 'debit' => $amount, 'credit' => 0],
+            ['account_id' => $inventory, 'debit' => 0, 'credit' => $amount],
+        ]);
+    }
+
+    public function generateDeliveryChargeVoucher($shipment): ?Voucher
+    {
+        if ((float) $shipment->delivery_charges <= 0) return null;
+
+        $expense = $this->getAccountId('Local Delivery Expense');
+        $codReceivable = $this->getAccountId('COD Receivable - BlueEx');
+        if (!$expense || !$codReceivable) return null;
+
+        $amount = (float) $shipment->delivery_charges;
+
+        // ✅ Get ALL active courier vouchers for this shipment
+        $activeVouchers = Voucher::where('reference_type', 'shipment_delivery_charge')
+            ->where('reference_id', $shipment->id)
+            ->where('is_deleted', false)
+            ->get();
+
+        foreach ($activeVouchers as $v) {
+            $currentDebit = $v->details()->where('account_id', $expense)->sum('debit');
+
+            // If an active voucher already exists with the exact amount, do nothing
+            if (round($currentDebit, 2) === round($amount, 2)) {
+                return $v;
+            }
+
+            // Otherwise, reverse it
+            $entries = [
+                ['account_id' => $expense, 'debit' => 0, 'credit' => $currentDebit],
+                ['account_id' => $codReceivable, 'debit' => $currentDebit, 'credit' => 0],
+            ];
+            $this->generateVoucher('system', 'reversal_shipment_delivery_charge', $shipment->id, now()->toDateString(), "REVERSAL of {$v->voucher_no}", $entries);
+
+            // Mark it as deleted so it's no longer considered active
+            $v->is_deleted = true;
+            $v->save();
+        }
+
+        // Create the new active voucher
+        $date = now()->toDateString();
+        return $this->generateVoucher('system', 'shipment_delivery_charge', $shipment->id, $date, "Local Delivery Charge for {$shipment->shipment_code}", [
+            ['account_id' => $expense, 'debit' => $amount, 'credit' => 0],
+            ['account_id' => $codReceivable, 'debit' => 0, 'credit' => $amount],
+        ]);
+    }
+
+    public function generatePaymentVoucher($shipment, $payment): ?Voucher
+    {
+        if ($this->voucherExists('shipment_payment', $payment->id)) return null;
+
+        if (($payment->payment_method ?? '') === 'Cash on Delivery') {
+            return $this->generateCODRemittanceVoucher($shipment, $payment);
+        }
+
+        $debitAccount = $this->getAccountForPaymentMethod(null, $payment->payment_method);
+
+        if ($shipment->date_delivered) {
+            $creditAccount = $this->getAccountId('COD Receivable - BlueEx');
+            $desc = "Post-delivery payment of {$payment->amount} for {$shipment->shipment_code}";
+        } else {
+            $creditAccount = $this->getAccountId('Customer Advances');
+            $desc = "Advance of {$payment->amount} received for {$shipment->shipment_code}";
+        }
+
+        if (!$debitAccount || !$creditAccount) return null;
+
+        return $this->generateVoucher('system', 'shipment_payment', $payment->id, $payment->payment_date, $desc, [
+            ['account_id' => $debitAccount, 'debit' => $payment->amount, 'credit' => 0],
+            ['account_id' => $creditAccount, 'debit' => 0, 'credit' => $payment->amount],
+        ]);
+    }
+
+    public function generateCODRemittanceVoucher($shipment, $payment): ?Voucher
+    {
+        if ($this->voucherExists('shipment_cod_remittance', $payment->id)) return null;
+
+        $bank = $this->getAccountId('Bank Account');
+        $codReceivable = $this->getAccountId('COD Receivable - BlueEx');
+
+        if (!$bank || !$codReceivable) return null;
+
+        // ✅ Calculate the net amount deposited in the bank.
+        // For partial payments, the courier fee is only deducted on the FIRST remittance.
+        $grossAmount = $payment->amount;
+
+        // Check if a courier fee has already been deducted for this shipment
+        $courierFeeAlreadyApplied = Voucher::where('reference_type', 'shipment_cod_remittance')
+            ->whereIn('reference_id', function ($q) use ($shipment) {
+                $q->select('id')->from('shipment_payments')->where('shipment_id', $shipment->id);
+            })
+            ->where('reference_id', '!=', $payment->id)
+            ->exists();
+
+        $courierFee = $courierFeeAlreadyApplied ? 0 : (float) $shipment->delivery_charges;
+        $remittedAmount = max(0, $grossAmount - $courierFee);
+
+        $entries = [
+            ['account_id' => $bank, 'debit' => $remittedAmount, 'credit' => 0, 'description' => "Net remittance for {$shipment->shipment_code}"],
+            ['account_id' => $codReceivable, 'debit' => 0, 'credit' => $remittedAmount, 'description' => "COD settled for {$shipment->shipment_code}"]
         ];
 
-        $deletedCount = 0;
-        foreach ($voucherTypes as $type) {
-            $vouchers = Voucher::where('reference_type', $type)
-                ->where('reference_id', $shipment->id)
+        return $this->generateVoucher(
+            'system',
+            'shipment_cod_remittance',
+            $payment->id,
+            $payment->payment_date,
+            "COD Remittance of {$remittedAmount} for {$shipment->shipment_code}",
+            $entries
+        );
+    }
+
+    public function reversePaymentVoucher($payment): void
+    {
+        $vouchers = Voucher::whereIn('reference_type', ['shipment_payment', 'shipment_cod_remittance'])
+            ->where('reference_id', $payment->id)->get();
+
+        // ONLY reverse the delivery charge if the payment being deleted is a COD payment
+        if (($payment->payment_method ?? '') === 'Cash on Delivery') {
+            $courierVouchers = Voucher::where('reference_type', 'shipment_delivery_charge')
+                ->where('reference_id', $payment->shipment_id)
+                ->where('is_deleted', false)
                 ->get();
 
-            foreach ($vouchers as $voucher) {
-                $voucher->details()->delete();
-                $voucher->delete();
-                $deletedCount++;
+            foreach ($courierVouchers as $courierVoucher) {
+                // Prevent double reversal
+                $alreadyReversed = Voucher::where('reference_type', 'reversal_shipment_delivery_charge')
+                    ->where('reference_id', $payment->shipment_id)
+                    ->where('description', 'LIKE', "%REVERSAL of {$courierVoucher->voucher_no}%")
+                    ->exists();
+
+                if (!$alreadyReversed) {
+                    $vouchers->push($courierVoucher);
+                }
             }
         }
 
-        if ($deletedCount > 0) {
-            Log::info('Deleted old vouchers', [
-                'shipment' => $shipment->shipment_code,
-                'deleted_count' => $deletedCount
-            ]);
-        }
-
-        $newVouchers = $this->generateShipmentVouchers($shipment);
-
-        Log::info('Generated new vouchers', [
-            'shipment' => $shipment->shipment_code,
-            'new_voucher_count' => count($newVouchers)
-        ]);
-
-        return $newVouchers;
-    }
-
-    public function generateCODVoucher($shipment, $codAmount, $date)
-    {
-        $debtorAccountId = $this->getAccountId('Debtors');
-        $cashAccountId = $this->getAccountId('Cash Account');
-        $courierExpenseAccountId = $this->getAccountId('Courier Charges Expense');
-
-        if (!$debtorAccountId || !$cashAccountId) {
-            Log::warning('Missing required accounts for COD voucher');
-            return null;
-        }
-
-        $courierCharges = $shipment->delivery_charges ?? 0;
-        $netAmount = $codAmount - $courierCharges;
-
-        Log::info('Generating COD voucher', [
-            'shipment' => $shipment->shipment_code,
-            'cod_amount' => $codAmount,
-            'courier_charges' => $courierCharges,
-            'net_amount' => $netAmount,
-            'bought_by' => $shipment->bought_by
-        ]);
-
-        $entries = [];
-
-        // Dr: Cash Account (net amount received from courier)
-        if ($netAmount > 0) {
-            $entries[] = [
-                'account_id' => $cashAccountId,
-                'debit' => $netAmount,
-                'credit' => 0,
-                'description' => "COD Net amount received from courier for {$shipment->shipment_code}"
-            ];
-        }
-
-        // Dr: Courier Charges Expense (courier deduction) - ONLY if NOT already recorded
-        // Since we already have a separate courier charges voucher, we don't need to record it again
-        // But for COD, the courier charges are already deducted from the amount
-        // So we just record the net amount received
-
-        // Cr: Debtors (reduce by the net amount received)
-        if ($netAmount > 0) {
-            $entries[] = [
-                'account_id' => $debtorAccountId,
-                'debit' => 0,
-                'credit' => $netAmount,
-                'description' => "COD received - Net amount after courier deduction for {$shipment->shipment_code}"
-            ];
-        }
-
-        if (empty($entries)) {
-            Log::warning('No entries for COD voucher', ['shipment' => $shipment->id]);
-            return null;
-        }
-
-        $totalDebit = array_sum(array_column($entries, 'debit'));
-        $totalCredit = array_sum(array_column($entries, 'credit'));
-
-        if (round($totalDebit, 2) != round($totalCredit, 2)) {
-            Log::warning('COD voucher entries not balanced, adjusting', [
-                'debit' => $totalDebit,
-                'credit' => $totalCredit,
-                'difference' => $totalDebit - $totalCredit
-            ]);
-
-            if ($totalDebit > $totalCredit) {
-                $entries[] = [
-                    'account_id' => $debtorAccountId,
-                    'debit' => 0,
-                    'credit' => round($totalDebit - $totalCredit, 2),
-                    'description' => 'Balancing entry'
-                ];
-            } else {
-                $entries[] = [
-                    'account_id' => $debtorAccountId,
-                    'debit' => round($totalCredit - $totalDebit, 2),
-                    'credit' => 0,
-                    'description' => 'Balancing entry'
-                ];
+        foreach ($vouchers as $v) {
+            $entries = [];
+            foreach ($v->details as $d) {
+                if ($d->debit > 0) $entries[] = ['account_id' => $d->account_id, 'debit' => 0, 'credit' => $d->debit];
+                if ($d->credit > 0) $entries[] = ['account_id' => $d->account_id, 'debit' => $d->credit, 'credit' => 0];
+            }
+            if (!empty($entries)) {
+                $this->generateVoucher('system', 'reversal_' . $v->reference_type, $v->reference_id, now()->toDateString(), "REVERSAL of {$v->voucher_no}", $entries);
+                // Mark original as deleted
+                $v->is_deleted = true;
+                $v->save();
             }
         }
 
-        return $this->generateVoucher(
-            'system',
-            'shipment_cod',
-            $shipment->id,
-            $date,
-            "COD Received - Customer paid courier, courier deducted {$courierCharges} and paid net {$netAmount} for {$shipment->shipment_code}",
-            $entries
-        );
+        // Revenue voucher update is handled by the controller AFTER payment deletion
     }
 
-    public function generateSettlementVoucher($shipment, $balance, $date)
+    public function generateConsolidationCostVoucher($consolidation, $existingVoucher = null): ?Voucher
     {
-        if ($balance == 0) {
-            return null;
-        }
-
-        $debtorAccountId = $this->getAccountId('Debtors');
-        $cashAccountId = $this->getAccountId('Cash Account');
-
-        if (!$debtorAccountId || !$cashAccountId) {
-            Log::warning('Missing required accounts for settlement voucher');
-            return null;
-        }
-
         $entries = [];
+        $totalCost = 0;
 
-        if ($balance > 0) {
-            $entries = [
-                [
-                    'account_id' => $cashAccountId,
-                    'debit' => $balance,
+        $customsDuty = (float) ($consolidation->customs_duty ?? 0);
+        if ($customsDuty > 0) {
+            $accountId = $this->getAccountId('Customs Duty');
+            if ($accountId) {
+                $entries[] = [
+                    'account_id' => $accountId,
+                    'debit' => $customsDuty,
                     'credit' => 0,
-                    'description' => "Final payment received for {$shipment->shipment_code}"
-                ],
-                [
-                    'account_id' => $debtorAccountId,
-                    'debit' => 0,
-                    'credit' => $balance,
-                    'description' => "Final payment received for {$shipment->shipment_code}"
-                ]
-            ];
-        } else {
-            $refundAmount = abs($balance);
-            $entries = [
-                [
-                    'account_id' => $debtorAccountId,
-                    'debit' => $refundAmount,
-                    'credit' => 0,
-                    'description' => "Refund to customer for overpayment on {$shipment->shipment_code}"
-                ],
-                [
-                    'account_id' => $cashAccountId,
-                    'debit' => 0,
-                    'credit' => $refundAmount,
-                    'description' => "Refund to customer for overpayment on {$shipment->shipment_code}"
-                ]
-            ];
+                    'description' => "Customs Duty for {$consolidation->consol_id}"
+                ];
+                $totalCost += $customsDuty;
+            }
         }
 
-        return $this->generateVoucher(
-            'system',
-            'shipment_settlement',
-            $shipment->id,
-            $date,
-            "Shipment Closed - Final Settlement for {$shipment->shipment_code}",
-            $entries
-        );
-    }
+        $otherCharges = (float) ($consolidation->ware_house_charges ?? 0)
+            + (float) ($consolidation->sales_tax ?? 0)
+            + (float) ($consolidation->income_tax ?? 0)
+            + (float) ($consolidation->caa_charges ?? 0);
 
-    /**
-     * Generate voucher for consolidation costs
-     * ✅ Creates voucher for Warehouse Charges + Import Taxes only
-     * ❌ Excludes courier charges (they are recorded in shipment COD vouchers)
-     */
-    public function generateConsolidationCostVoucher($consolidation)
-    {
-        // Delete existing voucher if any
-        $existingVoucher = $consolidation->voucher;
+        if ($otherCharges > 0) {
+            $accountId = $this->getAccountId('Warehouse Charges');
+            if ($accountId) {
+                $entries[] = [
+                    'account_id' => $accountId,
+                    'debit' => $otherCharges,
+                    'credit' => 0,
+                    'description' => "Merged Other Charges for {$consolidation->consol_id}"
+                ];
+                $totalCost += $otherCharges;
+            }
+        }
+
+        if ($totalCost <= 0) {
+            if ($existingVoucher) {
+                $existingVoucher->details()->delete();
+                $existingVoucher->delete();
+            }
+            return null;
+        }
+
+        $creditor = $this->getAccountId('Consolidation Creditors') ?? $this->getAccountId('Creditors');
+        if (!$creditor) return null;
+
+        $entries[] = [
+            'account_id' => $creditor,
+            'debit' => 0,
+            'credit' => $totalCost,
+            'description' => "Consolidation costs payable for {$consolidation->consol_id}"
+        ];
+
         if ($existingVoucher) {
+            if (method_exists($existingVoucher, 'trashed') && $existingVoucher->trashed()) {
+                $existingVoucher->restore();
+            }
+
             $existingVoucher->details()->delete();
-            $existingVoucher->delete();
-            Log::info('Deleted existing consolidation voucher', [
-                'consolidation' => $consolidation->consol_id,
-                'voucher_no' => $existingVoucher->voucher_no
-            ]);
-        }
-
-        $mapping = TransactionTypeAccount::where('transaction_type', 'consolidation_cost')->first();
-        if (!$mapping) {
-            throw new \Exception('No mapping for consolidation_cost');
-        }
-
-        $entries = [];
-        $expenseAccountId = $mapping->debit_account_id;
-        $creditAccountId = $mapping->credit_account_id;
-
-        // ✅ Only include consolidation costs (Warehouse + Import Taxes)
-        // ❌ EXCLUDING courier charges (they are recorded in shipment COD vouchers)
-        $totalCost = ($consolidation->ware_house_charges ?? 0)
-            + ($consolidation->customs_duty ?? 0)
-            + ($consolidation->sales_tax ?? 0)
-            + ($consolidation->income_tax ?? 0)
-            + ($consolidation->caa_charges ?? 0);
-
-        Log::info('Generating consolidation cost voucher', [
-            'consolidation' => $consolidation->consol_id,
-            'ware_house_charges' => $consolidation->ware_house_charges ?? 0,
-            'customs_duty' => $consolidation->customs_duty ?? 0,
-            'sales_tax' => $consolidation->sales_tax ?? 0,
-            'income_tax' => $consolidation->income_tax ?? 0,
-            'caa_charges' => $consolidation->caa_charges ?? 0,
-            'total_cost' => $totalCost
-        ]);
-
-        if ($totalCost > 0 && $expenseAccountId && $creditAccountId) {
-            // Debit: Expense account (Customs Duty, etc.)
-            $entries[] = [
-                'account_id' => $expenseAccountId,
-                'debit' => $totalCost,
-                'credit' => 0,
-                'description' => "Consolidation costs for {$consolidation->consol_id}"
-            ];
-            // Credit: Creditors
-            $entries[] = [
-                'account_id' => $creditAccountId,
-                'debit' => 0,
-                'credit' => $totalCost,
-                'description' => "Consolidation costs payable for {$consolidation->consol_id}"
-            ];
-        }
-
-        if (empty($entries)) {
-            Log::info('No consolidation costs to record for ' . $consolidation->consol_id);
-            return null;
+            foreach ($entries as $entry) {
+                VoucherDetail::create([
+                    'voucher_id' => $existingVoucher->id,
+                    'account_id' => $entry['account_id'],
+                    'debit' => $entry['debit'] ?? 0,
+                    'credit' => $entry['credit'] ?? 0,
+                    'description' => $entry['description'] ?? null,
+                ]);
+            }
+            $existingVoucher->description = "Costs for consolidation {$consolidation->consol_id}";
+            $existingVoucher->date = $consolidation->date_reached ?? now()->toDateString();
+            $existingVoucher->is_deleted = false;
+            $existingVoucher->save();
+            return $existingVoucher;
         }
 
         return $this->generateVoucher(
@@ -764,89 +449,162 @@ class VoucherService
             $entries
         );
     }
-    public function generateExpenseVoucher($expense)
+
+    public function generateDamagedShipmentVouchers($shipment, $wasDelivered = false): array
     {
-        $category = $expense->category;
-        if (!$category || !$category->account_id) {
-            throw new \Exception('Expense category has no account mapping');
+        $created = [];
+
+        if ($wasDelivered) {
+            if (!$this->voucherExists('shipment_damage_revenue_reversal', $shipment->id)) {
+                $itemSales = $this->getAccountId('Item Sales');
+                $shippingRev = $this->getAccountId('Revenue - Shipping');
+                $bank = $this->getAccountId('Bank Account');
+
+                if ($itemSales && $shippingRev && $bank) {
+                    $itemValue = (float) $shipment->item_value_pkr;
+                    $shippingRevenue = (float) $shipment->company_charges;
+
+                    $entries = [
+                        ['account_id' => $itemSales, 'debit' => $itemValue, 'credit' => 0, 'description' => "Revenue reversal for damage {$shipment->shipment_code}"],
+                        ['account_id' => $shippingRev, 'debit' => $shippingRevenue, 'credit' => 0, 'description' => "Shipping reversal for damage {$shipment->shipment_code}"],
+                        ['account_id' => $bank, 'debit' => 0, 'credit' => $itemValue + $shippingRevenue, 'description' => "Refund to customer for damaged {$shipment->shipment_code}"],
+                    ];
+
+                    $v = $this->generateVoucher('system', 'shipment_damage_revenue_reversal', $shipment->id, now()->toDateString(), "Sales Return & Refund for {$shipment->shipment_code}", $entries);
+                    if ($v) $created[] = $v;
+                }
+            }
+
+            if (!$this->voucherExists('shipment_damage_cogs_reversal', $shipment->id)) {
+                $damageExpense = $this->getAccountId('Damaged Goods Expense');
+                $cogs = $this->getAccountId('Cost of Sales - Items');
+
+                if ($damageExpense && $cogs) {
+                    $itemValue = (float) $shipment->item_value_pkr;
+
+                    $entries = [
+                        ['account_id' => $damageExpense, 'debit' => $itemValue, 'credit' => 0, 'description' => "Damaged goods loss for {$shipment->shipment_code}"],
+                        ['account_id' => $cogs, 'debit' => 0, 'credit' => $itemValue, 'description' => "Reversal of COGS for returned {$shipment->shipment_code}"],
+                    ];
+
+                    $v = $this->generateVoucher('system', 'shipment_damage_cogs_reversal', $shipment->id, now()->toDateString(), "COGS Reversal & Damage Loss for {$shipment->shipment_code}", $entries);
+                    if ($v) $created[] = $v;
+                }
+            }
+        } else {
+            $itemValue = (float) ($shipment->item_value_pkr ?? 0);
+            if ($shipment->bought_by === 'By Company' && $itemValue > 0) {
+                if (!$this->voucherExists('shipment_damage_writeoff', $shipment->id)) {
+                    $inventory = $this->getAccountId('Inventory');
+                    $damageExpense = $this->getAccountId('Damaged Goods Expense');
+
+                    if ($inventory && $damageExpense) {
+                        $v = $this->generateVoucher(
+                            'system',
+                            'shipment_damage_writeoff',
+                            $shipment->id,
+                            now()->toDateString(),
+                            "Damaged inventory write-off for {$shipment->shipment_code}",
+                            [
+                                ['account_id' => $damageExpense, 'debit' => $itemValue, 'credit' => 0, 'description' => "Damaged goods loss for {$shipment->shipment_code}"],
+                                ['account_id' => $inventory, 'debit' => 0, 'credit' => $itemValue, 'description' => "Inventory write-off for {$shipment->shipment_code}"],
+                            ]
+                        );
+                        if ($v) $created[] = $v;
+                    }
+                }
+            }
+
+            $advance = (float) ($shipment->received_amount ?? 0);
+            if ($advance > 0) {
+                if (!$this->voucherExists('shipment_refund', $shipment->id)) {
+                    $customerAdvance = $this->getAccountId('Customer Advances');
+                    $paymentAccountId = $this->getAccountForPaymentMethod($shipment->payment_method_id, $shipment->paymentMethod?->name) ?? $this->getAccountId('Bank Account');
+
+                    if ($customerAdvance && $paymentAccountId) {
+                        $v = $this->generateVoucher(
+                            'system',
+                            'shipment_refund',
+                            $shipment->id,
+                            now()->toDateString(),
+                            "Advance refund for damaged shipment {$shipment->shipment_code}",
+                            [
+                                ['account_id' => $customerAdvance, 'debit' => $advance, 'credit' => 0, 'description' => "Refund to customer for {$shipment->shipment_code}"],
+                                ['account_id' => $paymentAccountId, 'debit' => 0, 'credit' => $advance, 'description' => "Advance refund to customer for {$shipment->shipment_code}"],
+                            ]
+                        );
+                        if ($v) $created[] = $v;
+                    }
+                }
+            }
         }
 
-        $cashAccountId = $this->getAccountId('Cash Account');
-        if (!$cashAccountId) {
-            throw new \Exception('Cash Account not found');
+        if (!$shipment->payments()->where('notes', 'Refund - Damaged shipment')->exists()) {
+            $refundAmount = $wasDelivered ? $shipment->total : $shipment->received_amount;
+
+            if ($refundAmount > 0) {
+                $shipment->payments()->create([
+                    'amount'           => -$refundAmount,
+                    'payment_date'     => now()->toDateString(),
+                    'payment_method'   => $shipment->paymentMethod?->name,
+                    'reference_number' => null,
+                    'notes'            => 'Refund - Damaged shipment',
+                ]);
+            }
         }
 
-        $entries = [
-            [
-                'account_id' => $category->account_id,
-                'debit' => $expense->amount,
-                'credit' => 0,
-                'description' => $expense->description ?? 'Expense voucher'
-            ],
-            [
-                'account_id' => $cashAccountId,
-                'debit' => 0,
-                'credit' => $expense->amount,
-                'description' => $expense->description ?? 'Expense voucher'
-            ]
-        ];
+        $shipment->refresh();
+        $shipment->recalcReceivedAmount();
 
-        return $this->generateVoucher(
-            'system',
-            'expense',
-            $expense->id,
-            $expense->date,
-            $expense->description ?? 'Expense voucher',
-            $entries
-        );
+        return $created;
     }
 
-    public function generatePaymentVoucher($shipment, $payment)
+    public function reverseDamagedShipmentVouchers($shipment): void
     {
-        $cashAccountId = $this->getAccountId('Cash Account');
-        $debtorAccountId = $this->getAccountId('Debtors');
+        $shipment->payments()
+            ->where('notes', 'Refund - Damaged shipment')
+            ->forceDelete();
 
-        if (!$cashAccountId || !$debtorAccountId) {
-            Log::warning('Missing required accounts for payment voucher');
-            return null;
-        }
+        Voucher::where('reference_id', $shipment->id)
+            ->whereIn('reference_type', [
+                'shipment_damage_writeoff',
+                'shipment_refund',
+                'shipment_damage_revenue_reversal',
+                'shipment_damage_cogs_reversal'
+            ])
+            ->get()
+            ->each(function ($v) {
+                $v->details()->delete();
+                $v->forceDelete();
+            });
 
-        $entries = [
-            [
-                'account_id' => $cashAccountId,
-                'debit' => $payment->amount,
-                'credit' => 0,
-                'description' => "Payment received for shipment {$shipment->shipment_code}"
-            ],
-            [
-                'account_id' => $debtorAccountId,
-                'debit' => 0,
-                'credit' => $payment->amount,
-                'description' => "Payment received for shipment {$shipment->shipment_code}"
-            ]
-        ];
-
-        return $this->generateVoucher(
-            'system',
-            'payment',
-            $payment->id,
-            $payment->payment_date,
-            "Payment of {$payment->amount} for shipment {$shipment->shipment_code}",
-            $entries
-        );
+        $shipment->refresh();
+        $shipment->recalcReceivedAmount();
     }
 
-    public function deletePaymentVoucher($payment)
+    public function softDeleteShipmentVouchers($shipment)
     {
-        $voucher = Voucher::where('reference_type', 'payment')
-            ->where('reference_id', $payment->id)
-            ->first();
+        $paymentIds = $shipment->payments()->withTrashed()->pluck('id')->toArray();
 
-        if ($voucher) {
-            $voucher->details()->delete();
-            $voucher->delete();
-            return true;
-        }
-        return false;
+        Voucher::where(function ($q) use ($shipment) {
+            $q->where('reference_type', 'like', 'shipment%')
+                ->where('reference_id', $shipment->id);
+        })->orWhere(function ($q) use ($paymentIds) {
+            $q->whereIn('reference_type', ['shipment_payment', 'shipment_cod_remittance'])
+                ->whereIn('reference_id', $paymentIds);
+        })->delete();
+    }
+
+    public function restoreShipmentVouchers($shipment)
+    {
+        $paymentIds = $shipment->payments()->withTrashed()->pluck('id')->toArray();
+
+        Voucher::onlyTrashed()->where(function ($q) use ($shipment) {
+            $q->where('reference_type', 'like', 'shipment%')
+                ->where('reference_id', $shipment->id);
+        })->orWhere(function ($q) use ($paymentIds) {
+            $q->whereIn('reference_type', ['shipment_payment', 'shipment_cod_remittance'])
+                ->whereIn('reference_id', $paymentIds);
+        })->restore();
     }
 }

@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Debtor extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'invoice_no',
         'shipment_id',

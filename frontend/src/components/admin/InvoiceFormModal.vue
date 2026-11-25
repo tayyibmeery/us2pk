@@ -1,187 +1,167 @@
 <template>
   <FormModal :isOpen="isOpen" :title="formData.id ? 'Edit Invoice' : 'Create Invoice'"
-    :subtitle="formData.id ? 'Update the invoice details below.' : 'Fill in the details to create a new invoice.'"
-    :saveLabel="formData.id ? 'Update' : 'Create'" :loading="saving" @close="close" @save="handleSave">
+    :subtitle="formData.id ? 'Update invoice details.' : 'Select a customer and their COD shipments to invoice.'"
+    :saveLabel="formData.id ? 'Update Invoice' : 'Create Invoice'" :loading="saving" @close="close" @save="handleSave">
     <template #fields>
-      <div v-if="loadingShipments" class="py-8 text-center">
-        <div
-          class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-brand-500 border-r-transparent">
+      <div v-if="loadingInitial" class="py-12 flex flex-col items-center">
+        <div class="inline-block h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-r-transparent">
         </div>
-        <p class="mt-3 text-sm text-gray-500">Loading shipments...</p>
+        <p class="mt-3 text-sm text-gray-500">Loading customers...</p>
       </div>
-      <div v-else class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <!-- Invoice No -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Invoice No
-          </label>
-          <input v-model="formData.invoice_no" type="text" placeholder="Auto-generated" :disabled="true"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm text-gray-500 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-800 dark:text-white/60 dark:placeholder:text-white/30 cursor-not-allowed" />
-          <p class="text-xs text-gray-500 mt-1">Auto-generated when creating</p>
-        </div>
 
-        <!-- Date with Flatpickr -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Invoice Date <span class="text-red-500">*</span>
-          </label>
-          <div class="relative">
-            <input :ref="el => { if (el) datePickerRefs.invoice_date = el }" v-model="formData.date" type="text"
-              class="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-              placeholder="Select date" readonly />
-            <span
-              class="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
-              <svg class="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                  d="M6.66659 1.5415C7.0808 1.5415 7.41658 1.87729 7.41658 2.2915V2.99984H12.5833V2.2915C12.5833 1.87729 12.919 1.5415 13.3333 1.5415C13.7475 1.5415 14.0833 1.87729 14.0833 2.2915V2.99984L15.4166 2.99984C16.5212 2.99984 17.4166 3.89527 17.4166 4.99984V7.49984V15.8332C17.4166 16.9377 16.5212 17.8332 15.4166 17.8332H4.58325C3.47868 17.8332 2.58325 16.9377 2.58325 15.8332V7.49984V4.99984C2.58325 3.89527 3.47868 2.99984 4.58325 2.99984L5.91659 2.99984V2.2915C5.91659 1.87729 6.25237 1.5415 6.66659 1.5415ZM6.66659 4.49984H4.58325C4.30711 4.49984 4.08325 4.7237 4.08325 4.99984V6.74984H15.9166V4.99984C15.9166 4.7237 15.6927 4.49984 15.4166 4.49984H13.3333H6.66659ZM15.9166 8.24984H4.08325V15.8332C4.08325 16.1093 4.30711 16.3332 4.58325 16.3332H15.4166C15.6927 16.3332 15.9166 16.1093 15.9166 15.8332V8.24984Z"
-                  fill="currentColor" />
-              </svg>
-            </span>
-          </div>
-        </div>
+      <div v-else class="space-y-6">
 
-        <!-- Shipment Selection -->
-        <div class="sm:col-span-2">
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Shipment <span class="text-red-500">*</span>
-          </label>
+        <!-- ── 1. CUSTOMER ─────────────────────────────── -->
+        <div v-if="!formData.id">
+          <h4
+            class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2 mb-4">
+            1. Select Customer
+          </h4>
+
           <div class="relative">
-            <input v-model="shipmentSearch" @input="filterShipments" @focus="showShipmentDropdown = true"
-              @blur="closeDropdownWithDelay" type="text" placeholder="Search by code or description..."
-              class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
-            <div v-if="showShipmentDropdown && filteredShipments.length > 0"
-              class="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-              <div v-for="shipment in filteredShipments" :key="shipment.id"
-                @mousedown.prevent="selectShipment(shipment)"
-                class="cursor-pointer px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                <div class="flex items-center justify-between">
+            <input v-model="userSearch" @focus="showUserDropdown = true" @blur="closeUserDropdown" type="text"
+              placeholder="Search by name or email..."
+              class="w-full h-11 rounded-lg border border-gray-300 px-4 text-sm focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800"
+              :disabled="!!selectedUser" />
+
+            <button v-if="selectedUser" @click="clearUser"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-red-600 hover:underline">
+              Change
+            </button>
+
+            <div v-if="showUserDropdown && !selectedUser && filteredUsers.length"
+              class="absolute z-50 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border bg-white shadow-xl dark:bg-gray-800 dark:border-gray-700">
+              <div v-for="u in filteredUsers" :key="u.id" @mousedown.prevent="selectUser(u)"
+                class="cursor-pointer px-4 py-3 border-b last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <div class="flex justify-between items-start">
                   <div>
-                    <span class="font-medium text-sm">{{ shipment.shipment_code }}</span>
-                    <span class="text-xs text-gray-500 ml-2">#{{ shipment.id }}</span>
+                    <div class="font-medium text-sm text-gray-900 dark:text-white">{{ u.name }}</div>
+                    <div class="text-xs text-gray-500">{{ u.email }}</div>
                   </div>
-                  <span class="text-xs text-gray-400">{{ shipment.description || 'No description' }}</span>
-                </div>
-                <div class="text-xs text-gray-400 mt-0.5">
-                  Customer: {{ shipment.user?.name || 'N/A' }} | COD: {{ formatCurrency(shipment.receivable_cod || 0) }}
+                  <div class="text-right">
+                    <div class="text-xs font-semibold text-emerald-600">
+                      {{ u.unbilled_cod_count }} unbilled
+                    </div>
+                    <div class="text-xs text-gray-500 font-mono">
+                      {{ formatCurrency(u.total_pending_cod) }}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div v-if="showShipmentDropdown && filteredShipments.length === 0 && shipmentSearch"
-              class="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800">
-              No shipments found
-            </div>
           </div>
-          <p v-if="selectedShipment" class="text-xs text-green-600 mt-1">
-            ✓ Selected: {{ selectedShipment.shipment_code }} - {{ selectedShipment.description || 'No description' }}
+
+          <p v-if="selectedUser" class="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Customer: {{ selectedUser.name }} ({{ selectedUser.email }})
           </p>
         </div>
 
-        <!-- Amount Due = Receivable COD from shipment -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Amount Due <span class="text-red-500">*</span>
-          </label>
-          <input v-model.number="formData.amount_due" type="number" step="0.01" placeholder="0.00" min="0"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
-            required />
-          <p v-if="selectedShipment" class="text-xs text-gray-400 mt-1">
-            Receivable COD: {{ formatCurrency(selectedShipment.receivable_cod || 0) }}
-          </p>
-        </div>
-
-        <!-- COD = Amount Due (same as receivable cod) -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            COD
-          </label>
-          <input v-model.number="formData.cod" type="number" step="0.01" placeholder="0.00" min="0"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30" />
-          <p class="text-xs text-gray-400 mt-1">Same as Amount Due</p>
-        </div>
-
-        <!-- COD Date -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            COD Date
-          </label>
-          <div class="relative">
-            <input :ref="el => { if (el) datePickerRefs.cod_date = el }" v-model="formData.cod_date" type="text"
-              class="dark:bg-dark-900 h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none px-4 py-2.5 pl-4 pr-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
-              placeholder="Select COD date" readonly />
-            <span
-              class="absolute text-gray-500 -translate-y-1/2 pointer-events-none right-3 top-1/2 dark:text-gray-400">
-              <svg class="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path fill-rule="evenodd" clip-rule="evenodd"
-                  d="M6.66659 1.5415C7.0808 1.5415 7.41658 1.87729 7.41658 2.2915V2.99984H12.5833V2.2915C12.5833 1.87729 12.919 1.5415 13.3333 1.5415C13.7475 1.5415 14.0833 1.87729 14.0833 2.2915V2.99984L15.4166 2.99984C16.5212 2.99984 17.4166 3.89527 17.4166 4.99984V7.49984V15.8332C17.4166 16.9377 16.5212 17.8332 15.4166 17.8332H4.58325C3.47868 17.8332 2.58325 16.9377 2.58325 15.8332V7.49984V4.99984C2.58325 3.89527 3.47868 2.99984 4.58325 2.99984L5.91659 2.99984V2.2915C5.91659 1.87729 6.25237 1.5415 6.66659 1.5415ZM6.66659 4.49984H4.58325C4.30711 4.49984 4.08325 4.7237 4.08325 4.99984V6.74984H15.9166V4.99984C15.9166 4.7237 15.6927 4.49984 15.4166 4.49984H13.3333H6.66659ZM15.9166 8.24984H4.08325V15.8332C4.08325 16.1093 4.30711 16.3332 4.58325 16.3332H15.4166C15.6927 16.3332 15.9166 16.1093 15.9166 15.8332V8.24984Z"
-                  fill="currentColor" />
-              </svg>
+        <!-- ── 2. SHIPMENTS ─────────────────────────────── -->
+        <div v-if="selectedUser || formData.id">
+          <h4
+            class="text-sm font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2 mb-4 flex items-center justify-between">
+            <span>2. Select Shipments to Invoice</span>
+            <span v-if="!formData.id" class="text-xs font-normal text-gray-500">
+              {{ selectedShipmentIds.length }} selected
             </span>
+          </h4>
+
+          <div v-if="loadingShipments" class="py-8 text-center text-sm text-gray-500">
+            Loading shipments...
+          </div>
+
+          <div v-else-if="!shipments.length" class="py-6 text-center text-sm text-gray-500">
+            No COD shipments found for this customer.
+          </div>
+
+          <div v-else class="space-y-2 max-h-72 overflow-y-auto pr-1">
+            <label v-for="s in shipments" :key="s.id" :class="[
+              'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition',
+              s.already_invoiced
+                ? 'bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 cursor-not-allowed opacity-60'
+                : selectedShipmentIds.includes(s.id)
+                  ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-brand-300'
+            ]">
+              <input type="checkbox" :value="s.id" :checked="selectedShipmentIds.includes(s.id)"
+                :disabled="s.already_invoiced" @change="toggleShipment(s.id)" class="mt-1 accent-brand-600" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="font-medium text-sm text-gray-900 dark:text-white truncate">
+                    {{ s.shipment_code }}
+                  </div>
+                  <div class="text-sm font-mono font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+                    {{ formatCurrency(s.receivable_cod) }}
+                  </div>
+                </div>
+                <div class="text-xs text-gray-500 truncate">
+                  {{ s.description || 'No description' }}
+                  <span v-if="s.weight"> · {{ s.weight }} KG</span>
+                </div>
+                <div v-if="s.already_invoiced" class="text-xs text-amber-600 mt-1">
+                  Already invoiced → {{ s.invoice_no }}
+                </div>
+              </div>
+            </label>
           </div>
         </div>
 
-        <!-- Output Tax - REMOVED (no extra charges) -->
-        <input type="hidden" v-model="formData.output_tax" />
+        <!-- ── 3. FINANCIALS ─────────────────────────────── -->
+        <div class="bg-gray-50 dark:bg-gray-800/30 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+          <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-4">3. Invoice Details</h4>
 
-        <!-- Status -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Status
-          </label>
-          <select v-model="formData.status"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
-            <option value="pending">Pending</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-
-        <!-- Payment Method -->
-        <div>
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Payment Method
-          </label>
-          <select v-model="formData.payment_method"
-            class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
-            <option value="">Select</option>
-            <option value="Cash">Cash</option>
-            <option value="Bank Transfer">Bank Transfer</option>
-            <option value="Credit Card">Credit Card</option>
-            <option value="JazzCash">JazzCash</option>
-            <option value="EasyPaisa">EasyPaisa</option>
-          </select>
-        </div>
-
-        <!-- Notes -->
-        <div class="sm:col-span-2">
-          <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-            Notes
-          </label>
-          <textarea v-model="formData.notes" rows="2" placeholder="Additional notes..."
-            class="dark:bg-dark-900 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"></textarea>
-        </div>
-
-        <!-- Summary -->
-        <div v-if="formData.amount_due > 0"
-          class="sm:col-span-2 mt-2 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Invoice Summary</h4>
-          <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <span class="text-gray-500">Amount Due:</span>
-              <span
-                class="font-medium ml-2 text-gray-800 dark:text-white/90">{{ formatCurrency(formData.amount_due || 0) }}</span>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Invoice Date <span class="text-red-500">*</span>
+              </label>
+              <input :ref="el => { if (el) datePickerRefs.invoice_date = el }" v-model="formData.date" type="text"
+                readonly placeholder="Select date"
+                class="w-full h-11 rounded-lg border border-gray-300 px-4 text-sm cursor-pointer focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800" />
             </div>
+
             <div>
-              <span class="text-gray-500">COD:</span>
-              <span
-                class="font-medium ml-2 text-blue-600 dark:text-blue-400">{{ formatCurrency(formData.cod || 0) }}</span>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Status</label>
+              <select v-model="formData.status"
+                class="w-full h-11 rounded-lg border border-gray-300 px-4 text-sm dark:border-gray-700 dark:bg-gray-800">
+                <option value="pending">Pending</option>
+                <option value="paid">Paid</option>
+                <option value="overdue">Overdue</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
             </div>
+
             <div>
-              <span class="text-gray-500 font-semibold">Total:</span>
-              <span
-                class="font-bold ml-2 text-emerald-600 dark:text-emerald-400">{{ formatCurrency(formData.amount_due || 0) }}</span>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Output Tax (PKR)</label>
+              <input v-model.number="formData.output_tax" type="number" step="0.01" min="0"
+                class="w-full h-11 rounded-lg border border-gray-300 px-4 text-sm font-mono dark:border-gray-700 dark:bg-gray-800" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Total (auto)</label>
+              <input :value="formatCurrency(computedTotal)" readonly
+                class="w-full h-11 rounded-lg border border-gray-200 bg-gray-100 px-4 text-sm font-mono font-bold text-emerald-700 dark:bg-gray-800/50 dark:border-gray-700" />
             </div>
           </div>
+
+          <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between text-sm">
+            <span class="text-gray-500">Subtotal (COD)</span>
+            <span class="font-mono">{{ formatCurrency(computedSubtotal) }}</span>
+          </div>
+          <div class="flex justify-between text-sm mt-1">
+            <span class="text-gray-500">Output Tax</span>
+            <span class="font-mono">{{ formatCurrency(formData.output_tax || 0) }}</span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Notes (Optional)</label>
+          <textarea v-model="formData.notes" rows="2"
+            class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+            placeholder="Notes to appear on the invoice..."></textarea>
         </div>
       </div>
     </template>
@@ -189,146 +169,135 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import FormModal from '@/components/common/FormModal.vue'
 import type { Invoice } from '@/stores/invoiceStore'
-import { useShipmentStore } from '@/stores/shipmentStore'
+import { useInvoiceStore } from '@/stores/invoiceStore'
 import flatpickr from 'flatpickr'
 import 'flatpickr/dist/flatpickr.css'
 
-const props = defineProps<{
-  isOpen: boolean
-  initialData?: Invoice | null
-}>()
-
+const props = defineProps<{ isOpen: boolean; initialData?: Invoice | null }>()
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'save', data: Partial<Invoice>): void
+  (e: 'save', data: Partial<Invoice> & { shipment_ids?: number[] }): void
 }>()
 
-const shipmentStore = useShipmentStore()
-const shipments = ref<any[]>([])
+const invoiceStore = useInvoiceStore()
+
+const loadingInitial = ref(false)
 const loadingShipments = ref(false)
 const saving = ref(false)
-const shipmentSearch = ref('')
-const showShipmentDropdown = ref(false)
-const selectedShipment = ref<any>(null)
 
-// Date picker refs
+const users = ref<any[]>([])
+const userSearch = ref('')
+const showUserDropdown = ref(false)
+const selectedUser = ref<any>(null)
+
+const shipments = ref<any[]>([])
+const selectedShipmentIds = ref<number[]>([])
+
 const datePickerRefs = ref<Record<string, any>>({})
 const flatpickrInstances: Record<string, any> = {}
 
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-PK', {
-    style: 'currency',
-    currency: 'PKR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value || 0)
-}
+const formData = ref<Partial<Invoice>>({})
+
+const formatCurrency = (v: number) =>
+  new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(v || 0)
+
+const filteredUsers = computed(() => {
+  if (!userSearch.value.trim()) return users.value.slice(0, 50)
+  const s = userSearch.value.toLowerCase()
+  return users.value
+    .filter(
+      (u) =>
+        u.name?.toLowerCase().includes(s) ||
+        u.email?.toLowerCase().includes(s)
+    )
+    .slice(0, 50)
+})
+
+const computedSubtotal = computed(() =>
+  shipments.value
+    .filter((s) => selectedShipmentIds.value.includes(s.id))
+    .reduce((sum, s) => sum + (Number(s.receivable_cod) || 0), 0)
+)
+
+const computedTotal = computed(
+  () => computedSubtotal.value + (Number(formData.value.output_tax) || 0)
+)
 
 const defaultFormData = (): Partial<Invoice> => ({
   invoice_no: '',
-  shipment_id: null,
+  user_id: null,
   date: new Date().toISOString().split('T')[0],
   amount_due: 0,
   cod: 0,
-  cod_date: null,
   output_tax: 0,
   status: 'pending',
-  payment_method: null,
   notes: null,
 })
 
-const formData = ref<Partial<Invoice>>(defaultFormData())
-
-// Initialize date pickers
-const initDatePickers = () => {
-  const dateFields = ['invoice_date', 'cod_date']
-  dateFields.forEach(field => {
-    const el = datePickerRefs.value[field]
-    if (el) {
-      if (flatpickrInstances[field]) flatpickrInstances[field].destroy()
-      flatpickrInstances[field] = flatpickr(el, {
-        dateFormat: 'Y-m-d',
-        allowInput: true,
-        onChange: (_dates: any, dateStr: string) => {
-          if (field === 'invoice_date') {
-            formData.value.date = dateStr
-          } else if (field === 'cod_date') {
-            formData.value.cod_date = dateStr
-          }
-        },
-      })
-      const val = field === 'invoice_date' ? formData.value.date : formData.value.cod_date
-      if (val) {
-        flatpickrInstances[field].setDate(val)
-      }
-    }
+const initDatePicker = () => {
+  const el = datePickerRefs.value.invoice_date
+  if (!el) return
+  if (flatpickrInstances.invoice) flatpickrInstances.invoice.destroy()
+  flatpickrInstances.invoice = flatpickr(el, {
+    dateFormat: 'Y-m-d',
+    allowInput: true,
+    onChange: (_d: any, str: string) => {
+      formData.value.date = str
+    },
   })
+  if (formData.value.date) flatpickrInstances.invoice.setDate(formData.value.date)
 }
 
-// Filtered shipments
-const filteredShipments = computed(() => {
-  if (!shipmentSearch.value.trim()) {
-    return shipments.value.slice(0, 50)
-  }
-  const search = shipmentSearch.value.toLowerCase()
-  return shipments.value.filter((s: any) => {
-    return s.shipment_code?.toLowerCase().includes(search) ||
-      s.id?.toString().includes(search) ||
-      s.description?.toLowerCase().includes(search) ||
-      s.user?.name?.toLowerCase().includes(search)
-  }).slice(0, 50)
-})
-
-const filterShipments = () => {
-  showShipmentDropdown.value = true
+const selectUser = async (user: any) => {
+  selectedUser.value = user
+  formData.value.user_id = user.id
+  userSearch.value = `${user.name} (${user.email})`
+  showUserDropdown.value = false
+  await loadUserShipments(user.id)
 }
 
-const selectShipment = (shipment: any) => {
-  selectedShipment.value = shipment
-  formData.value.shipment_id = shipment.id
-
-  // ✅ Amount Due = Receivable COD (only this, no extra charges)
-  if (shipment.receivable_cod) {
-    formData.value.amount_due = shipment.receivable_cod
-    formData.value.cod = shipment.receivable_cod // COD same as amount due
-  }
-
-  // ✅ Output Tax = 0 (no extra charges)
-  formData.value.output_tax = 0
-
-  // Set date from shipment
-  if (shipment.created_at) {
-    const date = new Date(shipment.created_at)
-    formData.value.date = date.toISOString().split('T')[0]
-  }
-
-  // Set COD date (7 days after invoice date)
-  if (formData.value.date) {
-    const codDate = new Date(formData.value.date)
-    codDate.setDate(codDate.getDate() + 7)
-    formData.value.cod_date = codDate.toISOString().split('T')[0]
-  }
-
-  shipmentSearch.value = `${shipment.shipment_code} - ${shipment.description || 'No description'}`
-  showShipmentDropdown.value = false
+const clearUser = () => {
+  selectedUser.value = null
+  formData.value.user_id = null
+  userSearch.value = ''
+  shipments.value = []
+  selectedShipmentIds.value = []
+  formData.value.amount_due = 0
+  formData.value.cod = 0
 }
 
-const closeDropdownWithDelay = () => {
+const closeUserDropdown = () =>
   setTimeout(() => {
-    showShipmentDropdown.value = false
+    showUserDropdown.value = false
   }, 200)
+
+const toggleShipment = (id: number) => {
+  const i = selectedShipmentIds.value.indexOf(id)
+  if (i === -1) selectedShipmentIds.value.push(id)
+  else selectedShipmentIds.value.splice(i, 1)
+  syncAmounts()
 }
 
-const fetchShipments = async () => {
+const syncAmounts = () => {
+  const subtotal = shipments.value
+    .filter((s) => selectedShipmentIds.value.includes(s.id))
+    .reduce((sum, s) => sum + (Number(s.receivable_cod) || 0), 0)
+  formData.value.amount_due = subtotal
+  formData.value.cod = subtotal
+}
+
+const loadUserShipments = async (userId: number) => {
   loadingShipments.value = true
   try {
-    await shipmentStore.fetchItems(1, { per_page: 1000 })
-    shipments.value = shipmentStore.items
-  } catch (error) {
-    console.error('Failed to fetch shipments:', error)
+    shipments.value = await invoiceStore.fetchUserCodShipments(userId)
+    // auto-select all unbilled
+    selectedShipmentIds.value = shipments.value
+      .filter((s) => !s.already_invoiced)
+      .map((s) => s.id)
+    syncAmounts()
   } finally {
     loadingShipments.value = false
   }
@@ -337,28 +306,29 @@ const fetchShipments = async () => {
 watch(
   () => props.isOpen,
   async (open) => {
-    if (open) {
-      await fetchShipments()
+    if (!open) return
+    loadingInitial.value = true
+    formData.value = defaultFormData()
+    selectedUser.value = null
+    userSearch.value = ''
+    shipments.value = []
+    selectedShipmentIds.value = []
+
+    try {
+      users.value = await invoiceStore.fetchUsersWithCod()
       await nextTick()
-      initDatePickers()
+      initDatePicker()
 
       if (props.initialData) {
+        // Edit mode — only metadata, shipments are locked
         formData.value = { ...props.initialData }
-        if (props.initialData.shipment_id) {
-          const shipment = shipments.value.find((s: any) => s.id === props.initialData.shipment_id)
-          if (shipment) {
-            selectedShipment.value = shipment
-            shipmentSearch.value = `${shipment.shipment_code} - ${shipment.description || 'No description'}`
-          }
+        selectedUser.value = props.initialData.user ?? null
+        if (selectedUser.value) {
+          userSearch.value = `${selectedUser.value.name} (${selectedUser.value.email})`
         }
-      } else {
-        formData.value = defaultFormData()
-        selectedShipment.value = null
-        shipmentSearch.value = ''
-        // Set default date
-        const today = new Date()
-        formData.value.date = today.toISOString().split('T')[0]
       }
+    } finally {
+      loadingInitial.value = false
     }
   },
   { immediate: true }
@@ -366,38 +336,34 @@ watch(
 
 const close = () => {
   saving.value = false
-  formData.value = defaultFormData()
-  selectedShipment.value = null
-  shipmentSearch.value = ''
-  showShipmentDropdown.value = false
   emit('close')
 }
 
 const handleSave = () => {
-  if (!formData.value.shipment_id) {
-    alert('Please select a shipment')
-    return
-  }
-  if (!formData.value.date) {
-    alert('Please select a date')
-    return
-  }
-  if (!formData.value.amount_due || formData.value.amount_due <= 0) {
-    alert('Please enter a valid amount due')
-    return
-  }
+  if (saving.value) return
 
-  // Ensure COD = Amount Due
-  formData.value.cod = formData.value.amount_due
-  formData.value.output_tax = 0
+  if (!formData.value.id) {
+    if (!formData.value.user_id) return alert('Please select a customer')
+    if (!selectedShipmentIds.value.length) return alert('Please select at least one shipment')
+  }
+  if (!formData.value.date) return alert('Please select a date')
 
   saving.value = true
-  emit('save', formData.value)
+
+  if (formData.value.id) {
+    // Edit: just metadata
+    emit('save', { ...formData.value })
+  } else {
+    emit('save', {
+      ...formData.value,
+      amount_due: computedSubtotal.value,
+      cod: computedSubtotal.value,
+      shipment_ids: [...selectedShipmentIds.value],
+    })
+  }
 }
 
 onBeforeUnmount(() => {
-  Object.values(flatpickrInstances).forEach(inst => {
-    if (inst) inst.destroy()
-  })
+  Object.values(flatpickrInstances).forEach((i: any) => i?.destroy())
 })
 </script>

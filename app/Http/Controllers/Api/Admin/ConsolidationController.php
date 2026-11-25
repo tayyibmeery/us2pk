@@ -17,11 +17,7 @@ class ConsolidationController extends Controller
         $query = Consolidation::with([
             'warehouse',
             'shipments' => function ($query) {
-                $query->with([
-                    'user',
-                    'user.city',
-                    'localCourier'
-                ]);
+                $query->with(['user', 'user.city', 'localCourier']);
             },
             'internationalCourier'
         ]);
@@ -52,12 +48,10 @@ class ConsolidationController extends Controller
             'shipment_ids.*'           => 'exists:shipments,id',
         ]);
 
-        // Auto-generate consol_id
         $last = Consolidation::orderBy('id', 'desc')->first();
         $next = $last ? intval(str_replace('Consol-', '', $last->consol_id)) + 1 : 1;
         $data['consol_id'] = 'Consol-' . $next;
 
-        // Ensure default values for numeric fields
         foreach (['ware_house_charges', 'customs_duty', 'sales_tax', 'income_tax', 'caa_charges'] as $field) {
             $data[$field] = $data[$field] ?? 0;
         }
@@ -66,34 +60,21 @@ class ConsolidationController extends Controller
 
         $consolidation = Consolidation::create($data);
 
-        // Attach shipments
         if ($request->has('shipment_ids')) {
             Shipment::whereIn('id', $request->shipment_ids)
                 ->update(['consolidation_id' => $consolidation->id]);
         }
 
-        // Recalculate totals
         $consolidation->recalculateTotals();
-
-        // Refresh to get stored columns
         $consolidation->refresh();
 
-        // Generate consolidation cost voucher
         $voucherService = new VoucherService();
         $voucherService->generateConsolidationCostVoucher($consolidation);
 
-        // ✅ Load relationships including user for ALL shipments
         $consolidation->load([
             'warehouse',
             'shipments' => function ($query) {
-                $query->with([
-                    'user',
-                    'user.city',
-                    'localCourier',
-                    'site',
-                    'shipmentStatus',
-                    'paymentMethod'
-                ]);
+                $query->with(['user', 'user.city', 'localCourier', 'site', 'shipmentStatus', 'paymentMethod']);
             },
             'internationalCourier'
         ]);
@@ -103,47 +84,16 @@ class ConsolidationController extends Controller
 
     public function show(Consolidation $consolidation)
     {
-        // ✅ Load ALL relationships with user data for ALL shipments
         $consolidation->load([
             'warehouse',
             'internationalCourier',
             'shipments' => function ($query) {
-                $query->with([
-                    'user',                    // Load user
-                    'user.city',               // Load user's city
-                    'localCourier',            // Load local courier
-                    'site',                    // Load site
-                    'shipmentStatus',          // Load status
-                    'paymentMethod'            // Load payment method
-                ]);
+                $query->with(['user', 'user.city', 'localCourier', 'site', 'shipmentStatus', 'paymentMethod']);
             }
         ]);
 
-        // Recalculate totals
         $consolidation->recalculateTotals();
-
-        // Refresh to get stored columns
         $consolidation->refresh();
-
-        // ✅ Log for debugging - check ALL shipments
-        $shipmentData = [];
-        foreach ($consolidation->shipments as $index => $shipment) {
-            $shipmentData[] = [
-                'index' => $index,
-                'shipment_code' => $shipment->shipment_code,
-                'user_id' => $shipment->user_id,
-                'has_user' => $shipment->user ? 'Yes' : 'No',
-                'user_name' => $shipment->user?->name ?? 'No user',
-                'user_city' => $shipment->user?->city?->city_name ?? 'No city',
-                'local_courier' => $shipment->localCourier?->name ?? 'No courier'
-            ];
-        }
-
-        Log::info('Consolidation show - All Shipments', [
-            'consolidation_id' => $consolidation->id,
-            'shipments_count' => $consolidation->shipments->count(),
-            'shipments' => $shipmentData
-        ]);
 
         return response()->json($consolidation);
     }
@@ -165,14 +115,12 @@ class ConsolidationController extends Controller
             'shipment_ids.*'           => 'exists:shipments,id',
         ]);
 
-        // Ensure default values for numeric fields
         foreach (['ware_house_charges', 'customs_duty', 'sales_tax', 'income_tax', 'caa_charges'] as $field) {
             $data[$field] = $data[$field] ?? 0;
         }
 
         $consolidation->update($data);
 
-        // Detach all shipments, then attach new ones
         Shipment::where('consolidation_id', $consolidation->id)
             ->update(['consolidation_id' => null]);
 
@@ -181,41 +129,18 @@ class ConsolidationController extends Controller
                 ->update(['consolidation_id' => $consolidation->id]);
         }
 
-        // Recalculate totals
         $consolidation->recalculateTotals();
-
-        // Refresh to get stored columns
         $consolidation->refresh();
 
-        // Update consolidation cost voucher (delete old, create new)
+        // ✅ Pass existing voucher to update it in place
         $voucherService = new VoucherService();
-
-        // Delete existing voucher
         $existingVoucher = $consolidation->voucher;
-        if ($existingVoucher) {
-            $existingVoucher->details()->delete();
-            $existingVoucher->delete();
-            Log::info('Deleted old consolidation voucher', [
-                'consolidation' => $consolidation->consol_id,
-                'voucher_no' => $existingVoucher->voucher_no
-            ]);
-        }
+        $voucherService->generateConsolidationCostVoucher($consolidation, $existingVoucher);
 
-        // Create new voucher
-        $voucherService->generateConsolidationCostVoucher($consolidation);
-
-        // ✅ Load relationships including user for ALL shipments
         $consolidation->load([
             'warehouse',
             'shipments' => function ($query) {
-                $query->with([
-                    'user',
-                    'user.city',
-                    'localCourier',
-                    'site',
-                    'shipmentStatus',
-                    'paymentMethod'
-                ]);
+                $query->with(['user', 'user.city', 'localCourier', 'site', 'shipmentStatus', 'paymentMethod']);
             },
             'internationalCourier'
         ]);
@@ -226,27 +151,16 @@ class ConsolidationController extends Controller
     public function destroy(Consolidation $consolidation)
     {
         try {
-            // Delete the consolidation voucher first
             $voucher = $consolidation->voucher;
             if ($voucher) {
                 $voucher->details()->delete();
                 $voucher->delete();
-                Log::info('Deleted consolidation voucher', [
-                    'consolidation' => $consolidation->consol_id,
-                    'voucher_no' => $voucher->voucher_no
-                ]);
             }
 
-            // Detach shipments
             Shipment::where('consolidation_id', $consolidation->id)
                 ->update(['consolidation_id' => null]);
 
-            // Delete consolidation
             $consolidation->delete();
-
-            Log::info('Consolidation deleted successfully', [
-                'consolidation' => $consolidation->consol_id
-            ]);
 
             return response()->json(['message' => 'Consolidation and associated voucher deleted successfully']);
         } catch (\Exception $e) {

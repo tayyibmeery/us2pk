@@ -41,6 +41,29 @@
         </div>
       </div>
 
+      <!-- ✅ Damaged / Refunded Banner -->
+      <div v-if="isDamaged"
+        class="mx-6 mt-6 rounded-xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4">
+        <div class="flex items-start gap-3">
+          <svg class="h-6 w-6 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-red-700 dark:text-red-400">
+              Shipment Damaged — Refund Issued
+            </p>
+            <p class="text-sm text-red-600 dark:text-red-400 mt-1">
+              We're sorry — this shipment was damaged in transit and could not be delivered.
+              Your advance payment of
+              <span class="font-semibold">PKR {{ formatCurrency(Math.abs(refundAmount)) }}</span>
+              has been refunded back to your original payment method.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Key Information Grid -->
       <div class="p-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <!-- Column 1 -->
@@ -48,7 +71,8 @@
           <div>
             <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Weight</p>
             <p class="font-medium text-gray-800 dark:text-white">{{ shipment.weight }}
-              {{ shipment.weight_unit || 'kg' }}</p>
+              {{ shipment.weight_unit || 'kg' }}
+            </p>
           </div>
           <div>
             <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Bought By</p>
@@ -59,7 +83,7 @@
         <!-- Column 2 -->
         <div class="space-y-4">
           <div>
-            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold"> Courier</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Courier</p>
             <p class="font-medium text-gray-800 dark:text-white">{{ shipment.local_courier?.name || 'N/A' }}</p>
           </div>
           <div>
@@ -77,10 +101,11 @@
       <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
         <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold mb-2">Description</p>
         <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
-          {{ shipment.description || 'No description provided.' }}</p>
+          {{ shipment.description || 'No description provided.' }}
+        </p>
       </div>
 
-      <!-- Images Gallery (only when images exist) -->
+      <!-- Images Gallery -->
       <div v-if="shipmentImages.length" class="p-6 border-t border-gray-200 dark:border-gray-700">
         <h3
           class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
@@ -100,37 +125,62 @@
         </div>
       </div>
 
-      <!-- Financial Summary -->
+      <!-- ✅ Financial Summary — adapts to damaged state -->
       <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">Financial
-          Summary</h3>
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">
+          Financial Summary
+        </h3>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <!-- Total Payable -->
           <div
             class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
             <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Payable</p>
-            <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ formatCurrency(shipment.total) }}</p>
+            <p v-if="isDamaged" class="text-2xl font-bold text-gray-400 line-through dark:text-gray-500">
+              {{ formatCurrency(shipment.total) }}
+            </p>
+            <p v-else class="text-2xl font-bold text-gray-800 dark:text-white">
+              {{ formatCurrency(shipment.total) }}
+            </p>
+            <p v-if="isDamaged" class="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+              Cancelled
+            </p>
           </div>
+
+          <!-- Paid Amount -->
           <div
             class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
             <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Paid Amount</p>
-            <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+            <p v-if="isDamaged" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">Refunded</p>
+            <p v-else class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {{ formatCurrency(shipment.received_amount) }}
             </p>
+            <p v-if="isDamaged && refundAmount > 0" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              PKR {{ formatCurrency(refundAmount) }} returned
+            </p>
           </div>
+
+          <!-- Payable Amount -->
           <div
             class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
             <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Payable Amount</p>
-            <p class="text-2xl font-bold"
+            <p v-if="isDamaged" class="text-2xl font-bold text-gray-400 dark:text-gray-500">
+              {{ formatCurrency(0) }}
+            </p>
+            <p v-else class="text-2xl font-bold"
               :class="(shipment.total - shipment.received_amount) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
               {{ formatCurrency(shipment.total - shipment.received_amount) }}
+            </p>
+            <p v-if="isDamaged" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              No balance due
             </p>
           </div>
         </div>
       </div>
 
-      <!-- Payment History Table -->
+      <!-- ✅ Payment History Table — now shows the refund -->
       <div class="p-6 border-t border-gray-200 dark:border-gray-700">
-        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">Payment History
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">
+          Payment History
         </h3>
 
         <div v-if="shipment.payments && shipment.payments.length" class="overflow-x-auto">
@@ -156,24 +206,42 @@
             </thead>
             <tbody>
               <tr v-for="payment in shipment.payments" :key="payment.id"
-                class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition"
+                :class="{ 'bg-red-50/50 dark:bg-red-900/10': Number(payment.amount) < 0 }">
                 <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ formatDate(payment.payment_date) }}</td>
-                <td class="px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">
-                  {{ formatCurrency(payment.amount) }}
+                <td class="px-4 py-3 text-right font-medium" :class="Number(payment.amount) < 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-gray-800 dark:text-white/90'">
+                  <template v-if="Number(payment.amount) < 0">
+                    - {{ formatCurrency(Math.abs(Number(payment.amount))) }}
+                  </template>
+                  <template v-else>
+                    {{ formatCurrency(payment.amount) }}
+                  </template>
                 </td>
                 <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ payment.payment_method || '—' }}</td>
                 <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ payment.reference_number || '—' }}</td>
                 <td class="px-4 py-3 max-w-xs truncate text-gray-600 dark:text-gray-400" :title="payment.notes">
-                  {{ payment.notes || '—' }}
+                  <span v-if="Number(payment.amount) < 0"
+                    class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {{ payment.notes || 'Refund' }}
+                  </span>
+                  <template v-else>{{ payment.notes || '—' }}</template>
                 </td>
               </tr>
             </tbody>
             <tfoot class="bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700">
               <tr>
-                <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">Total Paid
+                <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">
+                  Net Paid
                 </td>
-                <td class="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400">
-                  {{ formatCurrency(shipment.received_amount) }}
+                <td class="px-4 py-3 text-right font-semibold"
+                  :class="netPaid < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'">
+                  {{ formatCurrency(netPaid) }}
                 </td>
                 <td colspan="3"></td>
               </tr>
@@ -195,13 +263,13 @@
       </svg>
       <h3 class="mt-4 text-lg font-semibold text-gray-800 dark:text-white">Shipment Not Found</h3>
       <p class="text-sm text-gray-500 dark:text-gray-400">The shipment you're looking for doesn't exist.</p>
-      <router-link to="/user/my-shipments" class="inline-block mt-4 text-sm text-brand-500 hover:text-brand-600">Back to
-        Shipments</router-link>
+      <router-link to="/user/my-shipments" class="inline-block mt-4 text-sm text-brand-500 hover:text-brand-600">
+        Back to Shipments
+      </router-link>
     </div>
 
     <!-- Image Viewer Modal -->
-    <ImageModal v-if="showImageModal" :isOpen="showImageModal" :imageUrl="selectedImageUrl"
-      @close="closeImageViewer" />
+    <ImageModal v-if="showImageModal" :isOpen="showImageModal" :imageUrl="selectedImageUrl" @close="closeImageViewer" />
   </div>
 </template>
 
@@ -220,8 +288,27 @@ const shipment = ref<any>(null)
 const showImageModal = ref(false)
 const selectedImageUrl = ref('')
 
-// Computed list of images
 const shipmentImages = computed(() => shipment.value?.images || [])
+
+// ✅ Damaged state detection
+const isDamaged = computed(() =>
+  shipment.value?.shipment_status?.name === 'Damaged - Returned'
+)
+
+// ✅ Sum of negative payment amounts (the refund)
+const refundAmount = computed(() => {
+  if (!shipment.value?.payments) return 0
+  return shipment.value.payments
+    .filter((p: any) => Number(p.amount) < 0)
+    .reduce((sum: number, p: any) => sum + Math.abs(Number(p.amount)), 0)
+})
+
+// ✅ Net paid = sum of all payments (positive + negative)
+const netPaid = computed(() => {
+  if (!shipment.value?.payments) return 0
+  return shipment.value.payments
+    .reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+})
 
 const formatDate = (date: string) => {
   if (!date) return 'N/A'
@@ -240,10 +327,6 @@ const formatCurrency = (value: number) => {
   }).format(value || 0)
 }
 
-/**
- * Builds the full URL for an image path.
- * Mirrors the admin-side logic.
- */
 function getImageUrl(path: string) {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://')) return path

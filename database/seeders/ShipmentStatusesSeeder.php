@@ -17,7 +17,10 @@ class ShipmentStatusesSeeder extends Seeder
             'Custom Office at Lahore Airport',
             'Reached Lahore Company Office',
             'Out for Delivery',
-            'Delivered'
+            'Delivered',
+            // ✅ Damaged / Return flow
+            'Damaged - Returned',         // ← main status that triggers the write-off
+            'Damaged - Awaiting Return',  // optional intermediate state
         ];
         foreach ($statuses as $name) {
             ShipmentStatus::firstOrCreate(['name' => $name]);

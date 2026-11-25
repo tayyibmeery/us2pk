@@ -121,11 +121,16 @@
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             :disabled="statusesLoading" required>
             <option value="">Select status</option>
-            <option v-for="status in statuses" :key="status.id" :value="status.id">
-              {{ status.name }}
+            <option v-for="status in statuses" :key="status.id" :value="status.id"
+              :disabled="status.name === 'Delivered' && isDeliveredBlocked">
+              {{ status.name }}<template v-if="status.name === 'Delivered' && isDeliveredBlocked"> — consolidation not
+                yet reached</template>
             </option>
           </select>
           <p v-if="statusesLoading" class="text-xs text-gray-400 mt-1">Loading statuses...</p>
+          <p v-if="isDeliveredBlocked" class="text-xs text-amber-500 mt-1">
+            Cannot mark as Delivered until the consolidation reaches its destination.
+          </p>
         </div>
 
         <!-- Hidden status field for creation - auto-set based on bought_by -->
@@ -151,7 +156,7 @@
           </div>
         </div>
 
-        <!-- Bought By (formerly Paid By) -->
+        <!-- Bought By -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Bought By <span class="text-red-500">*</span>
@@ -195,7 +200,7 @@
             class="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2.5 text-sm text-gray-600 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400" />
         </div>
 
-        <!-- Received Amount - NOW READ-ONLY ON EDIT -->
+        <!-- Received Amount - READ-ONLY ON EDIT -->
         <div>
           <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
             Received Amount (PKR)
@@ -359,9 +364,30 @@ const statusesLoading = ref(false)
 const localCouriers = ref<any[]>([])
 const localCouriersLoading = ref(false)
 
-// ---- Date picker: single instance, lifecycle tied to the ref itself ----
-// This avoids racing against nextTick() timing through the
-// ShipmentFormModal -> FormModal -> Modal (Teleport, v-if) chain.
+// ─── Consolidation guard for Delivered status ─────────────────────
+const consolidationDateReached = ref<string | null>(null)
+
+const isDeliveredBlocked = computed(() => {
+  if (!consolidationDateReached.value) return false
+  const reached = new Date(consolidationDateReached.value)
+  reached.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return today < reached
+})
+
+async function fetchConsolidationDateReached(consolidationId: number) {
+  try {
+    const res = await api.get(`/admin/consolidations/${consolidationId}`)
+    consolidationDateReached.value = res.data?.date_reached || null
+  } catch (e) {
+    console.warn('Failed to fetch consolidation date_reached', e)
+    consolidationDateReached.value = null
+  }
+}
+// ─────────────────────────────────────────────────────────────────
+
+// ---- Date picker ----
 const expectedDeliveryDateInput = ref<HTMLInputElement | null>(null)
 let flatpickrInstance: any = null
 
@@ -493,6 +519,7 @@ const resetForm = () => {
   newImagePreviews.value = []
   userSearch.value = ''
   showUserDropdown.value = false
+  consolidationDateReached.value = null
 }
 
 const onUserSearch = () => {
@@ -692,6 +719,13 @@ watch(() => props.initialData, (newVal) => {
     newImages.value = []
     newImagePreviews.value = []
     imagesToDelete.value = []
+
+    // Fetch consolidation's date_reached to guard the Delivered status
+    if ((newVal as any).consolidation_id) {
+      fetchConsolidationDateReached((newVal as any).consolidation_id)
+    } else {
+      consolidationDateReached.value = null
+    }
 
     nextTick(() => {
       syncDatePickerValue()

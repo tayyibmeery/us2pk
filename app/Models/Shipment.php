@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Services\VoucherService;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Shipment extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'shipment_code',
         'user_id',
@@ -75,15 +78,33 @@ class Shipment extends Model
 
     public function paymentMethod()
     {
-        return $this->belongsTo(PaymentMethod::class);
+        return $this->belongsTo(PaymentMethod::class, 'payment_method_id');
+    }
+
+    // ✅ Alias for frontend (snake_case)
+    public function payment_method()
+    {
+        return $this->belongsTo(PaymentMethod::class, 'payment_method_id');
     }
 
     public function shipmentStatus()
     {
-        return $this->belongsTo(ShipmentStatus::class);
+        return $this->belongsTo(ShipmentStatus::class, 'shipment_status_id');
+    }
+
+    // ✅ Alias for eager loading (fixes your 500 error)
+    public function shipment_status()
+    {
+        return $this->belongsTo(ShipmentStatus::class, 'shipment_status_id');
     }
 
     public function localCourier()
+    {
+        return $this->belongsTo(LocalCourier::class, 'local_courier_id');
+    }
+
+    // ✅ Alias for frontend (snake_case)
+    public function local_courier()
     {
         return $this->belongsTo(LocalCourier::class, 'local_courier_id');
     }
@@ -103,11 +124,23 @@ class Shipment extends Model
         return $this->hasOne(Debtor::class);
     }
 
+    public function invoices(): BelongsToMany
+    {
+        return $this->belongsToMany(Invoice::class, 'invoice_shipments')
+            ->withPivot(['amount', 'cod'])
+            ->withTimestamps();
+    }
+
+    public function isDamaged(): bool
+    {
+        $statusName = $this->shipmentStatus?->name;
+        return $statusName && strcasecmp($statusName, 'Damaged - Returned') === 0;
+    }
+
     protected static function booted()
     {
         static::creating(function ($shipment) {
             $shipment->shipment_code = 'TEMP-' . uniqid();
-
             $total = $shipment->item_value_pkr + $shipment->company_charges;
             $received = $shipment->received_amount ?? 0;
             $shipment->receivable_cod = max(0, $total - $received);
@@ -117,19 +150,8 @@ class Shipment extends Model
         static::created(function ($shipment) {
             $shipment->shipment_code = 'SH-' . $shipment->id;
             $shipment->saveQuietly();
-
-            // Auto-create debtor for customer shipments
             $shipment->syncDebtor();
-
-            // Auto-create vouchers for shipment
-            $voucherService = new VoucherService();
-            $vouchers = $voucherService->syncShipmentVouchers($shipment);
-
-            Log::info('Shipment created - Vouchers generated', [
-                'shipment_id' => $shipment->id,
-                'voucher_count' => count($vouchers),
-                'received_amount' => $shipment->received_amount
-            ]);
+            (new VoucherService())->syncShipmentVouchers($shipment);
         });
 
         static::updating(function ($shipment) {
@@ -142,118 +164,79 @@ class Shipment extends Model
         });
 
         static::updated(function ($shipment) {
-            // Update debtor when shipment is updated
             $shipment->syncDebtor();
-
-            // Update vouchers when shipment is updated
-            $voucherService = new VoucherService();
-            $voucherService->syncShipmentVouchers($shipment);
         });
     }
 
-    /**
-     * Recalculate receivable_cod and amount_due based on current payments
-     * This should be called whenever payments change
-     */
     public function recalculateReceivable(): void
     {
+        if ($this->isDamaged()) {
+            $this->receivable_cod = 0;
+            $this->amount_due = 0;
+            $this->saveQuietly();
+            Debtor::where('shipment_id', $this->id)->delete();
+            return;
+        }
+
         $total = ($this->item_value_pkr ?? 0) + ($this->company_charges ?? 0);
-        $received = $this->received_amount ?? 0;
-
-        // Receivable COD = Total - Received Amount (but not less than 0)
-        $this->receivable_cod = max(0, $total - $received);
-
-        // Amount due = Total - Received Amount (for By Customer)
+        $advance = $this->payments()->where('payment_method', '!=', 'Cash on Delivery')->sum('amount') ?? 0;
+        $codRemitted = $this->payments()->where('payment_method', 'Cash on Delivery')->sum('amount') ?? 0;
+        $courierFee = $this->delivery_charges ?? 0;
+        $grossCod = max(0, $total - $advance);
+        $this->receivable_cod = max(0, $grossCod - $courierFee - $codRemitted);
         $this->amount_due = $this->bought_by === 'By Customer' ? $this->receivable_cod : 0;
-
         $this->saveQuietly();
-
-        Log::info('Shipment receivable recalculated', [
-            'shipment' => $this->shipment_code,
-            'total' => $total,
-            'received' => $received,
-            'receivable_cod' => $this->receivable_cod,
-            'amount_due' => $this->amount_due
-        ]);
-
-        // Update debtor
         $this->syncDebtor();
     }
 
-    /**
-     * Sync the debtor record for this shipment
-     */
     public function syncDebtor(): void
     {
+        if ($this->isDamaged()) {
+            Debtor::where('shipment_id', $this->id)->delete();
+            return;
+        }
+
         $totalPayable = ($this->item_value_pkr ?? 0) + ($this->company_charges ?? 0);
-        $received = $this->received_amount ?? 0;
+        $advance = $this->payments()->where('payment_method', '!=', 'Cash on Delivery')->sum('amount') ?? 0;
         $courierCharges = $this->delivery_charges ?? 0;
         $receivableCod = $this->receivable_cod ?? 0;
+        $grossCod = max(0, $totalPayable - $advance);
+        $netReceivable = max(0, $grossCod - $courierCharges);
 
-        // Calculate gross COD (amount customer owes)
-        $grossCod = max(0, $totalPayable - $received);
-
-        // Calculate net receivable (after courier deduction)
-        $netReceivable = max(0, $receivableCod - $courierCharges);
-
-        // Only create debtor if bought_by is 'By Customer' and grossCod > 0
-        if ($this->bought_by === 'By Customer' && $grossCod > 0) {
+        if ($this->bought_by === 'By Customer' && $netReceivable > 0) {
             $invoiceNo = 'INV-' . $this->shipment_code;
-
             $debtor = Debtor::where('shipment_id', $this->id)->first();
-
-            if ($debtor) {
-                $debtor->update([
-                    'invoice_no' => $invoiceNo,
-                    'user_id' => $this->user_id,
-                    'total_payable' => $totalPayable,
-                    'cod' => $grossCod,
-                    'receivable_cod' => $netReceivable,
-                    'amount_due' => $netReceivable,
-                    'amount_received' => $received,
-                    'courier_deduction' => $courierCharges,
-                    'net_receivable' => $netReceivable,
-                    'balance' => $netReceivable,
-                    'last_payment_date' => now(),
-                ]);
-            } else {
-                Debtor::create([
-                    'invoice_no' => $invoiceNo,
-                    'shipment_id' => $this->id,
-                    'user_id' => $this->user_id,
-                    'total_payable' => $totalPayable,
-                    'cod' => $grossCod,
-                    'receivable_cod' => $netReceivable,
-                    'amount_due' => $netReceivable,
-                    'amount_received' => $received,
-                    'courier_deduction' => $courierCharges,
-                    'net_receivable' => $netReceivable,
-                    'balance' => $netReceivable,
-                    'last_payment_date' => now(),
-                ]);
-            }
-
-            Log::info('Debtor synced', [
-                'shipment' => $this->shipment_code,
-                'gross_cod' => $grossCod,
-                'courier_charges' => $courierCharges,
+            $data = [
+                'invoice_no' => $invoiceNo,
+                'user_id' => $this->user_id,
+                'total_payable' => $totalPayable,
+                'cod' => $grossCod,
+                'receivable_cod' => $netReceivable,
+                'amount_due' => $netReceivable,
+                'amount_received' => $advance,
+                'courier_deduction' => $courierCharges,
                 'net_receivable' => $netReceivable,
-                'balance' => $netReceivable
-            ]);
+                'balance' => $netReceivable,
+                'last_payment_date' => now(),
+            ];
+            if ($debtor) {
+                $debtor->update($data);
+            } else {
+                $data['shipment_id'] = $this->id;
+                Debtor::create($data);
+            }
         } else {
-            // If shipment is fully paid or paid by company, delete the debtor
             Debtor::where('shipment_id', $this->id)->delete();
         }
     }
 
     public function recalcReceivedAmount(): void
     {
-        $this->received_amount = $this->payments()->sum('amount') ?? 0;
+        $this->received_amount = $this->payments()
+            ->where('payment_method', '!=', 'Cash on Delivery')
+            ->sum('amount') ?? 0;
         $this->saveQuietly();
-
-        // Recalculate receivable_cod and amount_due
         $this->recalculateReceivable();
-
         if ($this->consolidation_id) {
             $this->consolidation->recalculateTotals();
         }

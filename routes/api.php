@@ -155,6 +155,9 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::post('/shipments/{shipment}/status', [ShipmentController::class, 'updateStatus']);
     Route::apiResource('shipments', ShipmentController::class);
 
+    Route::post('/shipments/{id}/restore', [ShipmentController::class, 'restore']);
+    Route::get('/shipments/generate-shipment-code', [ShipmentController::class, 'generateShipmentCode']);
+
     // Shipment Payments
     Route::prefix('shipments/{shipment}')->group(function () {
         Route::get('payments', [ShipmentPaymentController::class, 'index']);
@@ -194,6 +197,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // ============================================================
     Route::apiResource('vouchers', VoucherController::class);
     Route::post('vouchers/{voucher}/approve', [VoucherController::class, 'approve']);
+    Route::post('vouchers/{id}/restore', [VoucherController::class, 'restore']);
     Route::get('/vouchers/by-number/{voucher_no}', [VoucherController::class, 'showByNumber']);
 
     // ============================================================
@@ -219,6 +223,15 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // ============================================================
     // FINANCIAL - INVOICES
     // ============================================================
+
+    // ✅ Helper routes — kept OUTSIDE the `invoices` prefix so URLs are:
+    //    api/admin/invoice-users
+    //    api/admin/users/{user}/cod-shipments
+    //    api/admin/shipments/{shipment}/invoice
+    Route::get('invoice-users',                    [InvoiceController::class, 'users']);
+    Route::get('users/{user}/cod-shipments',       [InvoiceController::class, 'userCodShipments']);
+    Route::post('shipments/{shipment}/invoice',    [InvoiceController::class, 'storeFromShipment']);
+
     Route::prefix('invoices')->group(function () {
         Route::get('/', [InvoiceController::class, 'index']);
         Route::get('/stats', [InvoiceController::class, 'stats']);
@@ -229,6 +242,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
         Route::put('/{invoice}', [InvoiceController::class, 'update']);
         Route::delete('/{invoice}', [InvoiceController::class, 'destroy']);
         Route::post('/{invoice}/mark-as-paid', [InvoiceController::class, 'markAsPaid']);
+        Route::post('/{invoice}/cancel', [InvoiceController::class, 'cancel']);
     });
 
     // ============================================================
@@ -344,7 +358,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
         Route::get('/', [BlogPostController::class, 'index']);
         Route::post('/', [BlogPostController::class, 'store']);
         Route::get('/{blogPost}', [BlogPostController::class, 'show']);
-        Route::put('/{blogPost}', [BlogPostController::class, 'update']); // <-- CHANGED FROM POST TO PUT
+        Route::put('/{blogPost}', [BlogPostController::class, 'update']);
         Route::delete('/{blogPost}', [BlogPostController::class, 'destroy']);
         Route::post('/bulk-status', [BlogPostController::class, 'bulkStatus']);
         Route::delete('/bulk-delete', [BlogPostController::class, 'bulkDelete']);

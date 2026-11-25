@@ -9,6 +9,7 @@ export interface ShipmentPayment {
   payment_method: string | null;
   reference_number: string | null;
   notes: string | null;
+  actual_courier_charges?: number; // ✅ Add this line
   created_at?: string;
   updated_at?: string;
 }

@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ShipmentPayment extends Model
 {
     use HasFactory;
+    use SoftDeletes; // ✅ ADD
 
     protected $fillable = [
         'shipment_id',
@@ -39,30 +41,5 @@ class ShipmentPayment extends Model
     /**
      * Boot the model
      */
-    protected static function booted()
-    {
-        // When a payment is deleted, also delete its voucher
-        static::deleting(function ($payment) {
-            // Find and delete the associated voucher
-            $voucher = Voucher::where('reference_type', 'payment')
-                ->where('reference_id', $payment->id)
-                ->first();
 
-            if (!$voucher) {
-                // Try to find advance payment voucher for the shipment
-                $voucher = Voucher::where('reference_type', 'shipment_advance')
-                    ->where('reference_id', $payment->shipment_id)
-                    ->first();
-            }
-
-            if ($voucher) {
-                $voucher->details()->delete();
-                $voucher->delete();
-                \Illuminate\Support\Facades\Log::info('Payment voucher deleted automatically', [
-                    'payment_id' => $payment->id,
-                    'voucher_no' => $voucher->voucher_no
-                ]);
-            }
-        });
-    }
 }
