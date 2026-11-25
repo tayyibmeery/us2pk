@@ -21,6 +21,11 @@
 /storage/*.key
 /storage/pail
 /vendor
+# Laravel generated cache files
+/bootstrap/cache/*.php
+
+# Compiled Blade views
+/storage/framework/views/*.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
