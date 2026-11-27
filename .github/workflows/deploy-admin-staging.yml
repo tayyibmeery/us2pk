@@ -144,7 +144,7 @@ jobs:
             "$DEPLOY_USER@$DEPLOY_HOST" "cd '$DEPLOY_PATH' && \
               mkdir -p backend/storage/app/public backend/storage/framework/cache/data \
                 backend/storage/framework/sessions backend/storage/framework/views backend/storage/logs && \
-              chmod -R 775 backend/storage bootstrap/cache && \
+              chmod -R 775 backend/storage backend/bootstrap/cache && \
               if [ ! -e storage ]; then ln -s backend/storage/app/public storage; fi && \
               if [ -f backend/.env ]; then (cd backend && php artisan optimize:clear); \
               else echo 'WARNING: backend/.env is missing'; fi && \
