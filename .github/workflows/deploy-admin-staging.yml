@@ -46,8 +46,8 @@ jobs:
         working-directory: frontend
         env:
           VITE_API_URL: https://staging.us2pk.com/api
-VITE_API_BASE_URL: https://staging.us2pk.com/api
-VITE_BASE_URL: https://staging.us2pk.com
+          VITE_API_BASE_URL: https://staging.us2pk.com/api
+          VITE_BASE_URL: https://staging.us2pk.com
         run: npm run build
 
       - name: Assemble deployment
