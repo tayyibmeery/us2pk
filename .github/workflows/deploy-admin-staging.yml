@@ -2,11 +2,7 @@ name: Deploy US2PK Admin (Staging)
 
 on:
   push:
-    branches:
-      - testing
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-admin-staging.yml'
+    branches: [testing]
   workflow_dispatch:
 
 permissions:
@@ -19,80 +15,112 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout testing branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          extensions: mbstring, bcmath, ctype, fileinfo, openssl, pdo_mysql, tokenizer, xml, curl, zip, gd
+
+      - name: Install Laravel dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install frontend dependencies
+      - name: Install Vue dependencies
         working-directory: frontend
         run: npm ci --legacy-peer-deps
 
-      - name: Build Vue application for staging
+      - name: Build Vue for staging
         working-directory: frontend
         env:
-          VITE_API_URL: https://api-staging.us2pk.com/api
-          VITE_API_BASE_URL: https://api-staging.us2pk.com/api
+          VITE_API_URL: https://admin.us2pk.com/api
+          VITE_API_BASE_URL: https://admin.us2pk.com/api
           VITE_BASE_URL: https://admin.us2pk.com
         run: npm run build
 
-      - name: Configure SPA routing
+      - name: Assemble deployment
         run: |
-          cat > frontend/dist/.htaccess <<'EOF'
+          set -euo pipefail
+          rm -rf deploy-package
+          mkdir -p deploy-package/backend
+
+          for item in app bootstrap config database resources routes vendor artisan composer.json composer.lock; do
+            cp -a "$item" deploy-package/backend/
+          done
+          if [ -d lang ]; then cp -a lang deploy-package/backend/; fi
+
+          mkdir -p deploy-package/backend/storage/app/public
+          mkdir -p deploy-package/backend/storage/framework/cache/data
+          mkdir -p deploy-package/backend/storage/framework/sessions
+          mkdir -p deploy-package/backend/storage/framework/views
+          mkdir -p deploy-package/backend/storage/logs
+
+          cp -a frontend/dist/. deploy-package/
+
+          cat > deploy-package/index.php <<'PHP'
+          <?php
+          use Illuminate\Foundation\Application;
+          use Illuminate\Http\Request;
+
+          define('LARAVEL_START', microtime(true));
+          if (file_exists($maintenance = __DIR__.'/backend/storage/framework/maintenance.php')) {
+              require $maintenance;
+          }
+          require __DIR__.'/backend/vendor/autoload.php';
+          /** @var Application $app */
+          $app = require_once __DIR__.'/backend/bootstrap/app.php';
+          $app->handleRequest(Request::capture());
+          PHP
+
+          cat > deploy-package/backend/.htaccess <<'HTACCESS'
+          Require all denied
+          HTACCESS
+
+          cat > deploy-package/.htaccess <<'HTACCESS'
           <IfModule mod_rewrite.c>
               RewriteEngine On
-              RewriteBase /
-
+              RewriteRule ^backend(/|$) - [F,L,NC]
+              RewriteRule (^|/)\.env(\.|$) - [F,L,NC]
+              RewriteRule (^|/)\.git(/|$) - [F,L,NC]
               RewriteCond %{REQUEST_FILENAME} -f [OR]
               RewriteCond %{REQUEST_FILENAME} -d
               RewriteRule ^ - [L]
-
-              RewriteRule ^ index.html [L]
+              RewriteRule ^ index.php [L]
           </IfModule>
-          EOF
+          HTACCESS
 
-      - name: Configure and verify SSH
+          tar -czf staging-deploy.tar.gz -C deploy-package .
+
+      - name: Configure SSH
         env:
           DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
           DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.STAGING_DEPLOY_PORT }}
         run: |
           set -euo pipefail
-
           test -n "$DEPLOY_KEY"
-          test -n "$DEPLOY_HOST"
-          test -n "$DEPLOY_PORT"
-
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-
           printf '%s' "$DEPLOY_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-
-          # Validate that the GitHub secret contains a readable, unencrypted private key.
           ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
-
-          # Pin the server host key to the ED25519 fingerprint verified from your first SSH login.
           ssh-keyscan -p "$DEPLOY_PORT" -t ed25519 "$DEPLOY_HOST" > ~/.ssh/host_key
-          ACTUAL_FINGERPRINT="$(ssh-keygen -lf ~/.ssh/host_key -E sha256 | awk '{print $2}')"
-          EXPECTED_FINGERPRINT="SHA256:IGS0nyTffpkVPw2du2olO/I1YGt11FsmRK2IMJJGUwM"
-
-          test "$ACTUAL_FINGERPRINT" = "$EXPECTED_FINGERPRINT" || {
-            echo "SSH host fingerprint did not match the verified GoDaddy host."
-            exit 1
-          }
-
+          ACTUAL="$(ssh-keygen -lf ~/.ssh/host_key -E sha256 | awk '{print $2}')"
+          EXPECTED="SHA256:IGS0nyTffpkVPw2du2olO/I1YGt11FsmRK2IMJJGUwM"
+          test "$ACTUAL" = "$EXPECTED"
           cat ~/.ssh/host_key >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy Vue build to admin.us2pk.com
+      - name: Deploy Laravel and Vue
         env:
           DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
@@ -100,31 +128,25 @@ jobs:
           DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
         run: |
           set -euo pipefail
-
           test -n "$DEPLOY_USER"
           test -n "$DEPLOY_PATH"
 
-          ssh -i ~/.ssh/deploy_key \
-            -p "$DEPLOY_PORT" \
-            -o IdentitiesOnly=yes \
-            -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            "mkdir -p '$DEPLOY_PATH'"
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p '$DEPLOY_PATH'"
 
-          tar -czf - -C frontend/dist . | \
-            ssh -i ~/.ssh/deploy_key \
-              -p "$DEPLOY_PORT" \
-              -o IdentitiesOnly=yes \
-              -o BatchMode=yes \
-              -o StrictHostKeyChecking=yes \
-              "$DEPLOY_USER@$DEPLOY_HOST" \
-              "tar -xzf - -C '$DEPLOY_PATH'"
+          cat staging-deploy.tar.gz | ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "tar -xzf - -C '$DEPLOY_PATH'"
 
-          ssh -i ~/.ssh/deploy_key \
-            -p "$DEPLOY_PORT" \
-            -o IdentitiesOnly=yes \
-            -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            "test -s '$DEPLOY_PATH/index.html' && echo 'Staging frontend deployed successfully.'"
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "cd '$DEPLOY_PATH' && \
+              mkdir -p backend/storage/app/public backend/storage/framework/cache/data \
+                backend/storage/framework/sessions backend/storage/framework/views backend/storage/logs && \
+              chmod -R 775 backend/storage bootstrap/cache && \
+              if [ ! -e storage ]; then ln -s backend/storage/app/public storage; fi && \
+              if [ -f backend/.env ]; then (cd backend && php artisan optimize:clear); \
+              else echo 'WARNING: backend/.env is missing'; fi && \
+              test -s index.html && test -s index.php && test -s backend/artisan && \
+              echo 'Staging backend and frontend deployed.'"
