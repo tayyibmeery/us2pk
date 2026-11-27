@@ -1,0 +1,130 @@
+name: Deploy US2PK Admin (Staging)
+
+on:
+  push:
+    branches:
+      - testing
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-admin-staging.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: us2pk-admin-staging
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout testing branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps
+
+      - name: Build Vue application for staging
+        working-directory: frontend
+        env:
+          VITE_API_URL: https://api-staging.us2pk.com/api
+          VITE_API_BASE_URL: https://api-staging.us2pk.com/api
+          VITE_BASE_URL: https://admin.us2pk.com
+        run: npm run build
+
+      - name: Configure SPA routing
+        run: |
+          cat > frontend/dist/.htaccess <<'EOF'
+          <IfModule mod_rewrite.c>
+              RewriteEngine On
+              RewriteBase /
+
+              RewriteCond %{REQUEST_FILENAME} -f [OR]
+              RewriteCond %{REQUEST_FILENAME} -d
+              RewriteRule ^ - [L]
+
+              RewriteRule ^ index.html [L]
+          </IfModule>
+          EOF
+
+      - name: Configure and verify SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.STAGING_DEPLOY_KEY }}
+          DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.STAGING_DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+
+          test -n "$DEPLOY_KEY"
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_PORT"
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s' "$DEPLOY_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Validate that the GitHub secret contains a readable, unencrypted private key.
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
+
+          # Pin the server host key to the ED25519 fingerprint verified from your first SSH login.
+          ssh-keyscan -p "$DEPLOY_PORT" -t ed25519 "$DEPLOY_HOST" > ~/.ssh/host_key
+          ACTUAL_FINGERPRINT="$(ssh-keygen -lf ~/.ssh/host_key -E sha256 | awk '{print $2}')"
+          EXPECTED_FINGERPRINT="SHA256:IGS0nyTffpkVPw2du2olO/I1YGt11FsmRK2IMJJGUwM"
+
+          test "$ACTUAL_FINGERPRINT" = "$EXPECTED_FINGERPRINT" || {
+            echo "SSH host fingerprint did not match the verified GoDaddy host."
+            exit 1
+          }
+
+          cat ~/.ssh/host_key >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy Vue build to admin.us2pk.com
+        env:
+          DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.STAGING_DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ secrets.STAGING_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+
+          test -n "$DEPLOY_USER"
+          test -n "$DEPLOY_PATH"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "mkdir -p '$DEPLOY_PATH'"
+
+          tar -czf - -C frontend/dist . | \
+            ssh -i ~/.ssh/deploy_key \
+              -p "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes \
+              "$DEPLOY_USER@$DEPLOY_HOST" \
+              "tar -xzf - -C '$DEPLOY_PATH'"
+
+          ssh -i ~/.ssh/deploy_key \
+            -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "test -s '$DEPLOY_PATH/index.html' && echo 'Staging frontend deployed successfully.'"
