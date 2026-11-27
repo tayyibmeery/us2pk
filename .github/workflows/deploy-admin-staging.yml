@@ -45,9 +45,9 @@ jobs:
       - name: Build Vue for staging
         working-directory: frontend
         env:
-          VITE_API_URL: https://admin.us2pk.com/api
-          VITE_API_BASE_URL: https://admin.us2pk.com/api
-          VITE_BASE_URL: https://admin.us2pk.com
+          VITE_API_URL: https://staging.us2pk.com/api
+VITE_API_BASE_URL: https://staging.us2pk.com/api
+VITE_BASE_URL: https://staging.us2pk.com
         run: npm run build
 
       - name: Assemble deployment
@@ -123,7 +123,7 @@ jobs:
           cat ~/.ssh/host_key >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy Laravel and Vue
+      - name: Deploy Laravel and Vue to staging.us2pk.com
         env:
           DEPLOY_HOST: ${{ secrets.STAGING_DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.STAGING_DEPLOY_USER }}
