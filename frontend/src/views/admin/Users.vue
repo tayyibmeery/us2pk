@@ -22,7 +22,7 @@
 
       <!-- Address, truncated with hover tooltip -->
       <template #cell-address="{ item }">
-        <TruncateTooltip :text="item.address" :limit="14" class="text-gray-600 dark:text-gray-300" />
+      
       </template>
 
       <!-- Status column: badge + dropdown -->

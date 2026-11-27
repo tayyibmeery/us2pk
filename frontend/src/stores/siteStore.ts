@@ -39,6 +39,7 @@ export const useSiteStore = defineStore('site', {
     },
     async create(data: Partial<Site>) {
       this.loading = true;
+
       try {
         const res = await api.post('/admin/sites', data);
         this.items.unshift(res.data);

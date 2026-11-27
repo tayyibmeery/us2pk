@@ -104,8 +104,9 @@
             <DetailRow label="Date Reached" :value="formatDate(consolidation.date_reached)" last />
           </DetailCard>
 
+          <!-- Courier Receivable -->
           <DetailCard title="Courier Receivable" icon="wallet" tone="blue">
-            <DetailRow label="Gross COD Collected" :value="`PKR ${fmt(codTotal)}`" />
+            <DetailRow label="Gross COD Collected" :value="`PKR ${fmt(consolidation.total_cod_collected)}`" />
             <DetailRow label="Less: Local Delivery Charges" :value="`- PKR ${fmt(consolidation.courier_charges)}`"
               negative />
             <div class="flex justify-between items-center pt-3 mt-1 border-t border-gray-100 dark:border-gray-700/50">
@@ -116,15 +117,14 @@
               </span>
             </div>
           </DetailCard>
+
         </div>
 
         <!-- Right: Import Taxes -->
         <DetailCard title="Import Taxes Breakdown" icon="tax" tone="purple">
           <div class="grid grid-cols-2 gap-3">
             <TaxTile label="Customs Duty" :value="consolidation.customs_duty" />
-            <TaxTile label="Sales Tax" :value="consolidation.sales_tax" />
-            <TaxTile label="Income Tax" :value="consolidation.income_tax" />
-            <TaxTile label="CAA Charges" :value="consolidation.caa_charges" />
+            <TaxTile label="Other Charges" :value="otherChargesTotal" />
           </div>
           <div
             class="mt-4 flex items-center justify-between rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/30 px-4 py-3">
@@ -135,15 +135,14 @@
 
 
           <!-- Profitability Banner -->
-           <div>
-            <br><hr>
-          <div class="mt-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+          <div
+            class="mt-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400">Gross Income</p>
                 <p class="text-2xl font-bold mt-0.5"
                   :class="isPositive(consolidation.gross_income) ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'">
-                  PKR {{ fmt(consolidation.gross_income - consolidation.courier_charges) }}
+                  PKR {{ fmt(consolidation.gross_income) }}
                 </p>
               </div>
               <div class="h-10 w-px bg-gray-200 dark:bg-gray-700 hidden sm:block"></div>
@@ -169,8 +168,6 @@
                 </p>
               </div>
             </div>
-          </div>
-
           </div>
         </DetailCard>
       </div>
@@ -231,25 +228,33 @@
               <tr v-for="s in consolidation.shipments" :key="s.id"
                 class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                 <td class="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                  {{ s.shipment_code || '—' }}</td>
+                  {{ s.shipment_code || '—' }}
+                </td>
                 <td class="px-4 py-3 text-gray-700 dark:text-gray-200 whitespace-nowrap">{{ s.user?.name || '—' }}</td>
                 <td class="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {{ s.user?.city?.city_name || '—' }}</td>
+                  {{ s.user?.city?.city_name || '—' }}
+                </td>
                 <td class="px-4 py-3 max-w-[180px]">
                   <TruncateTooltip :text="s.description" :limit="24" />
                 </td>
                 <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                  {{ fmt(s.weight_kgs, 2) }}</td>
+                  {{ fmt(s.weight_kgs, 2) }}
+                </td>
                 <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                  {{ fmt(s.company_charges) }}</td>
+                  {{ fmt(s.company_charges) }}
+                </td>
                 <td class="px-4 py-3 text-right tabular-nums font-medium text-gray-800 dark:text-white/90">
-                  {{ fmt(s.receivable_cod) }}</td>
+                  {{ fmt(s.receivable_cod) }}
+                </td>
                 <td class="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                  {{ s.local_courier?.name || '—' }}</td>
+                  {{ s.local_courier?.name || '—' }}
+                </td>
                 <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                  {{ fmt(s.delivery_charges, 2) }}</td>
+                  {{ fmt(s.delivery_charges, 2) }}
+                </td>
                 <td class="px-4 py-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                  {{ fmt(s.output_tax, 2) }}</td>
+                  {{ fmt(s.output_tax, 2) }}
+                </td>
               </tr>
               <tr v-if="!consolidation.shipments?.length">
                 <td colspan="10" class="px-4 py-10 text-center text-sm text-gray-400">No shipments in this
@@ -295,6 +300,14 @@ const num = (v: any) => Number(v) || 0
 const fmt = (v: any, decimals = 0) =>
   decimals > 0 ? num(v).toFixed(decimals) : num(v).toLocaleString()
 const isPositive = (v: any) => num(v) >= 0
+
+// ✅ Merged Other Charges Calculation
+const otherChargesTotal = computed(() => {
+  return num(consolidation.value?.ware_house_charges) +
+    num(consolidation.value?.sales_tax) +
+    num(consolidation.value?.income_tax) +
+    num(consolidation.value?.caa_charges)
+})
 
 const codTotal = computed(() =>
   consolidation.value?.shipments?.reduce((sum: number, s: any) => sum + num(s.receivable_cod), 0) || 0

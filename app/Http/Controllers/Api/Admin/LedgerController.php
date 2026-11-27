@@ -7,6 +7,7 @@ use App\Models\Voucher;
 use App\Models\Account;
 use App\Models\VoucherDetail;
 use App\Models\Shipment;
+use App\Models\Consolidation;
 use Illuminate\Http\Request;
 
 class LedgerController extends Controller
@@ -17,7 +18,6 @@ class LedgerController extends Controller
         $fromDate = $request->from_date;
         $toDate = $request->to_date;
         $source = $request->source;
-        $perPage = $request->per_page ?? 20;
 
         // Get account details
         $account = null;
@@ -46,16 +46,24 @@ class LedgerController extends Controller
             $query->where('account_id', $accountId);
         }
 
-        // ✅ Get all details ordered by account, then by date
+        // Get all details ordered by account, then by voucher id
         $details = $query->orderBy('account_id')
             ->orderBy('voucher_id', 'asc')
             ->orderBy('id', 'asc')
             ->get();
 
-        // ✅ Group by account and calculate running balance per account
+        // Group by account and calculate running balance per account
         $groupedResults = [];
         $accountBalances = [];
-        $accountTotals = [];
+
+        // ✅ All reference types that should resolve to a shipment_code
+        $shipmentReferenceTypes = [
+            'shipment',
+            'shipment_revenue',
+            'shipment_courier',
+            'shipment_advance',
+            'shipment_cost',
+        ];
 
         foreach ($details as $detail) {
             $voucher = $detail->voucher;
@@ -67,9 +75,9 @@ class LedgerController extends Controller
             $accountName = $detail->account->name ?? 'N/A';
             $accountNature = $detail->account->nature ?? 'Debit';
 
-            // Get shipment code if reference is shipment
+            // ✅ Resolve shipment_code for all shipment-related reference types
             $shipmentCode = null;
-            if ($voucher->reference_type === 'shipment' && $voucher->reference_id) {
+            if (in_array($voucher->reference_type, $shipmentReferenceTypes, true) && $voucher->reference_id) {
                 $shipment = Shipment::find($voucher->reference_id);
                 if ($shipment) {
                     $shipmentCode = $shipment->shipment_code;
@@ -108,7 +116,9 @@ class LedgerController extends Controller
                 'debit' => $debit,
                 'credit' => $credit,
                 'balance' => round($accountBalances[$accountIdKey], 2),
-                'balance_type' => $accountBalances[$accountIdKey] >= 0 ? ($accountNature === 'Debit' ? 'Dr' : 'Cr') : ($accountNature === 'Debit' ? 'Cr' : 'Dr'),
+                'balance_type' => $accountBalances[$accountIdKey] >= 0
+                    ? ($accountNature === 'Debit' ? 'Dr' : 'Cr')
+                    : ($accountNature === 'Debit' ? 'Cr' : 'Dr'),
             ];
 
             // Update totals
@@ -123,7 +133,7 @@ class LedgerController extends Controller
             return strcmp($a['account_name'], $b['account_name']);
         });
 
-        // ✅ If a specific account is selected, return only that account's transactions
+        // If a specific account is selected, return only that account's transactions
         if ($accountId) {
             $accountData = $groupedResults[$accountId] ?? null;
             return response()->json([
@@ -145,7 +155,7 @@ class LedgerController extends Controller
             ]);
         }
 
-        // ✅ Return all accounts with their transactions
+        // Return all accounts with their transactions
         return response()->json([
             'accounts' => $accountsData,
             'pagination' => [

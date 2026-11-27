@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Shipment;
 use App\Models\User;
 use App\Models\PaymentMethod;
+use App\Models\ShipmentStatus;
+use App\Models\Debtor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\ShipmentPaymentHelper;
-
 use App\Services\VoucherService;
 
 class ShipmentController extends Controller
@@ -18,20 +21,21 @@ class ShipmentController extends Controller
 
     public function index(Request $request)
     {
-        $query = Shipment::with([
-            'user',
-            'consolidation',
-            'images',
-            'shipmentStatus',
-            'paymentMethod',
-            'localCourier',
-            'site',
-        ]);
+        $query = $request->has('trashed') && $request->trashed
+            ? Shipment::onlyTrashed()->with(['user', 'consolidation', 'images', 'shipmentStatus', 'paymentMethod', 'localCourier', 'site'])
+            : Shipment::with(['user', 'consolidation', 'images', 'shipmentStatus', 'paymentMethod', 'localCourier', 'site']);
 
         if ($request->search) {
-            $query->where(function ($q) use ($request) {
-                $q->where('shipment_code', 'like', "%{$request->search}%")
-                    ->orWhereHas('user', fn($q2) => $q2->where('name', 'like', "%{$request->search}%"));
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('shipment_code', 'like', "%{$searchTerm}%")
+                    ->orWhere('description', 'like', "%{$searchTerm}%")
+                    ->orWhere('comments', 'like', "%{$searchTerm}%")
+                    ->orWhere('seller_tracker_id', 'like', "%{$searchTerm}%")
+                    ->orWhereHas('user', function ($q2) use ($searchTerm) {
+                        $q2->where('name', 'like', "%{$searchTerm}%")
+                            ->orWhere('email', 'like', "%{$searchTerm}%");
+                    });
             });
         }
 
@@ -39,19 +43,28 @@ class ShipmentController extends Controller
             $query->where('shipment_status_id', $request->status);
         }
 
-        return response()->json($query->orderBy('created_at', 'desc')->paginate(20));
+        $sortBy    = $request->sort_by ?? 'created_at';
+        $sortOrder = $request->sort_order ?? 'desc';
+        $query->orderBy($sortBy, $sortOrder);
+
+        return response()->json($query->paginate(20));
     }
 
     public function show(Shipment $shipment)
     {
-        return response()->json($shipment->load([
+        $shipment->load([
             'user',
+            'shipment_status',
+            'local_courier',
+            'consolidation',
+            'payments',
             'images',
-            'shipmentStatus',
-            'paymentMethod',
-            'localCourier',
+            'payment_method',
             'site',
-        ]));
+            'invoices',
+        ]);
+
+        return response()->json($shipment);
     }
 
     public function store(Request $request)
@@ -67,13 +80,11 @@ class ShipmentController extends Controller
             'purchase_date'          => 'nullable|date',
             'comments'               => 'nullable|string',
             'shipment_status_id'     => 'nullable|exists:shipment_statuses,id',
-            // 'arrival_date'           => 'nullable|date',
             'expected_delivery_date' => 'nullable|date',
-            // 'date_delivered'         => 'nullable|date',
             'item_value_pkr'         => 'required|numeric',
             'company_charges'        => 'required|numeric',
             'received_amount'        => 'nullable|numeric|min:0',
-            'bought_by'                => 'required|in:By Company,By Customer',
+            'bought_by'              => 'required|in:By Company,By Customer',
             'payment_method_id'      => 'nullable|exists:payment_methods,id',
             'local_courier_id'       => 'nullable|exists:local_couriers,id',
             'delivery_charges'       => 'nullable|numeric',
@@ -87,11 +98,6 @@ class ShipmentController extends Controller
 
         $shipment = Shipment::create($validated);
 
-        // ✅ Generate vouchers using the new service
-        $voucherService = new VoucherService();
-        $voucherService->syncShipmentVouchers($shipment);
-
-        // Create initial payment
         if ($shipment->received_amount > 0) {
             $paymentDate = $validated['purchase_date'] ?? now()->toDateString();
             $paymentMethod = null;
@@ -99,17 +105,16 @@ class ShipmentController extends Controller
                 $method = PaymentMethod::find($validated['payment_method_id']);
                 $paymentMethod = $method ? $method->name : null;
             }
-
-            $shipment->payments()->create([
+            $payment = $shipment->payments()->create([
                 'amount'           => $shipment->received_amount,
                 'payment_date'     => $paymentDate,
                 'payment_method'   => $paymentMethod,
                 'reference_number' => null,
                 'notes'            => 'Initial payment',
             ]);
+            (new VoucherService())->generatePaymentVoucher($shipment, $payment);
         }
 
-        // Upload images
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('shipments', 'public');
@@ -126,6 +131,7 @@ class ShipmentController extends Controller
             'site',
         ]), 201);
     }
+
     public function update(Request $request, Shipment $shipment)
     {
         $validated = $request->validate([
@@ -138,26 +144,28 @@ class ShipmentController extends Controller
             'purchase_date'          => 'sometimes|date',
             'comments'               => 'sometimes|string',
             'shipment_status_id'     => 'sometimes|exists:shipment_statuses,id',
-            // 'arrival_date'           => 'sometimes|date',
             'expected_delivery_date' => 'sometimes|date',
-            // 'date_delivered'         => 'sometimes|date',
             'item_value_pkr'         => 'sometimes|numeric',
             'company_charges'        => 'sometimes|numeric',
             'received_amount'        => 'sometimes|numeric|min:0',
-            'bought_by'                => 'sometimes|in:By Company,By Customer',
+            'bought_by'              => 'sometimes|in:By Company,By Customer',
             'payment_method_id'      => 'sometimes|exists:payment_methods,id',
             'local_courier_id'       => 'sometimes|exists:local_couriers,id',
             'delivery_charges'       => 'sometimes|numeric',
         ]);
 
-
         if (isset($validated['weight']) && isset($validated['weight_unit'])) {
             $validated['weight_kgs'] = $this->convertToKg($validated['weight'], $validated['weight_unit']);
         }
 
+        $oldStatusId = $shipment->shipment_status_id;
+
         $shipment->update($validated);
 
-        // --- Sync initial payment when received_amount changes ---
+        if (isset($validated['shipment_status_id']) && $validated['shipment_status_id'] != $oldStatusId) {
+            $this->handleStatusTransition($shipment, $oldStatusId);
+        }
+
         if ($request->has('received_amount') && $shipment->wasChanged('received_amount')) {
             $payment = $shipment->payments()->where('notes', 'Initial payment')->first();
             if ($payment) {
@@ -174,12 +182,9 @@ class ShipmentController extends Controller
                     'notes'            => 'Initial payment',
                 ]);
             }
-
-            // ✅ Recalculate received_amount from payments
             $this->updateShipmentReceivedAmount($shipment);
         }
 
-        // --- Images ---
         if ($request->has('images_to_delete')) {
             $ids = $request->input('images_to_delete');
             if (is_array($ids)) {
@@ -194,13 +199,6 @@ class ShipmentController extends Controller
             }
         }
 
-        // $shipment->refresh();
-        // $shipment->load('voucher'); // explicitly load the morph relation
-        // $voucherService = new VoucherService();
-        // $voucherService->syncShipmentVoucher($shipment);
-        $this->syncShipmentVouchers($shipment);
-
-
         return response()->json($shipment->load([
             'user',
             'images',
@@ -211,30 +209,133 @@ class ShipmentController extends Controller
         ]));
     }
 
-    public function destroy(Shipment $shipment)
+    public function destroy(Request $request, Shipment $shipment)
     {
-        foreach ($shipment->images as $image) {
-            Storage::disk('public')->delete($image->image_path);
-        }
-        $shipment->images()->delete();
-        $shipment->delete();
+        $request->validate(['password' => 'required|string']);
 
-        return response()->json(['message' => 'Deleted']);
+        $adminPassword = env('ADMIN_DELETE_PASSWORD', 'admin123');
+        if ($request->password !== $adminPassword) {
+            return response()->json(['message' => 'Invalid admin password.'], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            $voucherService = new VoucherService();
+
+            if ($shipment->consolidation_id) {
+                $consolidation = $shipment->consolidation;
+                $shipment->consolidation_id = null;
+                $shipment->saveQuietly();
+                if ($consolidation) $consolidation->recalculateTotals();
+            }
+
+            $shipment->payments()->delete();
+            $voucherService->softDeleteShipmentVouchers($shipment);
+            Debtor::where('shipment_id', $shipment->id)->delete();
+            $shipment->delete();
+
+            DB::commit();
+            return response()->json(['message' => 'Shipment and all related records soft-deleted successfully.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Shipment soft-delete error: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to delete shipment: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function restore(Request $request, $id)
+    {
+        $request->validate(['password' => 'required|string']);
+
+        $adminPassword = env('ADMIN_DELETE_PASSWORD', 'admin123');
+        if ($request->password !== $adminPassword) {
+            return response()->json(['message' => 'Invalid admin password.'], 403);
+        }
+
+        $shipment = Shipment::onlyTrashed()->findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            $shipment->restore();
+            $shipment->payments()->onlyTrashed()->restore();
+            (new VoucherService())->restoreShipmentVouchers($shipment);
+            Debtor::onlyTrashed()->where('shipment_id', $shipment->id)->restore();
+
+            DB::commit();
+            return response()->json(['message' => 'Shipment and related records restored successfully.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Shipment restore error: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to restore shipment: ' . $e->getMessage()], 500);
+        }
     }
 
     public function updateStatus(Request $request, Shipment $shipment)
     {
         $request->validate([
-            'shipment_status_id' => 'required|exists:shipment_statuses,id'
+            'shipment_status_id' => 'required|exists:shipment_statuses,id',
         ]);
 
-        $shipment->shipment_status_id = $request->shipment_status_id;
+        $newStatus = ShipmentStatus::findOrFail($request->shipment_status_id);
+
+        if (strcasecmp($newStatus->name, 'Delivered') === 0) {
+            $shipment->load('consolidation');
+            $reached = $shipment->consolidation?->date_reached;
+            if ($reached && now()->toDateString() < $reached->toDateString()) {
+                return response()->json([
+                    'message' => "Cannot mark as Delivered before the consolidation's date reached ({$reached->toDateString()})",
+                ], 422);
+            }
+        }
+
+        $oldStatusId = $shipment->shipment_status_id;
+        $shipment->shipment_status_id = $newStatus->id;
         $shipment->save();
+
+        $this->handleStatusTransition($shipment, $oldStatusId);
 
         return response()->json([
             'message'  => 'Status updated',
-            'shipment' => $shipment->load('shipmentStatus'),
+            'shipment' => $shipment->fresh()->load('shipmentStatus'),
         ]);
+    }
+
+    private function handleStatusTransition(Shipment $shipment, ?int $oldStatusId): void
+    {
+        $newStatus = ShipmentStatus::find($shipment->shipment_status_id);
+        if (!$newStatus) return;
+
+        $oldStatus = $oldStatusId ? ShipmentStatus::find($oldStatusId) : null;
+
+        $isDamaged   = strcasecmp($newStatus->name, 'Damaged - Returned') === 0;
+        $wasDamaged  = $oldStatus && strcasecmp($oldStatus->name, 'Damaged - Returned') === 0;
+        $isDelivered = strcasecmp($newStatus->name, 'Delivered') === 0;
+
+        $voucherService = new VoucherService();
+
+        if ($wasDamaged && !$isDamaged) {
+            $voucherService->reverseDamagedShipmentVouchers($shipment);
+        }
+
+        if ($isDamaged) {
+            $wasDelivered = !is_null($shipment->date_delivered);
+
+            $shipment->date_delivered = null;
+            $shipment->receivable_cod = 0;
+            $shipment->amount_due = 0;
+            $shipment->saveQuietly();
+
+            Debtor::where('shipment_id', $shipment->id)->delete();
+
+            $voucherService->generateDamagedShipmentVouchers($shipment, $wasDelivered);
+        } elseif ($isDelivered) {
+            $shipment->date_delivered = now()->toDateString();
+            $shipment->saveQuietly();
+            $voucherService->syncShipmentVouchers($shipment);
+        } else {
+            $shipment->date_delivered = null;
+            $shipment->saveQuietly();
+        }
     }
 
     public function fetchCustomer(Request $request)
@@ -249,16 +350,9 @@ class ShipmentController extends Controller
     public function generateShipmentCode(Request $request)
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
-
-        $user = User::find($request->user_id);
-        $userPcode = $user->pcode ?? 'USR';
-
-        $last = Shipment::orderBy('id', 'desc')->first();
+        $last   = Shipment::orderBy('id', 'desc')->first();
         $nextId = $last ? $last->id + 1 : 1;
-
-        return response()->json([
-            'shipment_code' => 'SH-' . $nextId
-        ]);
+        return response()->json(['shipment_code' => 'SH-' . $nextId]);
     }
 
     private function convertToKg($weight, $unit)
@@ -267,26 +361,22 @@ class ShipmentController extends Controller
             'ounce' => $weight * 0.0283495,
             'gram'  => $weight / 1000,
             'pound' => $weight * 0.453592,
-            default => $weight, // kg
+            default => $weight,
         };
     }
 
-
     private function syncShipmentVouchers($shipment)
     {
-        $voucherService = new VoucherService();
-        return $voucherService->syncShipmentVouchers($shipment);
+        return (new VoucherService())->syncShipmentVouchers($shipment);
     }
 
     public function searchUsers(Request $request)
     {
         $request->validate([
-            'search' => 'nullable|string|min:1',
-            'per_page' => 'nullable|integer|min:1|max:100'
+            'search'   => 'nullable|string|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
         ]);
-
         $query = User::query();
-
         if ($request->search) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
@@ -295,33 +385,50 @@ class ShipmentController extends Controller
                     ->orWhere('pcode', 'like', "%{$search}%");
             });
         }
-
         $perPage = $request->per_page ?? 20;
-        $users = $query->orderBy('name')->paginate($perPage);
-
-        return response()->json($users);
+        return response()->json($query->orderBy('name')->paginate($perPage));
     }
+
     public function updateBulkStatus(Request $request)
     {
         $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'required|exists:shipments,id',
-            'shipment_status_id' => 'required|exists:shipment_statuses,id'
+            'ids'                => 'required|array',
+            'ids.*'              => 'required|exists:shipments,id',
+            'shipment_status_id' => 'required|exists:shipment_statuses,id',
         ]);
 
-        $data = ['shipment_status_id' => $request->shipment_status_id];
+        $status      = ShipmentStatus::findOrFail($request->shipment_status_id);
+        $isDelivered = strcasecmp($status->name, 'Delivered') === 0;
+        $isDamaged   = strcasecmp($status->name, 'Damaged - Returned') === 0;
+        $today       = now()->toDateString();
 
-        if ($request->shipment_status_id == 8) {
-            $data['date_delivered'] = now()->toDateString();
-        } else {
-            $data['date_delivered'] = null;
+        $updated = 0;
+        $skipped = [];
+
+        foreach (Shipment::whereIn('id', $request->ids)->get() as $shipment) {
+            if ($isDelivered) {
+                $shipment->load('consolidation');
+                $reached = $shipment->consolidation?->date_reached?->toDateString();
+                if ($reached && $today < $reached) {
+                    $skipped[] = $shipment->shipment_code;
+                    continue;
+                }
+            }
+
+            $oldStatusId = $shipment->shipment_status_id;
+            $shipment->shipment_status_id = $status->id;
+            $shipment->save();
+
+            $this->handleStatusTransition($shipment, $oldStatusId);
+
+            $updated++;
         }
 
-        $updated = Shipment::whereIn('id', $request->ids)->update($data);
+        $message = "{$updated} shipment(s) updated successfully";
+        if (!empty($skipped)) {
+            $message .= '; skipped (consolidation not yet reached): ' . implode(', ', $skipped);
+        }
 
-        return response()->json([
-            'message' => "{$updated} shipment(s) updated successfully",
-            'updated_count' => $updated
-        ]);
+        return response()->json(['message' => $message, 'updated_count' => $updated]);
     }
 }

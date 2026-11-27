@@ -1,241 +1,319 @@
 <template>
   <Modal :isOpen="isOpen" @close="close" size="xl">
     <template #body>
-      <div class="relative p-6 lg:p-10">
-        <!-- Close Button -->
-        <button @click="close"
-          class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-gray-300">
-          <svg class="fill-current" width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path fill-rule="evenodd" clip-rule="evenodd"
-              d="M6.04289 16.5418C5.65237 16.9323 5.65237 17.5655 6.04289 17.956C6.43342 18.3465 7.06658 18.3465 7.45711 17.956L11.9987 13.4144L16.5408 17.9565C16.9313 18.347 17.5645 18.347 17.955 17.9565C18.3455 17.566 18.3455 16.9328 17.955 16.5423L13.4129 12.0002L17.955 7.45808C18.3455 7.06756 18.3455 6.43439 17.955 6.04387C17.5645 5.65335 16.9313 5.65335 16.5408 6.04387L11.9987 10.586L7.45711 6.04439C7.06658 5.65386 6.43342 5.65386 6.04289 6.04439C5.65237 6.43491 5.65237 7.06808 6.04289 7.4586L10.5845 12.0002L6.04289 16.5418Z" />
-          </svg>
-        </button>
+      <div class="relative bg-white dark:bg-gray-900 p-8 lg:p-12">
 
-        <div v-if="invoice" id="invoice-print-area" class="print-area">
-          <!-- Header with Logo -->
-          <div class="border-b border-gray-200 dark:border-gray-700 pb-6 mb-6">
-            <div class="flex flex-wrap justify-between items-start gap-4">
-              <div class="flex items-center gap-4">
-                <!-- Logo -->
-                <div
-                  class="w-16 h-16 rounded-xl bg-brand-500 flex items-center justify-center text-white font-bold text-xl shadow-sm">
-                  <span>US</span>
-                </div>
-                <div>
-                  <h1 class="text-3xl font-bold text-gray-800 dark:text-white">INVOICE</h1>
-                  <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">#{{ invoice.invoice_no }}</p>
-                </div>
-              </div>
-              <div class="text-right">
-                <span :class="{
-                  'inline-flex px-3 py-1 rounded-full text-sm font-medium': true,
-                  'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400': invoice.status === 'paid',
-                  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400': invoice.status === 'pending',
-                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': invoice.status === 'overdue',
-                  'bg-gray-100 text-gray-700 dark:bg-gray-800/50 dark:text-gray-400': invoice.status === 'cancelled',
-                }">
-                  {{ invoice.status }}
-                </span>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ formatDate(invoice.date) }}</p>
-              </div>
-            </div>
-          </div>
+        <!-- Action Buttons (Hidden when printing) -->
+        <div class="absolute right-4 top-4 flex gap-2 print:hidden">
 
-          <!-- Company & Customer Info -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <!-- ✅ Cancel Invoice (only when pending/overdue) -->
+          <button v-if="canCancel" @click="openCancelDialog" :disabled="cancelling"
+            class="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition disabled:opacity-50 dark:bg-red-900/20 dark:text-red-400"
+            title="Cancel this invoice and free its shipments">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Cancel Invoice
+          </button>
+
+          <button @click="handlePrint" :disabled="printing"
+            class="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 transition disabled:opacity-50">
+            <svg v-if="!printing" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            <span v-else class="animate-spin">⟳</span>
+            {{ printing ? 'Preparing...' : 'Print' }}
+          </button>
+
+          <button @click="handleDownload" :disabled="downloading"
+            class="flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition disabled:opacity-50">
+            <svg v-if="!downloading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span v-else class="animate-spin">⟳</span>
+            {{ downloading ? 'Downloading...' : 'Download PDF' }}
+          </button>
+
+          <button @click="close" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg dark:hover:bg-gray-800">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="invoice" class="max-w-4xl mx-auto">
+          <!-- Header -->
+          <div class="flex justify-between items-start border-b-2 border-gray-900 dark:border-white pb-6 mb-8">
             <div>
-              <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">From</h4>
-              <div class="mt-2">
-                <p class="font-medium text-gray-800 dark:text-white text-lg">US2PK Logistics</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">123 Business Street</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Lahore, Pakistan</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">info@us2pk.com</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">+92-300-1234567</p>
-              </div>
+              <div class="text-2xl font-black tracking-wider text-gray-900 dark:text-white">US2PK</div>
+              <p class="text-xs text-gray-500 tracking-widest mt-1">BRINGING OPPORTUNITIES HOME</p>
             </div>
-            <div>
-              <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bill To</h4>
-              <div class="mt-2">
-                <p class="font-medium text-gray-800 dark:text-white text-lg">{{ invoice.shipment?.user?.name || 'N/A' }}
-                </p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ invoice.shipment?.user?.email || 'N/A' }}</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Shipment:
-                  {{ invoice.shipment?.shipment_code || 'N/A' }}</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">City:
-                  {{ invoice.shipment?.user?.city?.city_name || 'N/A' }}</p>
-              </div>
+            <div class="text-right">
+              <h1 class="text-4xl font-light text-gray-400 dark:text-gray-600">INVOICE</h1>
+              <p class="text-sm font-bold text-gray-900 dark:text-white mt-2">#{{ invoice.invoice_no }}</p>
             </div>
           </div>
 
-          <!-- Invoice Details -->
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b-2 border-gray-200 dark:border-gray-700">
-                  <th class="text-left py-3 px-2 font-semibold text-gray-600 dark:text-gray-400">Description</th>
-                  <th class="text-right py-3 px-2 font-semibold text-gray-600 dark:text-gray-400">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="border-b border-gray-100 dark:border-gray-700/50">
-                  <td class="py-3 px-2 text-gray-800 dark:text-white">
-                    <span class="font-medium">Shipment Charges</span>
-                    <span class="text-xs text-gray-400 ml-2">({{ invoice.shipment?.shipment_code || 'N/A' }})</span>
-                  </td>
-                  <td class="py-3 px-2 text-right font-mono text-gray-800 dark:text-white">
-                    {{ formatCurrency(invoice.amount_due || 0) }}
-                  </td>
-                </tr>
-                <tr v-if="invoice.cod > 0" class="border-b border-gray-100 dark:border-gray-700/50">
-                  <td class="py-3 px-2 text-gray-800 dark:text-white">Cash on Delivery (COD)</td>
-                  <td class="py-3 px-2 text-right font-mono text-gray-800 dark:text-white">
-                    {{ formatCurrency(invoice.cod || 0) }}
-                  </td>
-                </tr>
-                <tr v-if="invoice.output_tax && invoice.output_tax > 0"
-                  class="border-b border-gray-100 dark:border-gray-700/50">
-                  <td class="py-3 px-2 text-gray-800 dark:text-white">Output Tax</td>
-                  <td class="py-3 px-2 text-right font-mono text-gray-800 dark:text-white">
-                    {{ formatCurrency(invoice.output_tax || 0) }}
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr class="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50">
-                  <td class="py-4 px-2 text-lg font-bold text-gray-800 dark:text-white">Total Amount</td>
-                  <td class="py-4 px-2 text-right text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                    {{ formatCurrency((invoice.amount_due || 0) + (invoice.output_tax || 0)) }}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <!-- Shipment Details -->
-          <div v-if="invoice.shipment"
-            class="mt-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Shipment
-              Details</h4>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div>
-                <span class="text-gray-500">Shipment Code:</span>
-                <span
-                  class="font-medium ml-1 text-gray-800 dark:text-white/90">{{ invoice.shipment.shipment_code || 'N/A' }}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Weight:</span>
-                <span class="font-medium ml-1 text-gray-800 dark:text-white/90">{{ invoice.shipment.weight || 'N/A' }}
-                  kg</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Description:</span>
-                <span
-                  class="font-medium ml-1 text-gray-800 dark:text-white/90">{{ invoice.shipment.description || 'N/A' }}</span>
-              </div>
-              <div>
-                <span class="text-gray-500">Bought By:</span>
-                <span
-                  class="font-medium ml-1 text-gray-800 dark:text-white/90">{{ invoice.shipment.bought_by || 'N/A' }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Notes -->
-          <div v-if="invoice.notes"
-            class="mt-4 p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800/30">
-            <p class="text-sm text-amber-700 dark:text-amber-400">
-              <span class="font-semibold">Note:</span> {{ invoice.notes }}
+          <!-- ✅ Cancelled banner -->
+          <div v-if="invoice.status === 'cancelled'"
+            class="mb-6 rounded-xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4">
+            <p class="text-sm font-semibold text-red-700 dark:text-red-400">This invoice has been cancelled</p>
+            <p class="text-xs text-red-600 dark:text-red-400 mt-0.5">
+              Its shipments were released and can be invoiced again.
             </p>
           </div>
 
-          <!-- Footer -->
-          <div
-            class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap justify-between items-center gap-4">
-            <p class="text-xs text-gray-400">Generated on {{ new Date().toLocaleString() }}</p>
-            <div class="flex gap-2">
-              <button @click="handleDownload" :disabled="downloading"
-                class="download-btn flex items-center gap-1.5 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
-                <svg v-if="!downloading" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <svg v-else class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                  </path>
-                </svg>
-                {{ downloading ? 'Downloading...' : 'Download PDF' }}
-              </button>
-              <button @click="handlePrint"
-                class="flex items-center gap-1.5 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm font-medium transition">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 6 2 18 2 18 9" />
-                  <path d="M18 9H6" />
-                  <rect x="6" y="13" width="12" height="8" />
-                  <line x1="9" y1="13" x2="9" y2="17" />
-                </svg>
-                Print
-              </button>
+          <!-- Info Grid -->
+          <div class="grid grid-cols-3 gap-8 mb-10">
+            <div>
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Billed To</p>
+              <p class="font-bold text-gray-900 dark:text-white">
+                {{ invoice.user?.name || invoice.shipment?.user?.name || 'N/A' }}
+              </p>
+              <p class="text-sm text-gray-500">
+                {{ invoice.user?.email || invoice.shipment?.user?.email || 'N/A' }}
+              </p>
+              <p class="text-sm text-gray-500">
+                {{ invoice.user?.city?.city_name || invoice.shipment?.user?.city?.city_name || 'N/A' }}
+              </p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Shipments Covered</p>
+              <template v-if="invoice.shipments && invoice.shipments.length">
+                <p class="font-bold text-gray-900 dark:text-white">
+                  {{ invoice.shipments.length }} shipment{{ invoice.shipments.length > 1 ? 's' : '' }}
+                </p>
+                <p class="text-sm text-gray-500">
+                  Total weight:
+                  {{invoice.shipments.reduce((s: number, x: any) => s + Number(x.weight || 0), 0)}} KG
+                </p>
+              </template>
+              <template v-else>
+                <p class="font-bold text-gray-900 dark:text-white">{{ invoice.shipment?.shipment_code || 'N/A' }}</p>
+                <p class="text-sm text-gray-500">{{ invoice.shipment?.description || 'N/A' }}</p>
+                <p class="text-sm text-gray-500">{{ invoice.shipment?.weight || '0' }} KG</p>
+              </template>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Invoice Details</p>
+              <div class="flex justify-between text-sm py-0.5">
+                <span class="text-gray-500">Date:</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ formatDate(invoice.date) }}</span>
+              </div>
+              <div class="flex justify-between text-sm py-0.5">
+                <span class="text-gray-500">Status:</span>
+                <span class="font-bold uppercase" :class="statusColor">{{ invoice.status }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <table class="w-full mb-8">
+            <thead>
+              <tr class="bg-gray-900 dark:bg-gray-800 text-white text-xs uppercase tracking-wider">
+                <th class="py-3 px-4 text-left font-medium">Description</th>
+                <th class="py-3 px-4 text-right font-medium">Amount (PKR)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+              <template v-if="invoice.shipments && invoice.shipments.length">
+                <tr v-for="s in invoice.shipments" :key="s.id">
+                  <td class="py-4 px-4">
+                    <p class="font-bold text-gray-900 dark:text-white">Shipment Charges</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                      Ref: {{ s.shipment_code }}
+                      <template v-if="s.description"> · {{ s.description }}</template>
+                      <template v-if="s.weight"> · {{ s.weight }} KG</template>
+                    </p>
+                  </td>
+                  <td class="py-4 px-4 text-right font-mono font-medium">
+                    {{ formatCurrency(s.pivot?.amount ?? 0) }}
+                  </td>
+                </tr>
+              </template>
+              <template v-else>
+                <tr>
+                  <td class="py-4 px-4">
+                    <p class="font-bold text-gray-900 dark:text-white">Shipment Charges</p>
+                    <p class="text-xs text-gray-500 mt-1">Ref: {{ invoice.shipment?.shipment_code || 'N/A' }}</p>
+                  </td>
+                  <td class="py-4 px-4 text-right font-mono font-medium">{{ formatCurrency(invoice.amount_due) }}</td>
+                </tr>
+              </template>
+
+              <tr v-if="invoice.cod > 0">
+                <td class="py-4 px-4">
+                  <p class="font-bold text-gray-900 dark:text-white">Cash on Delivery (COD)</p>
+                </td>
+                <td class="py-4 px-4 text-right font-mono font-medium">{{ formatCurrency(invoice.cod) }}</td>
+              </tr>
+
+              <tr v-if="invoice.output_tax > 0">
+                <td class="py-4 px-4">
+                  <p class="font-bold text-gray-900 dark:text-white">Output Tax</p>
+                </td>
+                <td class="py-4 px-4 text-right font-mono font-medium">{{ formatCurrency(invoice.output_tax) }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Totals -->
+          <div class="flex justify-end mb-12">
+            <div class="w-64 space-y-2">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Subtotal</span>
+                <span class="font-mono">{{ formatCurrency(invoice.amount_due) }}</span>
+              </div>
+              <div v-if="invoice.output_tax > 0" class="flex justify-between text-sm">
+                <span class="text-gray-500">Tax</span>
+                <span class="font-mono">{{ formatCurrency(invoice.output_tax) }}</span>
+              </div>
+              <div
+                class="flex justify-between text-lg font-bold border-t-2 border-gray-900 dark:border-white pt-2 mt-2">
+                <span>Total Amount</span>
+                <span class="font-mono text-brand-600 dark:text-brand-400">
+                  {{ formatCurrency(invoice.amount_due + invoice.output_tax) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer Signature Area -->
+          <div class="flex justify-between items-end border-t border-gray-200 dark:border-gray-700 pt-8 mt-12">
+            <div class="text-xs text-gray-500">
+              <p>Thank you for your business!</p>
+              <p class="mt-1">Generated on {{ new Date().toLocaleString() }}</p>
+            </div>
+            <div class="text-center relative">
+              <div class="h-10 mb-1 text-gray-300 dark:text-gray-600 italic text-sm">[Signature Placeholder]</div>
+              <div
+                class="w-48 border-t border-gray-400 pt-2 text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                Authorized Signature
+              </div>
             </div>
           </div>
         </div>
       </div>
     </template>
   </Modal>
+
+  <!-- ✅ Cancel confirmation dialog -->
+  <div v-if="showCancelDialog" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+    @click.self="closeCancelDialog">
+    <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white">Cancel this invoice?</h3>
+      <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+        Invoice <span class="font-semibold text-gray-800 dark:text-gray-200">#{{ invoice?.invoice_no }}</span>
+        will be marked as <span class="font-semibold text-red-600 dark:text-red-400">cancelled</span>.
+        All its shipments will be <strong>freed</strong> and can be invoiced again.
+        <br><br>
+        This action cannot be undone.
+      </p>
+
+      <label class="mt-4 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        Reason (optional)
+      </label>
+      <textarea v-model="cancelReason" rows="3" placeholder="Why is this invoice being cancelled?"
+        class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 dark:border-gray-700 dark:bg-gray-800"></textarea>
+
+      <div class="mt-6 flex justify-end gap-3">
+        <button @click="closeCancelDialog" :disabled="cancelling"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-800 dark:text-gray-300">
+          Keep Invoice
+        </button>
+        <button @click="confirmCancel" :disabled="cancelling"
+          class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50">
+          {{ cancelling ? 'Cancelling…' : 'Yes, Cancel Invoice' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import Modal from '@/components/Modal.vue'
 import api from '@/services/api'
 import { useToastStore } from '@/stores/toastStore'
+import { useInvoiceStore } from '@/stores/invoiceStore'
 
 const props = defineProps<{
   isOpen: boolean
   invoice?: any | null
 }>()
 
-const emit = defineEmits<{
-  (e: 'close'): void
-}>()
+const emit = defineEmits<{ (e: 'close'): void }>()
 
 const toastStore = useToastStore()
+const invoiceStore = useInvoiceStore()
+
 const downloading = ref(false)
+const printing = ref(false)
 
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-PK', {
-    style: 'currency',
-    currency: 'PKR',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value || 0)
-}
+/* ✅ Cancel state */
+const showCancelDialog = ref(false)
+const cancelling = ref(false)
+const cancelReason = ref('')
 
-const formatDate = (date: string): string => {
-  return date ? new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }) : 'N/A'
-}
+const statusColor = computed(() => {
+  if (props.invoice?.status === 'paid') return 'text-emerald-500'
+  if (props.invoice?.status === 'overdue') return 'text-red-500'
+  if (props.invoice?.status === 'cancelled') return 'text-gray-400 line-through'
+  return 'text-amber-500'
+})
+
+/* ✅ Show cancel button only for pending/overdue */
+const canCancel = computed(
+  () =>
+    !!props.invoice &&
+    ['pending', 'overdue'].includes(props.invoice.status)
+)
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(value || 0)
+
+const formatDate = (date: string) =>
+  date ? new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'
 
 const close = () => emit('close')
 
-// ✅ Download Invoice PDF
+/* ✅ Cancel handlers */
+const openCancelDialog = () => {
+  cancelReason.value = ''
+  showCancelDialog.value = true
+}
+
+const closeCancelDialog = () => {
+  if (cancelling.value) return
+  showCancelDialog.value = false
+}
+
+const confirmCancel = async () => {
+  if (!props.invoice || cancelling.value) return
+  cancelling.value = true
+  try {
+    await invoiceStore.cancel(props.invoice.id, cancelReason.value.trim() || undefined)
+    toastStore.success(`Invoice ${props.invoice.invoice_no} cancelled`)
+    showCancelDialog.value = false
+    emit('close')
+  } catch (err: any) {
+    toastStore.error(err.response?.data?.message || 'Failed to cancel invoice')
+  } finally {
+    cancelling.value = false
+  }
+}
+
+/* ── Existing handlers ─────────────────────────────────── */
+
 const handleDownload = async () => {
   if (!props.invoice || downloading.value) return
-
   downloading.value = true
   try {
-    toastStore.info(`Downloading invoice ${props.invoice.invoice_no}...`)
-
     const response = await api.get(`/admin/invoices/${props.invoice.id}/download`, {
-      responseType: 'blob'
+      responseType: 'blob',
     })
-
     const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
     const link = document.createElement('a')
     link.href = url
@@ -244,207 +322,33 @@ const handleDownload = async () => {
     link.click()
     link.remove()
     window.URL.revokeObjectURL(url)
-
-    toastStore.success(`Invoice ${props.invoice.invoice_no} downloaded successfully`)
-  } catch (error: any) {
+    toastStore.success('Invoice downloaded')
+  } catch (error) {
     console.error('Download failed:', error)
-    toastStore.error(error?.response?.data?.message || 'Failed to download invoice')
+    toastStore.error('Failed to download invoice')
   } finally {
     downloading.value = false
   }
 }
 
-// ✅ Print Invoice
 const handlePrint = async () => {
-  if (!props.invoice) return
-
+  if (!props.invoice || printing.value) return
+  printing.value = true
   try {
-    toastStore.info(`Preparing invoice ${props.invoice.invoice_no} for printing...`)
-
-    const printWindow = window.open('', '_blank', 'width=900,height=700')
-    if (!printWindow) {
-      toastStore.error('Please allow popups to print the invoice')
-      return
+    const response = await api.get(`/admin/invoices/${props.invoice.id}/download`, {
+      responseType: 'blob',
+    })
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const printWindow = window.open(url, '_blank')
+    if (printWindow) {
+      printWindow.onload = () => printWindow.print()
     }
-
-    const response = await api.get(`/admin/invoices/${props.invoice.id}/print`)
-    const data = response.data
-
-    const printHtml = buildPrintHTML(data)
-
-    printWindow.document.write(printHtml)
-    printWindow.document.close()
-
-    toastStore.success(`Invoice ${props.invoice.invoice_no} sent to printer`)
-  } catch (error: any) {
+  } catch (error) {
     console.error('Print failed:', error)
-    toastStore.error(error?.response?.data?.message || 'Failed to print invoice')
+    toastStore.error('Failed to prepare invoice for printing')
+  } finally {
+    printing.value = false
   }
-}
-
-function buildPrintHTML(data: any): string {
-  const invoice = data.invoice
-  const company = data.company
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Invoice ${invoice.invoice_no}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; padding: 40px; background: #fff; color: #333; }
-        .invoice-container { max-width: 900px; margin: 0 auto; }
-        .header { border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-start; }
-        .header-left { display: flex; align-items: center; gap: 15px; }
-        .logo { width: 50px; height: 50px; background: #2563eb; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 18px; }
-        .header-left h1 { font-size: 28px; color: #1a1a2e; }
-        .header-left .invoice-no { color: #666; font-size: 14px; margin-top: 4px; }
-        .header-right { text-align: right; }
-        .status-badge { display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-        .status-paid { background: #d1fae5; color: #065f46; }
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-overdue { background: #fee2e2; color: #991b1b; }
-        .status-cancelled { background: #f3f4f6; color: #4b5563; }
-        .date-text { color: #666; font-size: 14px; margin-top: 6px; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; padding: 20px; background: #f8fafc; border-radius: 8px; }
-        .info-grid h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 8px; }
-        .info-grid .name { font-weight: 600; font-size: 16px; color: #1a1a2e; }
-        .info-grid p { font-size: 14px; line-height: 1.8; color: #333; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th { background: #f1f5f9; padding: 12px 16px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #4b5563; border-bottom: 2px solid #e5e7eb; }
-        td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; }
-        td:last-child, th:last-child { text-align: right; }
-        .total-row { background: #f8fafc; font-weight: 700; }
-        .total-row td { border-top: 2px solid #e5e7eb; padding: 16px; font-size: 16px; }
-        .total-row .amount { color: #2563eb; font-size: 20px; }
-        .shipment-details { margin: 20px 0; padding: 16px 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e5e7eb; }
-        .shipment-details h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 10px; }
-        .shipment-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
-        .shipment-grid .label { font-size: 12px; color: #666; }
-        .shipment-grid .value { font-size: 14px; color: #333; font-weight: 500; }
-        .notes { margin: 20px 0; padding: 12px 16px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b; }
-        .notes p { font-size: 13px; color: #92400e; }
-        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #666; }
-        .footer .thankyou { font-size: 14px; font-weight: 500; color: #1a1a2e; }
-        @media print { body { padding: 20px; } }
-      </style>
-    </head>
-    <body>
-      <div class="invoice-container">
-        <div class="header">
-          <div class="header-left">
-            <div class="logo">US</div>
-            <div>
-              <h1>INVOICE</h1>
-              <div class="invoice-no">#${invoice.invoice_no}</div>
-            </div>
-          </div>
-          <div class="header-right">
-            <span class="status-badge status-${invoice.status}">${invoice.status}</span>
-            <div class="date-text">Date: ${new Date(invoice.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-          </div>
-        </div>
-
-        <div class="info-grid">
-          <div>
-            <h4>From</h4>
-            <p>
-              <span class="name">${company.name}</span><br>
-              ${company.address}<br>
-              Phone: ${company.phone}<br>
-              Email: ${company.email}
-            </p>
-          </div>
-          <div>
-            <h4>Bill To</h4>
-            <p>
-              <span class="name">${invoice.shipment?.user?.name || 'N/A'}</span><br>
-              Email: ${invoice.shipment?.user?.email || 'N/A'}<br>
-              Shipment: ${invoice.shipment?.shipment_code || 'N/A'}<br>
-              City: ${invoice.shipment?.user?.city?.city_name || 'N/A'}
-            </p>
-          </div>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Shipment Charges <span style="color:#999;font-size:12px;">(${invoice.shipment?.shipment_code || 'N/A'})</span></td>
-              <td>${Number(invoice.amount_due).toFixed(2)} PKR</td>
-            </tr>
-            ${invoice.cod > 0 ? `<tr><td>Cash on Delivery (COD)</td><td>${Number(invoice.cod).toFixed(2)} PKR</td></tr>` : ''}
-            ${invoice.output_tax > 0 ? `<tr><td>Output Tax</td><td>${Number(invoice.output_tax).toFixed(2)} PKR</td></tr>` : ''}
-          </tbody>
-          <tfoot>
-            <tr class="total-row">
-              <td>Total Amount</td>
-              <td class="amount">${(Number(invoice.amount_due) + Number(invoice.output_tax)).toFixed(2)} PKR</td>
-            </tr>
-          </tfoot>
-        </table>
-
-        ${invoice.shipment ? `
-        <div class="shipment-details">
-          <h4>Shipment Details</h4>
-          <div class="shipment-grid">
-            <div>
-              <div class="label">Shipment Code</div>
-              <div class="value">${invoice.shipment.shipment_code || 'N/A'}</div>
-            </div>
-            <div>
-              <div class="label">Weight</div>
-              <div class="value">${invoice.shipment.weight || 'N/A'} kg</div>
-            </div>
-            <div>
-              <div class="label">Description</div>
-              <div class="value">${invoice.shipment.description || 'N/A'}</div>
-            </div>
-            <div>
-              <div class="label">Bought By</div>
-              <div class="value">${invoice.shipment.bought_by || 'N/A'}</div>
-            </div>
-          </div>
-        </div>
-        ` : ''}
-
-        ${invoice.notes ? `
-        <div class="notes">
-          <p><strong>Note:</strong> ${invoice.notes}</p>
-        </div>
-        ` : ''}
-
-        <div class="footer">
-          <div>
-            <div class="thankyou">Thank you for your business!</div>
-            <div style="margin-top:4px;">Generated on ${new Date().toLocaleString()}</div>
-          </div>
-          <div style="text-align:right;">
-            <div style="color:#2563eb;font-weight:500;">Payment Due: ${invoice.status === 'pending' ? 'Immediate' : 'Paid'}</div>
-            ${invoice.status === 'pending' ? '<div style="color:#dc2626;font-size:12px;margin-top:4px;">Please pay within 7 days</div>' : ''}
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
-  `
 }
 </script>
-
-<style scoped>
-@media print {
-  .print-area {
-    padding: 20px;
-  }
-
-  .no-print {
-    display: none !important;
-  }
-}
-</style>

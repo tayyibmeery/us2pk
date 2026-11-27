@@ -6,6 +6,7 @@ use App\Models\Voucher;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Services\VoucherService;
+use Illuminate\Support\Facades\Log;
 
 class VoucherController extends Controller
 {
@@ -21,9 +22,15 @@ class VoucherController extends Controller
 
         return response()->json($voucher);
     }
+
     public function index(Request $request)
     {
-        $query = Voucher::with('details.account')->orderBy('id', 'desc');
+        // ✅ Trashed view support (SoftDeletes)
+        $query = $request->has('trashed') && $request->trashed
+            ? Voucher::onlyTrashed()->with('details.account')
+            : Voucher::with('details.account');
+
+        $query->orderBy('id', 'desc');
 
         if ($request->id) {
             $query->where('voucher_no', 'like', "%{$request->id}%");
@@ -31,17 +38,23 @@ class VoucherController extends Controller
         if ($request->description) {
             $query->where('description', 'like', "%{$request->description}%");
         }
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->is_active);
-        }
         if ($request->has('approved')) {
-            $query->where('approved', $request->approved);
+            $query->where('approved', filter_var($request->approved, FILTER_VALIDATE_BOOLEAN));
         }
-        if ($request->has('is_deleted')) {
-            $query->where('is_deleted', $request->is_deleted);
+        if ($request->has('source') && $request->source) {
+            $query->where('source', $request->source);
         }
 
-        return response()->json($query->paginate(20));
+        $vouchers = $query->paginate(20);
+
+        $vouchers->getCollection()->transform(function ($voucher) {
+            $voucher->total_debit = $voucher->details->sum('debit');
+            $voucher->total_credit = $voucher->details->sum('credit');
+            $voucher->is_balanced = round($voucher->total_debit, 2) === round($voucher->total_credit, 2);
+            return $voucher;
+        });
+
+        return response()->json($vouchers);
     }
 
     public function store(Request $request)
@@ -77,8 +90,9 @@ class VoucherController extends Controller
             'manual',
             null,
             $validated['date'],
-            $validated['description'],
-            $entries
+            $validated['description'] ?? 'Manual voucher',
+            $validated['entries'],
+            false
         );
 
         return response()->json($voucher->load('details.account'), 201);
@@ -91,7 +105,7 @@ class VoucherController extends Controller
 
     public function update(Request $request, Voucher $voucher)
     {
-        if ($voucher->approved || $voucher->is_deleted) {
+        if ($voucher->approved || $voucher->trashed()) {
             return response()->json(['message' => 'Cannot update approved/deleted voucher'], 422);
         }
 
@@ -121,7 +135,6 @@ class VoucherController extends Controller
                 return response()->json(['message' => 'Total debits must equal total credits'], 422);
             }
 
-            // Delete old details and add new ones
             $voucher->details()->delete();
             foreach ($entries as $entry) {
                 $voucher->details()->create($entry);
@@ -132,20 +145,81 @@ class VoucherController extends Controller
         return response()->json($voucher->load('details.account'));
     }
 
-    public function destroy(Voucher $voucher)
+    /**
+     * ✅ Password-protected soft delete.
+     * - Only MANUAL vouchers can be manually deleted
+     * - Approved vouchers CANNOT be deleted
+     * - System-generated vouchers are protected
+     */
+    public function destroy(Request $request, Voucher $voucher)
     {
-        if ($voucher->approved) {
-            return response()->json(['message' => 'Cannot delete approved voucher'], 422);
+        $request->validate([
+            'password' => 'required|string'
+        ]);
+
+        $adminPassword = env('ADMIN_DELETE_PASSWORD', 'admin123');
+        if ($request->password !== $adminPassword) {
+            return response()->json(['message' => 'Invalid admin password.'], 403);
         }
+
+        if ($voucher->source !== 'manual') {
+            return response()->json([
+                'message' => 'System-generated vouchers cannot be deleted manually. They are managed by their source transaction.'
+            ], 422);
+        }
+
+        if ($voucher->approved) {
+            return response()->json([
+                'message' => 'Approved vouchers cannot be deleted.'
+            ], 422);
+        }
+
         $voucher->is_deleted = true;
+        $voucher->deleted_at = now();
         $voucher->save();
-        return response()->json(['message' => 'Voucher marked as deleted']);
+
+        Log::info('Voucher soft-deleted', [
+            'voucher_no' => $voucher->voucher_no,
+            'user_id' => auth()->id(),
+        ]);
+
+        return response()->json(['message' => 'Voucher deleted successfully.']);
+    }
+
+    /**
+     * ✅ Password-protected restore
+     */
+    public function restore(Request $request, $id)
+    {
+        $request->validate([
+            'password' => 'required|string'
+        ]);
+
+        $adminPassword = env('ADMIN_DELETE_PASSWORD', 'admin123');
+        if ($request->password !== $adminPassword) {
+            return response()->json(['message' => 'Invalid admin password.'], 403);
+        }
+
+        $voucher = Voucher::onlyTrashed()->findOrFail($id);
+        $voucher->deleted_at = null;
+        $voucher->is_deleted = false;
+        $voucher->save();
+
+        Log::info('Voucher restored', [
+            'voucher_no' => $voucher->voucher_no,
+            'user_id' => auth()->id(),
+        ]);
+
+        return response()->json(['message' => 'Voucher restored successfully.']);
     }
 
     public function approve(Voucher $voucher)
     {
         if ($voucher->approved) {
             return response()->json(['message' => 'Already approved'], 422);
+        }
+        if ($voucher->trashed()) {
+            return response()->json(['message' => 'Cannot approve a deleted voucher'], 422);
         }
         $voucher->approved = true;
         $voucher->approved_by = auth()->id();

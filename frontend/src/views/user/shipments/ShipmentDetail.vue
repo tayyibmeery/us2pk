@@ -1,0 +1,362 @@
+<template>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Shipment Details</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400">View and track your shipment</p>
+      </div>
+      <router-link to="/user/my-shipments"
+        class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back
+      </router-link>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="flex justify-center py-12">
+      <div class="w-8 h-8 border-4 border-gray-200 dark:border-gray-700 border-t-brand-500 rounded-full animate-spin">
+      </div>
+    </div>
+
+    <!-- Shipment Details -->
+    <div v-else-if="shipment"
+      class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+
+      <!-- Header - Shipment Code & Status -->
+      <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-white">{{ shipment.shipment_code }}</h2>
+            <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">
+              <span class="font-medium">Order Date:</span> {{ formatDate(shipment.created_at) }}
+            </p>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
+            <ShipmentStatusBadge :status="shipment.shipment_status?.name" class="text-base px-4 py-2" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ Damaged / Refunded Banner -->
+      <div v-if="isDamaged"
+        class="mx-6 mt-6 rounded-xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4">
+        <div class="flex items-start gap-3">
+          <svg class="h-6 w-6 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-red-700 dark:text-red-400">
+              Shipment Damaged — Refund Issued
+            </p>
+            <p class="text-sm text-red-600 dark:text-red-400 mt-1">
+              We're sorry — this shipment was damaged in transit and could not be delivered.
+              Your advance payment of
+              <span class="font-semibold">PKR {{ formatCurrency(Math.abs(refundAmount)) }}</span>
+              has been refunded back to your original payment method.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key Information Grid -->
+      <div class="p-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <!-- Column 1 -->
+        <div class="space-y-4">
+          <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Weight</p>
+            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.weight }}
+              {{ shipment.weight_unit || 'kg' }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Bought By</p>
+            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.bought_by || 'N/A' }}</p>
+          </div>
+        </div>
+
+        <!-- Column 2 -->
+        <div class="space-y-4">
+          <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">Courier</p>
+            <p class="font-medium text-gray-800 dark:text-white">{{ shipment.local_courier?.name || 'N/A' }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">
+              {{ shipment.date_delivered ? 'Delivered On' : 'Expected Delivery' }}
+            </p>
+            <p class="font-medium text-gray-800 dark:text-white">
+              {{ shipment.date_delivered ? formatDate(shipment.date_delivered) : formatDate(shipment.expected_delivery_date) || 'N/A' }}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold mb-2">Description</p>
+        <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
+          {{ shipment.description || 'No description provided.' }}
+        </p>
+      </div>
+
+      <!-- Images Gallery -->
+      <div v-if="shipmentImages.length" class="p-6 border-t border-gray-200 dark:border-gray-700">
+        <h3
+          class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Images
+          <span class="ml-1 text-xs font-normal text-gray-400 normal-case">({{ shipmentImages.length }})</span>
+        </h3>
+        <div class="flex flex-wrap gap-3">
+          <div v-for="img in shipmentImages" :key="img.id"
+            class="w-24 h-24 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm cursor-pointer hover:opacity-80 transition"
+            @click="openImageViewer(img)">
+            <img :src="getImageUrl(img.image_path)" class="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ Financial Summary — adapts to damaged state -->
+      <div class="p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">
+          Financial Summary
+        </h3>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <!-- Total Payable -->
+          <div
+            class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Payable</p>
+            <p v-if="isDamaged" class="text-2xl font-bold text-gray-400 line-through dark:text-gray-500">
+              {{ formatCurrency(shipment.total) }}
+            </p>
+            <p v-else class="text-2xl font-bold text-gray-800 dark:text-white">
+              {{ formatCurrency(shipment.total) }}
+            </p>
+            <p v-if="isDamaged" class="text-xs text-red-600 dark:text-red-400 font-semibold mt-1">
+              Cancelled
+            </p>
+          </div>
+
+          <!-- Paid Amount -->
+          <div
+            class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Paid Amount</p>
+            <p v-if="isDamaged" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">Refunded</p>
+            <p v-else class="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {{ formatCurrency(shipment.received_amount) }}
+            </p>
+            <p v-if="isDamaged && refundAmount > 0" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              PKR {{ formatCurrency(refundAmount) }} returned
+            </p>
+          </div>
+
+          <!-- Payable Amount -->
+          <div
+            class="bg-white dark:bg-gray-700/30 rounded-lg p-4 text-center border border-gray-200 dark:border-gray-600">
+            <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Payable Amount</p>
+            <p v-if="isDamaged" class="text-2xl font-bold text-gray-400 dark:text-gray-500">
+              {{ formatCurrency(0) }}
+            </p>
+            <p v-else class="text-2xl font-bold"
+              :class="(shipment.total - shipment.received_amount) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'">
+              {{ formatCurrency(shipment.total - shipment.received_amount) }}
+            </p>
+            <p v-if="isDamaged" class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              No balance due
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ Payment History Table — now shows the refund -->
+      <div class="p-6 border-t border-gray-200 dark:border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">
+          Payment History
+        </h3>
+
+        <div v-if="shipment.payments && shipment.payments.length" class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-100 dark:bg-gray-800">
+              <tr>
+                <th
+                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Date</th>
+                <th
+                  class="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Amount (PKR)</th>
+                <th
+                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Method</th>
+                <th
+                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Reference</th>
+                <th
+                  class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="payment in shipment.payments" :key="payment.id"
+                class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition"
+                :class="{ 'bg-red-50/50 dark:bg-red-900/10': Number(payment.amount) < 0 }">
+                <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ formatDate(payment.payment_date) }}</td>
+                <td class="px-4 py-3 text-right font-medium" :class="Number(payment.amount) < 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-gray-800 dark:text-white/90'">
+                  <template v-if="Number(payment.amount) < 0">
+                    - {{ formatCurrency(Math.abs(Number(payment.amount))) }}
+                  </template>
+                  <template v-else>
+                    {{ formatCurrency(payment.amount) }}
+                  </template>
+                </td>
+                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ payment.payment_method || '—' }}</td>
+                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ payment.reference_number || '—' }}</td>
+                <td class="px-4 py-3 max-w-xs truncate text-gray-600 dark:text-gray-400" :title="payment.notes">
+                  <span v-if="Number(payment.amount) < 0"
+                    class="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {{ payment.notes || 'Refund' }}
+                  </span>
+                  <template v-else>{{ payment.notes || '—' }}</template>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700">
+              <tr>
+                <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300" colspan="1">
+                  Net Paid
+                </td>
+                <td class="px-4 py-3 text-right font-semibold"
+                  :class="netPaid < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'">
+                  {{ formatCurrency(netPaid) }}
+                </td>
+                <td colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div v-else class="text-center py-6 text-gray-400 dark:text-gray-500">
+          No payment records found.
+        </div>
+      </div>
+    </div>
+
+    <!-- Not Found -->
+    <div v-else class="text-center py-12">
+      <svg class="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor"
+        viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+      </svg>
+      <h3 class="mt-4 text-lg font-semibold text-gray-800 dark:text-white">Shipment Not Found</h3>
+      <p class="text-sm text-gray-500 dark:text-gray-400">The shipment you're looking for doesn't exist.</p>
+      <router-link to="/user/my-shipments" class="inline-block mt-4 text-sm text-brand-500 hover:text-brand-600">
+        Back to Shipments
+      </router-link>
+    </div>
+
+    <!-- Image Viewer Modal -->
+    <ImageModal v-if="showImageModal" :isOpen="showImageModal" :imageUrl="selectedImageUrl" @close="closeImageViewer" />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import api from '@/services/api'
+import ShipmentStatusBadge from '@/components/user/ShipmentStatusBadge.vue'
+import ImageModal from '@/components/common/ImageModal.vue'
+
+const route = useRoute()
+const loading = ref(true)
+const shipment = ref<any>(null)
+
+// Image viewer state
+const showImageModal = ref(false)
+const selectedImageUrl = ref('')
+
+const shipmentImages = computed(() => shipment.value?.images || [])
+
+// ✅ Damaged state detection
+const isDamaged = computed(() =>
+  shipment.value?.shipment_status?.name === 'Damaged - Returned'
+)
+
+// ✅ Sum of negative payment amounts (the refund)
+const refundAmount = computed(() => {
+  if (!shipment.value?.payments) return 0
+  return shipment.value.payments
+    .filter((p: any) => Number(p.amount) < 0)
+    .reduce((sum: number, p: any) => sum + Math.abs(Number(p.amount)), 0)
+})
+
+// ✅ Net paid = sum of all payments (positive + negative)
+const netPaid = computed(() => {
+  if (!shipment.value?.payments) return 0
+  return shipment.value.payments
+    .reduce((sum: number, p: any) => sum + Number(p.amount), 0)
+})
+
+const formatDate = (date: string) => {
+  if (!date) return 'N/A'
+  return new Date(date).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('en-PK', {
+    style: 'currency',
+    currency: 'PKR',
+    minimumFractionDigits: 0
+  }).format(value || 0)
+}
+
+function getImageUrl(path: string) {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://')) return path
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'https://us2pk.com'
+  return `${baseUrl}/storage/${path}`
+}
+
+function openImageViewer(img: any) {
+  selectedImageUrl.value = getImageUrl(img.image_path)
+  showImageModal.value = true
+}
+
+function closeImageViewer() {
+  showImageModal.value = false
+  selectedImageUrl.value = ''
+}
+
+const fetchShipment = async () => {
+  loading.value = true
+  try {
+    const res = await api.get(`/user/shipments/${route.params.id}`)
+    shipment.value = res.data
+  } catch (error) {
+    console.error('Failed to fetch shipment:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchShipment()
+})
+</script>

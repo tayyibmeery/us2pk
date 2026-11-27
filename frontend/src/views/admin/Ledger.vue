@@ -294,7 +294,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, nextTick, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageBreadcrumb from '@/components/common/PageBreadcrumb.vue'
 import api from '@/services/api'
@@ -386,6 +386,10 @@ const clearFilters = () => {
     to_date: '',
     source: '',
   }
+  // Reset flatpickr instances
+  Object.values(flatpickrInstances).forEach((inst: any) => {
+    if (inst) inst.clear()
+  })
   router.push({ query: {} })
   fetchLedger()
 }
@@ -441,11 +445,11 @@ onMounted(async () => {
     if (query.source) filters.value.source = query.source as string
     await fetchLedger()
   } else {
-    const today = new Date()
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(today.getDate() - 30)
-    filters.value.from_date = thirtyDaysAgo.toISOString().split('T')[0]
-    filters.value.to_date = today.toISOString().split('T')[0]
+    // ✅ No default filters — show all vouchers (past AND future dated)
+    filters.value.account_id = ''
+    filters.value.from_date = ''
+    filters.value.to_date = ''
+    filters.value.source = ''
     await fetchLedger()
   }
 })

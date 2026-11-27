@@ -29,7 +29,7 @@ class UserDashboardController extends Controller
 
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
-            'email'       => 'required|email|unique:users,email,' . $user->id,
+            // 'email'       => 'required|email|unique:users,email,' . $user->id,
             'phone'       => 'required|string|max:20',
             'bio'         => 'nullable|string|max:500',
             'address'     => 'required|string',
@@ -99,11 +99,31 @@ class UserDashboardController extends Controller
     /**
      * Get single shipment details
      */
+    // public function shipmentDetails(Request $request, $id)
+    // {
+    //     $shipment = $request->user()
+    //         ->shipments()
+    //         ->with(['consolidation', 'shipmentStatus', 'localCourier', 'payments'])
+    //         ->findOrFail($id);
+
+    //     return response()->json($shipment);
+    // }
+    /**
+     * Get single shipment details
+     */
     public function shipmentDetails(Request $request, $id)
     {
         $shipment = $request->user()
             ->shipments()
-            ->with(['consolidation', 'shipmentStatus', 'localCourier', 'payments'])
+            ->with([
+                'consolidation',
+                'shipmentStatus',
+                'localCourier',
+                'payments',
+                'images',        // ← ADD THIS
+                // 'site',          // (optional, in case you want to show the site name later)
+                'paymentMethod', // (optional, in case you want to show payment method later)
+            ])
             ->findOrFail($id);
 
         return response()->json($shipment);

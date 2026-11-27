@@ -46,20 +46,43 @@ export const useVoucherStore = defineStore('voucher', {
       }
     },
     async create(data: any) {
-      const res = await api.post('/admin/vouchers', data)
-      return res.data
+      try {
+        const res = await api.post('/admin/vouchers', data)
+        return res.data
+      } catch (err: any) {
+        throw err
+      }
     },
     async update(id: number, data: any) {
-      const res = await api.put(`/admin/vouchers/${id}`, data)
-      return res.data
+      try {
+        const res = await api.put(`/admin/vouchers/${id}`, data)
+        return res.data
+      } catch (err: any) {
+        throw err
+      }
     },
-    async delete(id: number) {
-      await api.delete(`/admin/vouchers/${id}`)
-      // Refresh the list
-      await this.fetchItems(this.pagination?.current_page || 1)
+    // ✅ Password-protected delete
+    async delete(id: number, password: string) {
+      try {
+        await api.delete(`/admin/vouchers/${id}`, { data: { password } })
+      } catch (err: any) {
+        throw err
+      }
+    },
+    // ✅ Password-protected restore
+    async restore(id: number, password: string) {
+      try {
+        await api.post(`/admin/vouchers/${id}/restore`, { password })
+      } catch (err: any) {
+        throw err
+      }
     },
     async approve(id: number) {
-      await api.post(`/admin/vouchers/${id}/approve`)
+      try {
+        await api.post(`/admin/vouchers/${id}/approve`)
+      } catch (err: any) {
+        throw err
+      }
     },
   },
 })

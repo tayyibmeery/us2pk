@@ -10,9 +10,16 @@ trait ShipmentPaymentHelper
     {
         $totalReceived = $shipment->payments()->sum('amount') ?? 0;
         $shipment->received_amount = $totalReceived;
-        $shipment->saveQuietly(); // prevents model events from firing again
+        $shipment->saveQuietly();
+
+        // ✅ Recalculate receivable_cod/amount_due from the current payments
+        $shipment->recalculateReceivable();
+
         if ($shipment->consolidation_id) {
             $shipment->consolidation->recalculateTotals();
         }
     }
 }
+
+
+

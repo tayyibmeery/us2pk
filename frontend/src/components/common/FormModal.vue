@@ -1,8 +1,8 @@
 <template>
-  <Modal :isOpen="isOpen" @close="close">
+  <Modal :isOpen="isOpen" size="full" @close="close">
     <template #body>
-      <div
-        class="no-scrollbar mt-18 relative w-full max-w-[600px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-8">
+      <div class="no-scrollbar mt-2 relative w-full overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-8">
+        <!-- ...rest unchanged... -->
         <!-- Close (X) button -->
         <button @click="close"
           class="transition-color absolute right-4 top-4 z-999 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:bg-gray-700 dark:bg-white/[0.05] dark:text-gray-400 dark:hover:bg-white/[0.07] dark:hover:text-gray-300">

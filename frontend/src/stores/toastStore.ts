@@ -1,3 +1,4 @@
+// frontend/src/stores/toastStore.ts
 import { defineStore } from 'pinia';
 
 export interface Toast {
@@ -34,6 +35,10 @@ export const useToastStore = defineStore('toast', {
     },
     warning(message: string, duration = 4000) {
       this.addToast({ type: 'warning', message, duration });
+    },
+    clear() {
+      this.toasts = [];
+      this.nextId = 0;
     },
   },
 });

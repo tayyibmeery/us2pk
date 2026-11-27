@@ -3,422 +3,217 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invoice {{ $invoice->invoice_no }}</title>
     <style>
-        /* ============================================================
-           RESET & PAGE SETUP
-           ============================================================ */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        /*
+         * Letterhead layout (A4 = 210 x 297 mm)
+         * Page margins reserve space for the letterhead header/footer.
+         * Fixed elements are positioned relative to the content area, so:
+         *   left = X - 15mm   |   top = Y - 58mm   (X, Y = position on the page)
+         */
         @page {
             size: A4;
+            margin: 58mm 15mm 30mm 15mm;
+        }
+
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 11px;
+            color: #333;
+            line-height: 1.5;
             margin: 0;
         }
 
-        html,
-        body {
-            width: 190mm;
-            height: 250mm;
-            background: #ffffff;
+        .text-dark {
+            color: #14396b;
         }
 
-        body {
-            font-family: 'Helvetica Neue', Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            color: #2a2a2a;
-            font-size: 10px;
-            line-height: 1.4;
-            -webkit-font-smoothing: antialiased;
+        .text-muted {
+            color: #666;
         }
 
-        /* ============================================================
-           INVOICE CONTAINER
-           ============================================================ */
-        .invoice-container {
-            width: 190mm;
-            height: 250mm;
-            padding: 14mm 16mm;
-            background: #ffffff;
-            display: flex;
-            flex-direction: column;
+        .text-green {
+            color: #1f9254;
         }
 
-        /* ============================================================
-           HEADER
-           ============================================================ */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-            border-bottom: 2.5px solid #16213e;
+        .fw-bold {
+            font-weight: bold;
         }
 
-        .company-name {
-            font-size: 18px;
-            font-weight: 700;
-            color: #16213e;
-            letter-spacing: -0.3px;
-        }
-
-        .company-address {
-            font-size: 8.5px;
-            color: #6b7280;
-            margin-top: 3px;
-            line-height: 1.5;
-        }
-
-        .header-right {
+        .text-right {
             text-align: right;
         }
 
-        .invoice-label {
-            font-size: 20px;
-            font-weight: 700;
-            color: #16213e;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+        .text-left {
+            text-align: left;
         }
 
-        .invoice-no {
+        .text-center {
+            text-align: center;
+        }
+
+        .text-uppercase {
+            text-transform: uppercase;
+        }
+
+        .text-sm {
             font-size: 10px;
-            color: #6b7280;
-            font-weight: 500;
-            margin-top: 4px;
         }
 
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 2px 10px;
-            border-radius: 3px;
-            font-size: 8px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-top: 6px;
-        }
-
-        .status-paid {
-            background: #e8f5ee;
-            color: #1b7a43;
-        }
-
-        .status-pending {
-            background: #fef6e7;
-            color: #a16207;
-        }
-
-        .status-overdue {
-            background: #fdecec;
-            color: #b3261e;
-        }
-
-        /* ============================================================
-           FROM / TO / DATES — inline layout
-           ============================================================ */
-        .info-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .info-block h4 {
-            font-size: 7.5px;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            color: #9ca3af;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .info-block .name {
-            font-weight: 700;
-            font-size: 11px;
-            color: #16213e;
-            display: block;
-            margin-bottom: 1px;
-        }
-
-        .info-block p {
+        .text-xs {
             font-size: 9px;
-            line-height: 1.5;
-            color: #4b5563;
         }
 
-        .info-block .date-line {
-            display: flex;
-            justify-content: space-between;
-            font-size: 9px;
-            color: #4b5563;
-            padding: 2px 0;
-        }
-
-        .info-block .date-line span:first-child {
-            color: #9ca3af;
-        }
-
-        .info-block .date-line strong {
-            color: #16213e;
-            font-weight: 600;
-        }
-
-        /* ============================================================
-           MAIN TABLE (Invoice items)
-           ============================================================ */
-        table {
+        .w-100 {
             width: 100%;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        .mb-5 {
+            margin-bottom: 5px;
+        }
+
+        table {
             border-collapse: collapse;
         }
 
-        .items-table {
-            margin-bottom: 2px;
+        /* ---------- LETTERHEAD (fixed on every page) ---------- */
+        .lh-topbar {
+            position: fixed;
+            top: -58mm;
+            left: -15mm;
+            width: 210mm;
+            height: 4.5mm;
+            background-color: #14396b;
         }
 
-        .items-table thead th {
-            background: #16213e;
-            color: #ffffff;
-            padding: 5px 10px;
-            text-align: left;
-            font-size: 7.5px;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            font-weight: 700;
+        .lh-logo {
+            position: fixed;
+            top: -47mm;
+            left: 0;
+            width: 38mm;
+            height: 38mm;
         }
 
-        .items-table thead th:last-child {
+        .lh-company {
+            position: fixed;
+            top: -46mm;
+            right: 0;
+            width: 100mm;
             text-align: right;
         }
 
-        .items-table tbody td {
-            padding: 5px 10px;
-            border-bottom: 1px solid #e5e7eb;
-            font-size: 9.5px;
-            color: #2a2a2a;
+        .lh-company .name {
+            font-size: 26px;
+            font-weight: bold;
+            color: #14396b;
+            line-height: 1.1;
         }
 
-        .items-table tbody td:last-child {
-            text-align: right;
-            font-weight: 600;
-            color: #16213e;
-        }
-
-        .item-meta {
-            color: #9ca3af;
-            font-size: 7.5px;
-            font-weight: 400;
-            display: inline;
-            margin-left: 4px;
-        }
-
-        /* Totals summary aligned right under table */
-        .totals-wrap {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 16px;
-        }
-
-        .totals-box {
-            width: 220px;
-        }
-
-        .totals-box .line {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 10px;
-            font-size: 9.5px;
-            color: #4b5563;
-        }
-
-        .totals-box .grand-total {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 10px;
-            margin-top: 2px;
-            background: #16213e;
-            color: #ffffff;
-            font-size: 11px;
-            font-weight: 700;
-            border-radius: 2px;
-        }
-
-        /* ============================================================
-           PAYMENT HISTORY
-           ============================================================ */
-        .section-title {
-            font-size: 7.5px;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            color: #9ca3af;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .payment-history {
-            margin-bottom: 14px;
-        }
-
-        .payment-history table {
-            width: 100%;
-        }
-
-        .payment-history thead th {
-            padding: 3px 8px;
-            text-align: left;
-            font-size: 7px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            font-weight: 700;
-            color: #9ca3af;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .payment-history thead th:last-child {
-            text-align: right;
-        }
-
-        .payment-history tbody td {
-            padding: 3px 8px;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 8.5px;
-            color: #2a2a2a;
-        }
-
-        .payment-history tbody td:last-child {
-            text-align: right;
-            font-weight: 600;
-        }
-
-        .payment-history .balance-line td {
-            padding-top: 6px;
-            font-size: 9.5px;
-            font-weight: 700;
-            color: #16213e;
-            border-bottom: none;
-        }
-
-        .payment-history .balance-line .amt-paid {
-            color: #1b7a43;
-        }
-
-        .payment-history .balance-line.due .amt-due {
-            color: #b3261e;
-        }
-
-        .payment-history .balance-line.due .amt-due.zero {
-            color: #1b7a43;
-        }
-
-        /* ============================================================
-           SHIPMENT DETAILS
-           ============================================================ */
-        .shipment-details {
-            margin-bottom: 14px;
-            padding-top: 10px;
-            border-top: 1px solid #e5e7eb;
-        }
-
-        .shipment-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-        }
-
-        .shipment-grid .label {
-            font-size: 6.5px;
-            color: #9ca3af;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-
-        .shipment-grid .value {
-            font-size: 9.5px;
-            color: #2a2a2a;
-            font-weight: 600;
-            margin-top: 1px;
-        }
-
-        /* ============================================================
-           NOTES
-           ============================================================ */
-        .notes {
-            margin-bottom: 12px;
-            padding: 6px 10px;
-            background: #fafafa;
-            border-left: 2.5px solid #16213e;
-            border-radius: 2px;
-        }
-
-        .notes p {
-            font-size: 8.5px;
-            color: #4b5563;
-        }
-
-        .notes strong {
-            font-weight: 700;
-            color: #16213e;
-        }
-
-        /* ============================================================
-           FOOTER
-           ============================================================ */
-        .footer {
-            margin-top: auto;
-            padding-top: 10px;
-            border-top: 1px solid #e5e7eb;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .footer-left .thankyou {
+        .lh-company .tagline {
             font-size: 10px;
-            font-weight: 700;
-            color: #16213e;
+            color: #1f9254;
+            margin: 3px 0 8px 0;
         }
 
-        .footer-left .generated {
-            font-size: 7px;
-            color: #9ca3af;
-            margin-top: 1px;
+        .lh-company .info {
+            font-size: 9.5px;
+            color: #444;
+            line-height: 1.6;
         }
 
-        .footer-right {
-            text-align: right;
-            font-size: 7.5px;
-            color: #9ca3af;
+        .lh-line-green {
+            position: fixed;
+            top: -7mm;
+            left: 0;
+            width: 180mm;
+            border-top: 0.9mm solid #1f9254;
         }
 
-        /* ============================================================
-           PRINT
-           ============================================================ */
-        @media print {
+        .lh-line-navy {
+            position: fixed;
+            top: -5.6mm;
+            left: 0;
+            width: 180mm;
+            border-top: 0.2mm solid #14396b;
+        }
 
-            html,
-            body {
-                width: 190mm;
-                height: 250mm;
-            }
+        .lh-watermark {
+            position: fixed;
+            top: 45mm;
+            left: 34mm;
+            width: 116mm;
+            opacity: 0.07;
+        }
 
-            .invoice-container {
-                width: 190mm;
-                height: 250mm;
-                page-break-after: avoid;
-                page-break-inside: avoid;
-            }
+        .lh-signature {
+            position: fixed;
+            top: 152mm;
+            left: 140mm;
+            height: 26mm;
+        }
 
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
+        .lh-stamp {
+            position: fixed;
+            top: 178mm;
+            left: 134mm;
+            width: 42mm;
+            height: 42mm;
+        }
+
+        .lh-footer-line {
+            position: fixed;
+            top: 220mm;
+            left: 0;
+            width: 180mm;
+            border-top: 0.6mm solid #1f9254;
+        }
+
+        .lh-footer {
+            position: fixed;
+            top: 222mm;
+            left: 0;
+            width: 180mm;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* ---------- INVOICE CONTENT ---------- */
+        .invoice-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #14396b;
+            letter-spacing: 2px;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .items-table th {
+            background-color: #14396b;
+            color: #ffffff;
+            padding: 8px 10px;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .items-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 11px;
+        }
+
+        .section-label {
+            font-size: 9px;
+            font-weight: bold;
+            color: #1f9254;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
         }
     </style>
 </head>
@@ -426,222 +221,194 @@
 <body>
 
     @php
-    $isPaid = !is_null($invoice->cod_date) && $invoice->cod > 0;
-    $isOverdue = !$isPaid && \Carbon\Carbon::parse($invoice->date)->addDays(7)->isPast();
-    $status = $isPaid ? 'paid' : ($isOverdue ? 'overdue' : 'pending');
-    $statusLabels = ['paid' => 'Paid', 'pending' => 'Pending', 'overdue' => 'Overdue'];
-    $statusColors = ['paid' => 'status-paid', 'pending' => 'status-pending', 'overdue' => 'status-overdue'];
-
-    $shipment = $invoice->shipment;
-    $payments = $shipment?->payments ?? collect();
-    $totalPaid = $payments->sum('amount');
-    $totalPayable = ($shipment->item_value_pkr ?? 0) + ($shipment->company_charges ?? 0);
-    $remaining = $totalPayable - $totalPaid;
-    $totalAmount = ($invoice->amount_due ?? 0) + ($invoice->output_tax ?? 0);
-    $subtotal = $invoice->amount_due ?? 0;
+    $companyEmail = 'admin@us2pk.com';
+    $hasGd = extension_loaded('gd');
+    $img = function ($name) use ($hasGd) {
+    $path = public_path('assets/' . $name);
+    return ($hasGd && is_file($path))
+    ? 'data:image/png;base64,' . base64_encode(file_get_contents($path))
+    : '';
+    };
+    $logo = $img('logo.png');
+    $signature = $img('signature.png');
+    $stamp = $img('stamp.png');
     @endphp
 
-    <div class="invoice-container">
+    <!-- ===================== LETTERHEAD ===================== -->
+    <div class="lh-topbar"></div>
 
-        <!-- ============================================================
-        HEADER
-        ============================================================ -->
-        <div class="header">
-            <div>
-                <div class="company-name">{{ $company['name'] ?? 'US2PK Logistics' }}</div>
-                <div class="company-address">
-                    {{ $company['address'] ?? '123 Business Street, Lahore, Pakistan' }} &nbsp;·&nbsp;
-                    {{ $company['phone'] ?? '+92-300-1234567' }} &nbsp;·&nbsp;
-                    {{ $company['email'] ?? 'info@us2pk.com' }}
-                </div>
-            </div>
-            <div class="header-right">
-                <div class="invoice-label">Invoice</div>
-                <div class="invoice-no">#{{ $invoice->invoice_no }}</div>
-                <span class="status-badge {{ $statusColors[$status] }}">{{ $statusLabels[$status] }}</span>
-            </div>
+    @if($logo)
+    <img class="lh-watermark" src="{{ $logo }}" alt="">
+    <img class="lh-logo" src="{{ $logo }}" alt="US2PK">
+    @endif
+
+    @unless($logo)
+    <div style="position: fixed; top: -40mm; left: 0; font-size: 30px; font-weight: bold; color: #14396b;">US2<span style="color:#1f9254;">PK</span></div>
+    @endunless
+
+    <div class="lh-company">
+        <div class="name">US2PK</div>
+        <div class="tagline">BRINGING OPPORTUNITIES HOME</div>
+        <div class="info">
+            Office #407, Garden Tower, Babar Block<br>
+            Garden Town, Lahore, Pakistan<br>
+            +92 301 5233018 &nbsp;|&nbsp; {{ $companyEmail }}
         </div>
+    </div>
 
-        <!-- ============================================================
-        FROM / TO / DATES
-        ============================================================ -->
-        <div class="info-row">
-            <div class="info-block">
-                <h4>Billed To</h4>
-                <span class="name">{{ $invoice->shipment?->user?->name ?? 'N/A' }}</span>
-                <p>
-                    {{ $invoice->shipment?->user?->email ?? 'N/A' }}<br>
-                    {{ $invoice->shipment?->user?->city?->city_name ?? 'N/A' }}
-                </p>
-            </div>
-            <div class="info-block">
-                <h4>Shipment</h4>
-                <p>
-                    <strong style="color:#16213e;">{{ $shipment?->shipment_code ?? 'N/A' }}</strong><br>
-                    {{ $shipment?->bought_by ?? 'N/A' }} &nbsp;·&nbsp; {{ $shipment?->description ?? 'N/A' }}
-                </p>
-            </div>
-            <div class="info-block">
-                <h4>Dates</h4>
-                <div class="date-line">
-                    <span>Issued</span>
-                    <strong>{{ \Carbon\Carbon::parse($invoice->date)->format('d M Y') }}</strong>
-                </div>
+    <div class="lh-line-green"></div>
+    <div class="lh-line-navy"></div>
+
+    @if($signature)
+    <img class="lh-signature" src="{{ $signature }}" alt="">
+    @endif
+    @if($stamp)
+    <img class="lh-stamp" src="{{ $stamp }}" alt="">
+    @endif
+
+    <div class="lh-footer-line"></div>
+    <div class="lh-footer">
+        US2PK &nbsp;|&nbsp; USA-to-Pakistan Shopping &amp; Shipping<br>
+        <strong style="color: #14396b;">www.us2pk.com</strong>
+    </div>
+
+    <!-- ===================== INVOICE BODY ===================== -->
+
+    <!-- TITLE -->
+    <table class="w-100 mb-20">
+        <tr>
+            <td class="text-left" style="vertical-align: bottom;">
+                <h1 class="invoice-title">INVOICE</h1>
+            </td>
+            <td class="text-right" style="vertical-align: bottom;">
+                <div class="text-sm fw-bold text-dark">#{{ $invoice->invoice_no }}</div>
+                <div class="text-xs text-muted">Date: {{ \Carbon\Carbon::parse($invoice->date)->format('d M Y') }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- BILLING INFO (3 Columns) -->
+    <table class="w-100 mb-20">
+        <tr>
+            <td width="33%" style="vertical-align: top;">
+                <div class="section-label">Billed To</div>
+                <div class="fw-bold text-dark" style="font-size: 12px;">{{ $invoice->shipment?->user?->name ?? 'N/A' }}</div>
+                <div class="text-xs text-muted">{{ $invoice->shipment?->user?->email ?? 'N/A' }}</div>
+                <div class="text-xs text-muted">{{ $invoice->shipment?->user?->city?->city_name ?? 'N/A' }}</div>
+            </td>
+            <td width="33%" style="vertical-align: top;">
+                <div class="section-label">Shipment Details</div>
+                <div class="fw-bold text-dark" style="font-size: 12px;">{{ $invoice->shipment?->shipment_code ?? 'N/A' }}</div>
+                <div class="text-xs text-muted">Weight: {{ $invoice->shipment?->weight ?? '0' }} KG</div>
+                <div class="text-xs text-muted">{{ $invoice->shipment?->description ?? 'N/A' }}</div>
+            </td>
+            <td width="33%" style="vertical-align: top;">
+                <div class="section-label">Payment Details</div>
+                <div class="text-xs text-muted">Method: <span class="fw-bold text-dark">{{ $invoice->payment_method ?? 'N/A' }}</span></div>
+                <div class="text-xs text-muted">Status: <span class="fw-bold text-dark text-uppercase">{{ $invoice->status }}</span></div>
                 @if($invoice->cod_date)
-                <div class="date-line">
-                    <span>COD Date</span>
-                    <strong>{{ \Carbon\Carbon::parse($invoice->cod_date)->format('d M Y') }}</strong>
-                </div>
+                <div class="text-xs text-muted">COD Date: {{ \Carbon\Carbon::parse($invoice->cod_date)->format('d M Y') }}</div>
                 @endif
-            </div>
-        </div>
+            </td>
+        </tr>
+    </table>
 
-        <!-- ============================================================
-        INVOICE TABLE
-        ============================================================ -->
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th style="text-align:right;">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>
-                        <strong>Shipment Charges</strong>
-                        <span class="item-meta">{{ $shipment?->shipment_code ?? 'N/A' }}</span>
-                    </td>
-                    <td>{{ number_format($invoice->amount_due, 2) }} PKR</td>
-                </tr>
-                @if($invoice->cod > 0)
-                <tr>
-                    <td>
-                        <strong>Cash on Delivery</strong>
-                        <span class="item-meta">COD</span>
-                    </td>
-                    <td>{{ number_format($invoice->cod, 2) }} PKR</td>
-                </tr>
-                @endif
-                @if($invoice->output_tax > 0)
-                <tr>
-                    <td>
-                        <strong>Output Tax</strong>
-                    </td>
-                    <td>{{ number_format($invoice->output_tax, 2) }} PKR</td>
-                </tr>
-                @endif
-            </tbody>
-        </table>
+    <!-- ITEMS TABLE -->
+    <table class="w-100 items-table mb-20">
+        <thead>
+            <tr>
+                <th class="text-left">Description</th>
+                <th class="text-right" width="30%">Amount (PKR)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <div class="fw-bold text-dark">Shipment Charges</div>
+                    <div class="text-xs text-muted">Ref: {{ $invoice->shipment?->shipment_code ?? 'N/A' }}</div>
+                </td>
+                <td class="text-right fw-bold">{{ number_format($invoice->amount_due, 2) }}</td>
+            </tr>
+            @if($invoice->cod > 0)
+            <tr>
+                <td>
+                    <div class="fw-bold text-dark">Cash on Delivery (COD)</div>
+                    <div class="text-xs text-muted">To be collected</div>
+                </td>
+                <td class="text-right fw-bold">{{ number_format($invoice->cod, 2) }}</td>
+            </tr>
+            @endif
+            @if($invoice->output_tax > 0)
+            <tr>
+                <td class="fw-bold text-dark">Output Tax</td>
+                <td class="text-right fw-bold">{{ number_format($invoice->output_tax, 2) }}</td>
+            </tr>
+            @endif
+        </tbody>
+    </table>
 
-        <div class="totals-wrap">
-            <div class="totals-box">
-                <div class="line">
-                    <span>Subtotal</span>
-                    <span>{{ number_format($subtotal, 2) }} PKR</span>
-                </div>
-                @if($invoice->output_tax > 0)
-                <div class="line">
-                    <span>Output Tax</span>
-                    <span>{{ number_format($invoice->output_tax, 2) }} PKR</span>
-                </div>
-                @endif
-                <div class="grand-total">
-                    <span>Total Amount</span>
-                    <span>{{ number_format($totalAmount, 2) }} PKR</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- ============================================================
-        PAYMENT HISTORY
-        ============================================================ -->
-        @if($payments->count() > 0)
-        <div class="payment-history">
-            <div class="section-title">Payment History</div>
-            <table>
-                <thead>
+    <!-- TOTALS -->
+    <table class="w-100 mb-20">
+        <tr>
+            <td width="60%"></td>
+            <td width="40%">
+                <table class="w-100">
                     <tr>
-                        <th>Date</th>
-                        <th>Method</th>
-                        <th>Reference</th>
-                        <th style="text-align:right;">Amount</th>
+                        <td class="text-left text-muted">Subtotal</td>
+                        <td class="text-right text-dark">{{ number_format($invoice->amount_due, 2) }} PKR</td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach($payments as $payment)
+                    @if($invoice->output_tax > 0)
                     <tr>
-                        <td>{{ \Carbon\Carbon::parse($payment->payment_date)->format('d M Y') }}</td>
-                        <td>{{ $payment->payment_method ?? 'N/A' }}</td>
-                        <td>{{ $payment->reference_number ?? '—' }}</td>
-                        <td>{{ number_format($payment->amount, 2) }} PKR</td>
+                        <td class="text-left text-muted">Tax</td>
+                        <td class="text-right text-dark">{{ number_format($invoice->output_tax, 2) }} PKR</td>
                     </tr>
-                    @endforeach
-                    <tr class="balance-line">
-                        <td colspan="3" style="text-align:right;">Total Paid</td>
-                        <td style="text-align:right;" class="amt-paid">{{ number_format($totalPaid, 2) }} PKR</td>
-                    </tr>
-                    <tr class="balance-line due">
-                        <td colspan="3" style="text-align:right;">Remaining Balance</td>
-                        <td style="text-align:right;" class="amt-due {{ $remaining <= 0 ? 'zero' : '' }}">
-                            {{ number_format($remaining, 2) }} PKR
+                    @endif
+                    <tr>
+                        <td class="text-left fw-bold text-dark" style="padding-top: 10px; border-top: 1px solid #14396b;">Total Amount</td>
+                        <td class="text-right fw-bold text-green" style="padding-top: 10px; border-top: 1px solid #14396b; font-size: 14px;">
+                            {{ number_format($invoice->amount_due + $invoice->output_tax, 2) }} PKR
                         </td>
                     </tr>
-                </tbody>
-            </table>
-        </div>
-        @endif
+                </table>
+            </td>
+        </tr>
+    </table>
 
-        <!-- ============================================================
-        SHIPMENT DETAILS
-        ============================================================ -->
-        @if($shipment)
-        <div class="shipment-details">
-            <div class="section-title">Shipment Details</div>
-            <div class="shipment-grid">
-                <div>
-                    <div class="label">Shipment Code</div>
-                    <div class="value">{{ $shipment->shipment_code ?? 'N/A' }}</div>
-                </div>
-                <div>
-                    <div class="label">Weight</div>
-                    <div class="value">{{ $shipment->weight_kgs ?? $shipment->weight ?? 'N/A' }} kg</div>
-                </div>
-                <div>
-                    <div class="label">Description</div>
-                    <div class="value">{{ $shipment->description ?? 'N/A' }}</div>
-                </div>
-                <div>
-                    <div class="label">Bought By</div>
-                    <div class="value">{{ $shipment->bought_by ?? 'N/A' }}</div>
-                </div>
-            </div>
-        </div>
-        @endif
+    <!-- PAYMENT HISTORY -->
+    @if($invoice->shipment && $invoice->shipment->payments->count() > 0)
+    <table class="w-100 mb-20">
+        <tr>
+            <td>
+                <div class="section-label">Payment History</div>
+                <table class="w-100" style="border: 1px solid #e5e7eb;">
+                    <thead style="background-color: #f1f5f9;">
+                        <tr>
+                            <th class="text-left text-xs" style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; color: #666;">Date</th>
+                            <th class="text-left text-xs" style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; color: #666;">Method</th>
+                            <th class="text-left text-xs" style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; color: #666;">Reference</th>
+                            <th class="text-right text-xs" style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; color: #666;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($invoice->shipment->payments as $payment)
+                        <tr>
+                            <td class="text-xs" style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb;">{{ \Carbon\Carbon::parse($payment->payment_date)->format('d M Y') }}</td>
+                            <td class="text-xs" style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb;">{{ $payment->payment_method ?? '—' }}</td>
+                            <td class="text-xs" style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb;">{{ $payment->reference_number ?? '—' }}</td>
+                            <td class="text-xs text-right" style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb;">{{ number_format($payment->amount, 2) }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+    </table>
+    @endif
 
-        <!-- ============================================================
-        NOTES
-        ============================================================ -->
-        @if(!empty($invoice->notes))
-        <div class="notes">
-            <p><strong>Note:</strong> {{ $invoice->notes }}</p>
-        </div>
-        @endif
-
-        <!-- ============================================================
-        FOOTER
-        ============================================================ -->
-        <div class="footer">
-            <div class="footer-left">
-                <div class="thankyou">Thank you for your business</div>
-                <div class="generated">Generated on {{ now()->format('d M Y \a\t H:i') }}</div>
-            </div>
-            <div class="footer-right">
-                {{ $company['name'] ?? 'US2PK Logistics' }} &nbsp;·&nbsp; {{ $company['email'] ?? 'info@us2pk.com' }}
-            </div>
-        </div>
-
-    </div>
+    <!-- THANK YOU -->
+    <div class="fw-bold text-dark" style="font-size: 12px;">Thank you for your business!</div>
+    <div class="text-xs text-muted">If you have any questions, please contact us at {{ $companyEmail }}</div>
+    <div class="text-xs text-muted">Generated on {{ now()->format('d M Y \a\t H:i') }}</div>
 
 </body>
 

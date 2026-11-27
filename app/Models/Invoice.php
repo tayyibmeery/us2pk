@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Invoice extends Model
 {
     protected $fillable = [
         'invoice_no',
+        'user_id',
         'shipment_id',
         'date',
         'amount_due',
@@ -38,8 +40,23 @@ class Invoice extends Model
 
     public function shipment(): BelongsTo
     {
-        return $this->belongsTo(Shipment::class);
+        return $this->belongsTo(Shipment::class);   // "primary" shipment (kept for BC)
     }
+
+    /** NEW: the billed customer */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class);
+    }
+
+    /** NEW: all shipments covered by this invoice */
+    public function shipments(): BelongsToMany
+    {
+        return $this->belongsToMany(Shipment::class, 'invoice_shipments')
+            ->withPivot(['amount', 'cod'])
+            ->withTimestamps();
+    }
+
 
     /**
      * Get the total amount including tax

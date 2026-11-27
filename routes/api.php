@@ -13,11 +13,8 @@ use App\Http\Controllers\Api\Admin\{
     InvoiceController,
     DebtorController,
     CityController,
-    EmployeeController,
     InternationalCourierController,
     LocalCourierController,
-    PageController,
-    FinancialController,
     JournalController,
     LedgerController,
     PaymentMethodController,
@@ -27,9 +24,32 @@ use App\Http\Controllers\Api\Admin\{
     SiteController,
     TrialBalanceController,
     VoucherController,
-    WarehouseController
+    WarehouseController,
+    // ============================================================
+    // LANDING MODULE ADMIN CONTROLLERS
+    // ============================================================
+    HeroSlideController,
+    AboutSectionController,
+    ServiceController,
+    TestimonialController,
+    TeamMemberController,
+    PricingPlanController,
+    FaqController,
+    BlogPostController,
+    WhyUsSectionController,
+    ContactSectionController,
+    FooterSectionController,
+    LandingSettingController,
+    StatController,
+    QuoteRequestController,
+    ProhibitedItemController
 };
+
+use App\Http\Controllers\Api\Public\LandingController;
+use App\Http\Controllers\Api\Public\LandingSettingPublicController;
+use App\Http\Controllers\Api\Public\QuoteController;
 use App\Http\Controllers\CityPublicController;
+
 
 // ============================================================
 // PUBLIC ROUTES (No authentication required)
@@ -37,10 +57,45 @@ use App\Http\Controllers\CityPublicController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::get('/public/cities', [CityPublicController::class, 'index']);
-Route::get('public/landing', [PageController::class, 'publicLanding']);
+
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware(['auth:sanctum', 'signed'])
     ->name('verification.verify');
+
+
+Route::post('/quotes', [QuoteController::class, 'store']);
+// ============================================================
+// LANDING PAGE PUBLIC ROUTES - DATA
+// ============================================================
+Route::prefix('landing')->group(function () {
+    Route::get('/', [LandingController::class, 'index']);
+    Route::get('/section/{type}', [LandingController::class, 'getSection']);
+    Route::get('/hero', [LandingController::class, 'getHero']);
+    Route::get('/services', [LandingController::class, 'getServices']);
+    Route::get('/testimonials', [LandingController::class, 'getTestimonials']);
+    Route::get('/team', [LandingController::class, 'getTeam']);
+    Route::get('/pricing', [LandingController::class, 'getPricing']);
+    Route::get('/about', [LandingController::class, 'getAbout']);
+    Route::get('/faq', [LandingController::class, 'getFaq']);
+    Route::get('/whyus', [LandingController::class, 'getWhyUs']);
+    Route::get('/blog', [LandingController::class, 'getBlog']);
+    Route::get('/contact', [LandingController::class, 'getContact']);
+    Route::get('/footer', [LandingController::class, 'getFooter']);
+    Route::get('/stats', [LandingController::class, 'getStats']);
+    Route::get('/prohibited-items', [LandingController::class, 'getProhibitedItems']);
+});
+
+// ============================================================
+// LANDING PAGE PUBLIC ROUTES - SETTINGS
+// ============================================================
+Route::prefix('landing-settings')->group(function () {
+    Route::get('/', [LandingSettingPublicController::class, 'index']);
+});
+
+// ============================================================
+// QUOTE REQUEST PUBLIC ROUTE
+// ============================================================
+Route::post('/quotes', [QuoteRequestController::class, 'store']);
 
 // ============================================================
 // AUTHENTICATED ROUTES (Requires authentication)
@@ -92,22 +147,16 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::get('/users/search', [ShipmentController::class, 'searchUsers']);
 
     // ============================================================
-    // EMPLOYEES
-    // ============================================================
-    Route::apiResource('employees', EmployeeController::class)->only(['index', 'store', 'update', 'destroy']);
-    Route::get('employees/{employee}', [EmployeeController::class, 'show']);
-
-    // ============================================================
     // SHIPMENTS
     // ============================================================
-    // Custom routes (must come before apiResource)
     Route::get('/shipments/generate-shipment-code', [ShipmentController::class, 'generateShipmentCode']);
     Route::post('/shipments/bulk-status', [ShipmentController::class, 'updateBulkStatus']);
     Route::get('/shipments/fetch-customer', [ShipmentController::class, 'fetchCustomer']);
     Route::post('/shipments/{shipment}/status', [ShipmentController::class, 'updateStatus']);
-
-    // API Resource
     Route::apiResource('shipments', ShipmentController::class);
+
+    Route::post('/shipments/{id}/restore', [ShipmentController::class, 'restore']);
+    Route::get('/shipments/generate-shipment-code', [ShipmentController::class, 'generateShipmentCode']);
 
     // Shipment Payments
     Route::prefix('shipments/{shipment}')->group(function () {
@@ -148,6 +197,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // ============================================================
     Route::apiResource('vouchers', VoucherController::class);
     Route::post('vouchers/{voucher}/approve', [VoucherController::class, 'approve']);
+    Route::post('vouchers/{id}/restore', [VoucherController::class, 'restore']);
     Route::get('/vouchers/by-number/{voucher_no}', [VoucherController::class, 'showByNumber']);
 
     // ============================================================
@@ -173,6 +223,15 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     // ============================================================
     // FINANCIAL - INVOICES
     // ============================================================
+
+    // ✅ Helper routes — kept OUTSIDE the `invoices` prefix so URLs are:
+    //    api/admin/invoice-users
+    //    api/admin/users/{user}/cod-shipments
+    //    api/admin/shipments/{shipment}/invoice
+    Route::get('invoice-users',                    [InvoiceController::class, 'users']);
+    Route::get('users/{user}/cod-shipments',       [InvoiceController::class, 'userCodShipments']);
+    Route::post('shipments/{shipment}/invoice',    [InvoiceController::class, 'storeFromShipment']);
+
     Route::prefix('invoices')->group(function () {
         Route::get('/', [InvoiceController::class, 'index']);
         Route::get('/stats', [InvoiceController::class, 'stats']);
@@ -183,6 +242,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
         Route::put('/{invoice}', [InvoiceController::class, 'update']);
         Route::delete('/{invoice}', [InvoiceController::class, 'destroy']);
         Route::post('/{invoice}/mark-as-paid', [InvoiceController::class, 'markAsPaid']);
+        Route::post('/{invoice}/cancel', [InvoiceController::class, 'cancel']);
     });
 
     // ============================================================
@@ -208,7 +268,172 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::apiResource('weight-discounts', WeightDiscountController::class);
 
     // ============================================================
-    // CMS
+    // LANDING PAGES - 14 MODULES (Full CRUD)
     // ============================================================
-    Route::apiResource('pages', PageController::class);
+
+    // 1. Hero Slides
+    Route::prefix('hero-slides')->group(function () {
+        Route::get('/', [HeroSlideController::class, 'index']);
+        Route::post('/', [HeroSlideController::class, 'store']);
+        Route::get('/{heroSlide}', [HeroSlideController::class, 'show']);
+        Route::put('/{heroSlide}', [HeroSlideController::class, 'update']);
+        Route::delete('/{heroSlide}', [HeroSlideController::class, 'destroy']);
+        Route::post('/reorder', [HeroSlideController::class, 'reorder']);
+        Route::post('/bulk-status', [HeroSlideController::class, 'bulkStatus']);
+        Route::delete('/bulk-delete', [HeroSlideController::class, 'bulkDelete']);
+    });
+
+    // 2. About Sections
+    Route::prefix('about-sections')->group(function () {
+        Route::get('/', [AboutSectionController::class, 'index']);
+        Route::post('/', [AboutSectionController::class, 'store']);
+        Route::get('/{aboutSection}', [AboutSectionController::class, 'show']);
+        Route::put('/{aboutSection}', [AboutSectionController::class, 'update']);
+        Route::delete('/{aboutSection}', [AboutSectionController::class, 'destroy']);
+        Route::delete('/bulk-delete', [AboutSectionController::class, 'bulkDelete']);
+    });
+
+    // 3. Services
+    Route::prefix('services')->group(function () {
+        Route::get('/', [ServiceController::class, 'index']);
+        Route::post('/', [ServiceController::class, 'store']);
+        Route::get('/{service}', [ServiceController::class, 'show']);
+        Route::put('/{service}', [ServiceController::class, 'update']);
+        Route::delete('/{service}', [ServiceController::class, 'destroy']);
+        Route::post('/reorder', [ServiceController::class, 'reorder']);
+        Route::post('/bulk-status', [ServiceController::class, 'bulkStatus']);
+        Route::delete('/bulk-delete', [ServiceController::class, 'bulkDelete']);
+    });
+
+    // 4. Testimonials
+    Route::prefix('testimonials')->group(function () {
+        Route::get('/', [TestimonialController::class, 'index']);
+        Route::post('/', [TestimonialController::class, 'store']);
+        Route::get('/{testimonial}', [TestimonialController::class, 'show']);
+        Route::put('/{testimonial}', [TestimonialController::class, 'update']);
+        Route::delete('/{testimonial}', [TestimonialController::class, 'destroy']);
+        Route::post('/reorder', [TestimonialController::class, 'reorder']);
+        Route::post('/bulk-status', [TestimonialController::class, 'bulkStatus']);
+        Route::delete('/bulk-delete', [TestimonialController::class, 'bulkDelete']);
+    });
+
+    // 5. Team Members
+    Route::prefix('team-members')->group(function () {
+        Route::get('/', [TeamMemberController::class, 'index']);
+        Route::post('/', [TeamMemberController::class, 'store']);
+        Route::get('/{teamMember}', [TeamMemberController::class, 'show']);
+        Route::put('/{teamMember}', [TeamMemberController::class, 'update']);
+        Route::delete('/{teamMember}', [TeamMemberController::class, 'destroy']);
+        Route::post('/reorder', [TeamMemberController::class, 'reorder']);
+        Route::post('/bulk-status', [TeamMemberController::class, 'bulkStatus']);
+        Route::delete('/bulk-delete', [TeamMemberController::class, 'bulkDelete']);
+    });
+
+    // 6. Pricing Plans
+    Route::prefix('pricing-plans')->group(function () {
+        Route::get('/', [PricingPlanController::class, 'index']);
+        Route::post('/', [PricingPlanController::class, 'store']);
+        Route::get('/{pricingPlan}', [PricingPlanController::class, 'show']);
+        Route::put('/{pricingPlan}', [PricingPlanController::class, 'update']);
+        Route::delete('/{pricingPlan}', [PricingPlanController::class, 'destroy']);
+        Route::post('/reorder', [PricingPlanController::class, 'reorder']);
+        Route::post('/bulk-status', [PricingPlanController::class, 'bulkStatus']);
+        Route::delete('/bulk-delete', [PricingPlanController::class, 'bulkDelete']);
+    });
+
+    // 7. FAQs
+    Route::prefix('faqs')->group(function () {
+        Route::get('/', [FaqController::class, 'index']);
+        Route::post('/', [FaqController::class, 'store']);
+        Route::get('/{faq}', [FaqController::class, 'show']);
+        Route::put('/{faq}', [FaqController::class, 'update']);
+        Route::delete('/{faq}', [FaqController::class, 'destroy']);
+        Route::post('/reorder', [FaqController::class, 'reorder']);
+        Route::post('/bulk-status', [FaqController::class, 'bulkStatus']);
+        Route::delete('/bulk-delete', [FaqController::class, 'bulkDelete']);
+    });
+
+    // 8. Blog Posts
+    Route::prefix('blog-posts')->group(function () {
+        Route::get('/', [BlogPostController::class, 'index']);
+        Route::post('/', [BlogPostController::class, 'store']);
+        Route::get('/{blogPost}', [BlogPostController::class, 'show']);
+        Route::put('/{blogPost}', [BlogPostController::class, 'update']);
+        Route::delete('/{blogPost}', [BlogPostController::class, 'destroy']);
+        Route::post('/bulk-status', [BlogPostController::class, 'bulkStatus']);
+        Route::delete('/bulk-delete', [BlogPostController::class, 'bulkDelete']);
+    });
+
+    // 9. Why Us Sections
+    Route::prefix('why-us-sections')->group(function () {
+        Route::get('/', [WhyUsSectionController::class, 'index']);
+        Route::post('/', [WhyUsSectionController::class, 'store']);
+        Route::get('/{whyUsSection}', [WhyUsSectionController::class, 'show']);
+        Route::put('/{whyUsSection}', [WhyUsSectionController::class, 'update']);
+        Route::delete('/{whyUsSection}', [WhyUsSectionController::class, 'destroy']);
+    });
+
+    // 10. Contact Sections
+    Route::prefix('contact-sections')->group(function () {
+        Route::get('/', [ContactSectionController::class, 'index']);
+        Route::post('/', [ContactSectionController::class, 'store']);
+        Route::get('/{contactSection}', [ContactSectionController::class, 'show']);
+        Route::put('/{contactSection}', [ContactSectionController::class, 'update']);
+        Route::delete('/{contactSection}', [ContactSectionController::class, 'destroy']);
+    });
+
+    // 11. Footer Sections
+    Route::prefix('footer-sections')->group(function () {
+        Route::get('/', [FooterSectionController::class, 'index']);
+        Route::post('/', [FooterSectionController::class, 'store']);
+        Route::get('/{footerSection}', [FooterSectionController::class, 'show']);
+        Route::put('/{footerSection}', [FooterSectionController::class, 'update']);
+        Route::delete('/{footerSection}', [FooterSectionController::class, 'destroy']);
+    });
+
+    // 12. Statistics
+    Route::prefix('stats')->group(function () {
+        Route::get('/', [StatController::class, 'index']);
+        Route::post('/', [StatController::class, 'store']);
+        Route::get('/{stat}', [StatController::class, 'show']);
+        Route::put('/{stat}', [StatController::class, 'update']);
+        Route::delete('/{stat}', [StatController::class, 'destroy']);
+    });
+
+    // 13. Quote Requests
+    Route::prefix('quote-requests')->group(function () {
+        Route::get('/', [QuoteRequestController::class, 'index']);
+        Route::get('/stats', [QuoteRequestController::class, 'stats']);
+        Route::get('/export', [QuoteRequestController::class, 'export']);
+        Route::get('/{quoteRequest}', [QuoteRequestController::class, 'show']);
+        Route::delete('/{quoteRequest}', [QuoteRequestController::class, 'destroy']);
+        Route::post('/{quoteRequest}/update-status', [QuoteRequestController::class, 'updateStatus']);
+        Route::delete('/bulk-delete', [QuoteRequestController::class, 'bulkDelete']);
+    });
+
+    // 14. Prohibited Items
+    Route::prefix('prohibited-items')->group(function () {
+        Route::get('/', [ProhibitedItemController::class, 'index']);
+        Route::post('/', [ProhibitedItemController::class, 'store']);
+        Route::get('/categories', [ProhibitedItemController::class, 'getCategories']);
+        Route::get('/severity-options', [ProhibitedItemController::class, 'getSeverityOptions']);
+        Route::get('/export', [ProhibitedItemController::class, 'export']);
+        Route::get('/{prohibitedItem}', [ProhibitedItemController::class, 'show']);
+        Route::put('/{prohibitedItem}', [ProhibitedItemController::class, 'update']);
+        Route::delete('/{prohibitedItem}', [ProhibitedItemController::class, 'destroy']);
+        Route::post('/reorder', [ProhibitedItemController::class, 'reorder']);
+        Route::post('/bulk-status', [ProhibitedItemController::class, 'bulkStatus']);
+        Route::delete('/bulk-delete', [ProhibitedItemController::class, 'bulkDelete']);
+    });
+
+    // ============================================================
+    // LANDING SETTINGS - ADMIN ROUTES
+    // ============================================================
+    Route::prefix('landing-settings')->group(function () {
+        Route::get('/', [LandingSettingController::class, 'index']);
+        Route::get('/{landingSetting}', [LandingSettingController::class, 'show']);
+        Route::put('/{landingSetting}', [LandingSettingController::class, 'update']);
+        Route::post('/bulk-update', [LandingSettingController::class, 'bulkUpdate']);
+        Route::post('/reset', [LandingSettingController::class, 'reset']);
+    });
 });

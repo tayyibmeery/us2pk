@@ -2,11 +2,12 @@ import { defineStore } from 'pinia'
 import api from '@/services/api'
 import type { Shipment, PaginatedResponse } from '@/types'
 
+
 const SKIP_KEYS = [
   'images', 'total', 'user', 'site', 'shipment_status',
   'payment_method', 'local_courier', 'consolidation',
   'created_at', 'updated_at', 'weight_kgs', 'amount_due',
-  'receivable_cod',
+  'receivable_cod', 'deleted_at',
 ]
 
 const DATE_KEYS = ['purchase_date', 'arrival_date', 'expected_delivery_date', 'date_delivered']
@@ -47,7 +48,7 @@ export const useShipmentStore = defineStore('shipment', {
     search: '',
     perPage: 20,
     sortBy: 'id',
-    sortOrder: 'asc' as 'asc' | 'desc',
+    sortOrder: 'desc' as 'asc' | 'desc',
     statusFilter: '',
   }),
 
@@ -60,6 +61,7 @@ export const useShipmentStore = defineStore('shipment', {
         sortBy?: string
         sortOrder?: 'asc' | 'desc'
         status?: string
+        trashed?: boolean
       } = {}
     ) {
       if (options.search !== undefined) this.search = options.search
@@ -80,6 +82,7 @@ export const useShipmentStore = defineStore('shipment', {
         }
         if (this.search) params.search = this.search
         if (this.statusFilter) params.status = this.statusFilter
+        if (options.trashed) params.trashed = true
 
         const res = await api.get<PaginatedResponse<Shipment>>('/admin/shipments', { params })
         this.items = res.data.data
@@ -167,28 +170,15 @@ export const useShipmentStore = defineStore('shipment', {
       }
     },
 
-    async updateStatus(id: number, shipmentStatusId: number): Promise<void> {
+    async updateStatus(id: number, shipmentStatusId: number, trashed = false): Promise<void> {
       this.loading = true
       this.error = null
+
       try {
         await api.post(`/admin/shipments/${id}/status`, { shipment_status_id: shipmentStatusId })
-        await this.fetchItems(this.pagination?.current_page || 1)
+        await this.fetchItems(this.pagination?.current_page || 1, { trashed })
       } catch (e: any) {
         this.error = e.message || 'Failed to update status'
-        throw e
-      } finally {
-        this.loading = false
-      }
-    },
-
-    async delete(id: number): Promise<void> {
-      this.loading = true
-      this.error = null
-      try {
-        await api.delete(`/admin/shipments/${id}`)
-        this.items = this.items.filter(item => item.id !== id)
-      } catch (e: any) {
-        this.error = e.message || 'Failed to delete shipment'
         throw e
       } finally {
         this.loading = false
@@ -198,6 +188,7 @@ export const useShipmentStore = defineStore('shipment', {
     async updateBulkStatus(ids: number[], statusId: number): Promise<void> {
       this.loading = true
       this.error = null
+
       try {
         await api.post('/admin/shipments/bulk-status', {
           ids,
@@ -205,6 +196,35 @@ export const useShipmentStore = defineStore('shipment', {
         })
       } catch (e: any) {
         this.error = e.message || 'Failed to update statuses'
+        throw e
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async delete(id: number, password: string): Promise<void> {
+      this.loading = true
+      this.error = null
+      try {
+        await api.delete(`/admin/shipments/${id}`, { data: { password } })
+        this.items = this.items.filter(item => item.id !== id)
+      } catch (e: any) {
+        this.error = e.response?.data?.message || 'Failed to delete shipment'
+        throw e
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // ✅ Password-protected restore
+    async restore(id: number, password: string, trashed = true): Promise<void> {
+      this.loading = true
+      this.error = null
+      try {
+        await api.post(`/admin/shipments/${id}/restore`, { password })
+        await this.fetchItems(this.pagination?.current_page || 1, { trashed })
+      } catch (e: any) {
+        this.error = e.response?.data?.message || 'Failed to restore shipment'
         throw e
       } finally {
         this.loading = false
@@ -219,7 +239,7 @@ export const useShipmentStore = defineStore('shipment', {
       this.search = ''
       this.perPage = 20
       this.sortBy = 'id'
-      this.sortOrder = 'asc'
+      this.sortOrder = 'desc'
       this.statusFilter = ''
     },
   },

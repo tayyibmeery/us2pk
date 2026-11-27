@@ -6,11 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Shipment;
 use App\Models\ShipmentPayment;
 use App\Models\Debtor;
-use App\Models\Voucher;
-use App\Models\Account;
-use Illuminate\Http\Request;
 use App\ShipmentPaymentHelper;
 use App\Services\VoucherService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -31,30 +29,39 @@ class ShipmentPaymentController extends Controller
             'payment_method' => 'nullable|string|max:100',
             'reference_number' => 'nullable|string|max:100',
             'notes' => 'nullable|string',
+            'actual_courier_charges' => 'nullable|numeric|min:0',
         ]);
+
+        if (($validated['payment_method'] ?? '') === 'Cash on Delivery' && !$shipment->date_delivered) {
+            return response()->json([
+                'message' => 'COD payment can only be recorded after the shipment is marked as Delivered.',
+            ], 422);
+        }
 
         DB::beginTransaction();
         try {
-            $payment = $shipment->payments()->create($validated);
-            $this->updateShipmentReceivedAmount($shipment);
-            $shipment->recalculateReceivable();
+            $voucherService = new VoucherService();
 
-            $debtor = Debtor::where('shipment_id', $shipment->id)->first();
-            if ($debtor) {
-                $debtor->applyPayment($validated['amount']);
+            if ($request->filled('actual_courier_charges') && $validated['payment_method'] === 'Cash on Delivery') {
+                $shipment->update([
+                    'delivery_charges' => $validated['actual_courier_charges']
+                ]);
+                $shipment->recalculateReceivable();
+                $voucherService->generateDeliveryChargeVoucher($shipment);
             }
 
-            // Generate voucher for the payment
-            $this->createPaymentVoucher($shipment, $payment);
-
-            DB::commit();
-
-            Log::info('Payment created successfully', [
-                'shipment' => $shipment->shipment_code,
-                'payment_id' => $payment->id,
-                'amount' => $payment->amount
+            $payment = $shipment->payments()->create([
+                'amount' => $validated['amount'],
+                'payment_date' => $validated['payment_date'],
+                'payment_method' => $validated['payment_method'] ?? null,
+                'reference_number' => $validated['reference_number'] ?? null,
+                'notes' => $validated['notes'] ?? null,
             ]);
 
+            $this->updateShipmentReceivedAmount($shipment);
+            $voucherService->generatePaymentVoucher($shipment, $payment);
+
+            DB::commit();
             return response()->json($payment, 201);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -76,42 +83,42 @@ class ShipmentPaymentController extends Controller
             'payment_method' => 'nullable|string|max:100',
             'reference_number' => 'nullable|string|max:100',
             'notes' => 'nullable|string',
+            'actual_courier_charges' => 'nullable|numeric|min:0',
         ]);
+
+        $shipment = $payment->shipment;
+
+        if (($validated['payment_method'] ?? '') === 'Cash on Delivery' && !$shipment->date_delivered) {
+            return response()->json(['message' => 'COD payment can only be recorded after the shipment is Delivered.'], 422);
+        }
 
         DB::beginTransaction();
         try {
-            $oldAmount = $payment->amount;
-            $shipment = $payment->shipment;
+            $voucherService = new VoucherService();
 
-            // Delete old voucher
-            $this->deletePaymentVoucher($payment);
+            // Reverse old vouchers
+            $voucherService->reversePaymentVoucher($payment);
+
+            if ($request->filled('actual_courier_charges') && $validated['payment_method'] === 'Cash on Delivery') {
+                $shipment->update([
+                    'delivery_charges' => $validated['actual_courier_charges']
+                ]);
+                $shipment->recalculateReceivable();
+                $voucherService->generateDeliveryChargeVoucher($shipment);
+            }
 
             $payment->update($validated);
             $this->updateShipmentReceivedAmount($shipment);
-            $shipment->recalculateReceivable();
 
-            $debtor = Debtor::where('shipment_id', $shipment->id)->first();
-            if ($debtor) {
-                $difference = $validated['amount'] - $oldAmount;
-                if ($difference != 0) {
-                    $debtor->amount_due += $difference;
-                    $debtor->balance = $debtor->calculateBalance();
-                    $debtor->save();
-                }
+            // Re-generate new vouchers
+            $voucherService->generatePaymentVoucher($shipment, $payment);
+
+            // ✅ Recalculate revenue AFTER payment is updated
+            if ($shipment && $shipment->date_delivered) {
+                $voucherService->generateDeliveryRevenueVoucher($shipment);
             }
 
-            // Create new voucher with updated amount
-            $this->createPaymentVoucher($shipment, $payment);
-
             DB::commit();
-
-            Log::info('Payment updated successfully', [
-                'shipment' => $shipment->shipment_code,
-                'payment_id' => $payment->id,
-                'old_amount' => $oldAmount,
-                'new_amount' => $payment->amount
-            ]);
-
             return response()->json($payment);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -125,157 +132,26 @@ class ShipmentPaymentController extends Controller
         DB::beginTransaction();
         try {
             $shipment = $payment->shipment;
-            $amount = $payment->amount;
+            $voucherService = new VoucherService();
 
-            Log::info('Deleting payment', [
-                'shipment' => $shipment->shipment_code,
-                'payment_id' => $payment->id,
-                'amount' => $amount,
-                'payment_method' => $payment->payment_method,
-                'notes' => $payment->notes
-            ]);
+            // 1. Reverse the vouchers (remittance + courier fee)
+            $voucherService->reversePaymentVoucher($payment);
 
-            // ✅ DELETE the payment voucher (handles both 'payment' and 'shipment_advance')
-            $this->deletePaymentVoucher($payment);
-
-            // Delete the payment
+            // 2. Delete the payment
             $payment->delete();
-
-            // Recalc received_amount
             $this->updateShipmentReceivedAmount($shipment);
 
-            // Recalculate receivable_cod and amount_due
-            $shipment->recalculateReceivable();
-
-            // Update debtor balance
-            $debtor = Debtor::where('shipment_id', $shipment->id)->first();
-            if ($debtor) {
-                $debtor->amount_due -= $amount;
-                $debtor->balance = $debtor->calculateBalance();
-                $debtor->save();
+            // 3. ✅ Recalculate revenue AFTER deletion so the advance sum is fresh
+            if ($shipment && $shipment->date_delivered) {
+                $voucherService->generateDeliveryRevenueVoucher($shipment);
             }
 
             DB::commit();
-
-            Log::info('Payment deleted successfully', [
-                'shipment' => $shipment->shipment_code,
-                'payment_id' => $payment->id,
-                'amount' => $amount
-            ]);
-
-            return response()->json(['message' => 'Payment and associated voucher deleted successfully']);
+            return response()->json(['message' => 'Payment reversed successfully']);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Payment delete error: ' . $e->getMessage());
             return response()->json(['message' => 'Failed to delete payment: ' . $e->getMessage()], 500);
         }
-    }
-
-    /**
-     * Create a voucher for a payment
-     */
-    private function createPaymentVoucher($shipment, $payment)
-    {
-        $voucherService = new VoucherService();
-
-        // Get account ID - use mapped account from payment method if available
-        $accountId = null;
-        if ($shipment->payment_method_id) {
-            $paymentMethod = \App\Models\PaymentMethod::with('account')->find($shipment->payment_method_id);
-            if ($paymentMethod && $paymentMethod->account_id) {
-                $accountId = $paymentMethod->account_id;
-            }
-        }
-
-        // Fallback to Cash Account if no mapping found
-        if (!$accountId) {
-            $accountId = Account::where('name', 'Cash Account')->value('id');
-        }
-
-        $debtorAccountId = Account::where('name', 'Debtors')->value('id');
-
-        if (!$accountId || !$debtorAccountId) {
-            Log::warning('Missing required accounts for payment voucher');
-            return;
-        }
-
-        $entries = [
-            [
-                'account_id' => $accountId,
-                'debit' => $payment->amount,
-                'credit' => 0,
-                'description' => "Payment received for shipment {$shipment->shipment_code}"
-            ],
-            [
-                'account_id' => $debtorAccountId,
-                'debit' => 0,
-                'credit' => $payment->amount,
-                'description' => "Payment received for shipment {$shipment->shipment_code}"
-            ]
-        ];
-
-        $voucher = $voucherService->generateVoucher(
-            'system',
-            'payment',  // ← This is the reference_type for payment vouchers
-            $payment->id,
-            $payment->payment_date,
-            "Payment of {$payment->amount} for shipment {$shipment->shipment_code}",
-            $entries
-        );
-
-        Log::info('Payment voucher created', [
-            'shipment' => $shipment->shipment_code,
-            'payment_id' => $payment->id,
-            'voucher_no' => $voucher->voucher_no
-        ]);
-
-        return $voucher;
-    }
-
-    /**
-     * Delete a payment voucher
-     * This handles both 'payment' and 'shipment_advance' reference types
-     */
-    private function deletePaymentVoucher($payment)
-    {
-        // First try to find voucher with reference_type = 'payment'
-        $voucher = Voucher::where('reference_type', 'payment')
-            ->where('reference_id', $payment->id)
-            ->first();
-
-        // If not found, try 'shipment_advance' (for initial payments created during shipment creation)
-        if (!$voucher) {
-            $voucher = Voucher::where('reference_type', 'shipment_advance')
-                ->where('reference_id', $payment->shipment_id)
-                ->first();
-        }
-
-        // If still not found, try to find any voucher with this payment_id
-        if (!$voucher) {
-            $voucher = Voucher::where('reference_id', $payment->id)
-                ->whereIn('reference_type', ['payment', 'shipment_advance'])
-                ->first();
-        }
-
-        if ($voucher) {
-            $voucher->details()->delete();
-            $voucher->delete();
-
-            Log::info('Payment voucher deleted', [
-                'payment_id' => $payment->id,
-                'voucher_no' => $voucher->voucher_no,
-                'reference_type' => $voucher->reference_type
-            ]);
-
-            return true;
-        }
-
-        Log::warning('No voucher found for payment', [
-            'payment_id' => $payment->id,
-            'shipment_id' => $payment->shipment_id,
-            'amount' => $payment->amount
-        ]);
-
-        return false;
     }
 }

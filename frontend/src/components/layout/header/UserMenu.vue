@@ -45,15 +45,44 @@
         </div>
       </div>
 
-      <!-- Dropdown Menu Items -->
+      <!-- Dropdown Menu Items - Fixed routes -->
       <ul class="flex flex-col gap-1 pt-3">
-        <li v-for="item in menuItems" :key="item.href">
-          <router-link :to="item.href"
+        <li>
+          <router-link :to="profileRoute"
             class="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300">
-            <component :is="item.icon" class="text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300" />
-            {{ item.text }}
+            <UserCircleIcon class="text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300" />
+            Edit profile
           </router-link>
         </li>
+        <li>
+          <router-link :to="settingsRoute"
+            class="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300">
+            <SettingsIcon class="text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300" />
+            Account settings
+          </router-link>
+        </li>
+        <li v-if="!isAdmin">
+          <router-link to="/user/my-shipments"
+            class="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300">
+            <svg class="w-5 h-5 text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300" fill="none"
+              stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            My Shipments
+          </router-link>
+        </li>
+        <!-- <li v-if="isAdmin">
+          <router-link to="/admin/users"
+            class="flex items-center gap-3 px-3 py-2 font-medium text-gray-700 rounded-lg group text-theme-sm hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300">
+            <svg class="w-5 h-5 text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300" fill="none"
+              stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            Users
+          </router-link>
+        </li> -->
       </ul>
 
       <!-- Sign Out -->
@@ -79,6 +108,16 @@ const dropdownOpen = ref(false)
 const dropdownRef = ref(null)
 
 const user = computed(() => authStore.user)
+const isAdmin = computed(() => authStore.isAdmin)
+
+// ✅ FIX: Dynamic routes based on user role
+const profileRoute = computed(() => {
+  return isAdmin.value ? '/admin/profile' : '/user/profile'
+})
+
+const settingsRoute = computed(() => {
+  return isAdmin.value ? '/admin/settings' : '/user/settings'
+})
 
 const avatarUrl = computed(() => {
   if (user.value?.avatar) {
@@ -92,16 +131,11 @@ const avatarUrl = computed(() => {
 
 const handleImageError = (e) => {
   if (e.target.src.includes('owner.jpg')) {
-    e.target.onerror = null; // stop further error handling
+    e.target.onerror = null;
     return;
   }
   e.target.src = '/images/user/owner.jpg'
 }
-
-const menuItems = [
-  { href: '/profile', icon: UserCircleIcon, text: 'Edit profile' },
-  { href: '/profile', icon: SettingsIcon, text: 'Account settings' },
-]
 
 const toggleDropdown = () => {
   dropdownOpen.value = !dropdownOpen.value
