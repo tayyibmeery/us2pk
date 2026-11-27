@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useToast } from '@/composables/useToast';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://us2pk.com/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   headers: {
     'Accept': 'application/json',
   },
