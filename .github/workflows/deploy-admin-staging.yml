@@ -25,6 +25,9 @@ jobs:
           tools: composer:v2
           extensions: mbstring, bcmath, ctype, fileinfo, openssl, pdo_mysql, tokenizer, xml, curl, zip, gd
 
+      - name: Prepare Laravel cache directory
+        run: mkdir -p bootstrap/cache && chmod -R 775 bootstrap/cache
+
       - name: Install Laravel dependencies
         run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
 
